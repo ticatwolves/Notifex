@@ -1,0 +1,2 @@
+# Notifex
+Notification Management Platform
