@@ -15,7 +15,7 @@ End-2-End notification configuration and sending utility.
 
 ### Installing
 
-- Clone `git clone https://github.com/sbshobhit/Notifex.git`
+- Clone `git clone https://github.com/ticatwolves/Notifex.git`
 - Create and Update .env file
 - docker-compose up 
 
