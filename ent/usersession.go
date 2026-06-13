@@ -4,19 +4,65 @@ package ent
 
 import (
 	"fmt"
+	"notifex/ent/user"
 	"notifex/ent/usersession"
 	"strings"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/google/uuid"
 )
 
 // UserSession is the model entity for the UserSession schema.
 type UserSession struct {
-	config
+	config `json:"-"`
 	// ID of the ent.
-	ID           int `json:"id,omitempty"`
+	ID uuid.UUID `json:"id,omitempty"`
+	// UserID holds the value of the "user_id" field.
+	UserID uuid.UUID `json:"user_id,omitempty"`
+	// SHA-256 hex of the raw refresh token
+	RefreshTokenHash string `json:"-"`
+	// UserAgent holds the value of the "user_agent" field.
+	UserAgent *string `json:"user_agent,omitempty"`
+	// IPv4 or IPv6 of the session creator
+	IPAddress *string `json:"ip_address,omitempty"`
+	// DeviceLabel holds the value of the "device_label" field.
+	DeviceLabel *string `json:"device_label,omitempty"`
+	// Refresh token expiry; default 30 days from creation
+	ExpiresAt time.Time `json:"expires_at,omitempty"`
+	// Revoked holds the value of the "revoked" field.
+	Revoked bool `json:"revoked,omitempty"`
+	// RevokedAt holds the value of the "revoked_at" field.
+	RevokedAt *time.Time `json:"revoked_at,omitempty"`
+	// logout | password_changed | admin_revoke | expired | suspicious
+	RevokeReason *string `json:"revoke_reason,omitempty"`
+	// CreatedAt holds the value of the "created_at" field.
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the UserSessionQuery when eager-loading is set.
+	Edges        UserSessionEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// UserSessionEdges holds the relations/edges for other nodes in the graph.
+type UserSessionEdges struct {
+	// User holds the value of the user edge.
+	User *User `json:"user,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// UserOrErr returns the User value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e UserSessionEdges) UserOrErr() (*User, error) {
+	if e.User != nil {
+		return e.User, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: user.Label}
+	}
+	return nil, &NotLoadedError{edge: "user"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -24,8 +70,14 @@ func (*UserSession) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case usersession.FieldID:
-			values[i] = new(sql.NullInt64)
+		case usersession.FieldRevoked:
+			values[i] = new(sql.NullBool)
+		case usersession.FieldRefreshTokenHash, usersession.FieldUserAgent, usersession.FieldIPAddress, usersession.FieldDeviceLabel, usersession.FieldRevokeReason:
+			values[i] = new(sql.NullString)
+		case usersession.FieldExpiresAt, usersession.FieldRevokedAt, usersession.FieldCreatedAt:
+			values[i] = new(sql.NullTime)
+		case usersession.FieldID, usersession.FieldUserID:
+			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -42,11 +94,76 @@ func (_m *UserSession) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case usersession.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value != nil {
+				_m.ID = *value
 			}
-			_m.ID = int(value.Int64)
+		case usersession.FieldUserID:
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field user_id", values[i])
+			} else if value != nil {
+				_m.UserID = *value
+			}
+		case usersession.FieldRefreshTokenHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field refresh_token_hash", values[i])
+			} else if value.Valid {
+				_m.RefreshTokenHash = value.String
+			}
+		case usersession.FieldUserAgent:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field user_agent", values[i])
+			} else if value.Valid {
+				_m.UserAgent = new(string)
+				*_m.UserAgent = value.String
+			}
+		case usersession.FieldIPAddress:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field ip_address", values[i])
+			} else if value.Valid {
+				_m.IPAddress = new(string)
+				*_m.IPAddress = value.String
+			}
+		case usersession.FieldDeviceLabel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field device_label", values[i])
+			} else if value.Valid {
+				_m.DeviceLabel = new(string)
+				*_m.DeviceLabel = value.String
+			}
+		case usersession.FieldExpiresAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field expires_at", values[i])
+			} else if value.Valid {
+				_m.ExpiresAt = value.Time
+			}
+		case usersession.FieldRevoked:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field revoked", values[i])
+			} else if value.Valid {
+				_m.Revoked = value.Bool
+			}
+		case usersession.FieldRevokedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field revoked_at", values[i])
+			} else if value.Valid {
+				_m.RevokedAt = new(time.Time)
+				*_m.RevokedAt = value.Time
+			}
+		case usersession.FieldRevokeReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field revoke_reason", values[i])
+			} else if value.Valid {
+				_m.RevokeReason = new(string)
+				*_m.RevokeReason = value.String
+			}
+		case usersession.FieldCreatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field created_at", values[i])
+			} else if value.Valid {
+				_m.CreatedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -58,6 +175,11 @@ func (_m *UserSession) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *UserSession) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryUser queries the "user" edge of the UserSession entity.
+func (_m *UserSession) QueryUser() *UserQuery {
+	return NewUserSessionClient(_m.config).QueryUser(_m)
 }
 
 // Update returns a builder for updating this UserSession.
@@ -82,7 +204,45 @@ func (_m *UserSession) Unwrap() *UserSession {
 func (_m *UserSession) String() string {
 	var builder strings.Builder
 	builder.WriteString("UserSession(")
-	builder.WriteString(fmt.Sprintf("id=%v", _m.ID))
+	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
+	builder.WriteString("user_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
+	builder.WriteString(", ")
+	builder.WriteString("refresh_token_hash=<sensitive>")
+	builder.WriteString(", ")
+	if v := _m.UserAgent; v != nil {
+		builder.WriteString("user_agent=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.IPAddress; v != nil {
+		builder.WriteString("ip_address=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.DeviceLabel; v != nil {
+		builder.WriteString("device_label=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("expires_at=")
+	builder.WriteString(_m.ExpiresAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("revoked=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Revoked))
+	builder.WriteString(", ")
+	if v := _m.RevokedAt; v != nil {
+		builder.WriteString("revoked_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.RevokeReason; v != nil {
+		builder.WriteString("revoke_reason=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("created_at=")
+	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
 	builder.WriteByte(')')
 	return builder.String()
 }

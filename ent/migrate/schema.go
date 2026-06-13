@@ -10,120 +10,397 @@ import (
 var (
 	// APIKeysColumns holds the columns for the "api_keys" table.
 	APIKeysColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString, Size: 128},
+		{Name: "key_prefix", Type: field.TypeString, Size: 16},
+		{Name: "key_hash", Type: field.TypeString},
+		{Name: "environment", Type: field.TypeEnum, Enums: []string{"live", "test"}, Default: "live"},
+		{Name: "scopes", Type: field.TypeJSON},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_used_at", Type: field.TypeTime, Nullable: true},
+		{Name: "active", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "app_id", Type: field.TypeUUID},
 	}
 	// APIKeysTable holds the schema information for the "api_keys" table.
 	APIKeysTable = &schema.Table{
 		Name:       "api_keys",
 		Columns:    APIKeysColumns,
 		PrimaryKey: []*schema.Column{APIKeysColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "api_keys_apps_api_keys",
+				Columns:    []*schema.Column{APIKeysColumns[11]},
+				RefColumns: []*schema.Column{AppsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "apikey_key_prefix",
+				Unique:  true,
+				Columns: []*schema.Column{APIKeysColumns[2]},
+			},
+			{
+				Name:    "apikey_app_id_active",
+				Unique:  false,
+				Columns: []*schema.Column{APIKeysColumns[11], APIKeysColumns[8]},
+			},
+			{
+				Name:    "apikey_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{APIKeysColumns[6]},
+			},
+		},
 	}
-	// DeliveryAttemptsColumns holds the columns for the "delivery_attempts" table.
-	DeliveryAttemptsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+	// AppsColumns holds the columns for the "apps" table.
+	AppsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString, Size: 128},
+		{Name: "slug", Type: field.TypeString, Unique: true, Size: 63},
+		{Name: "plan", Type: field.TypeEnum, Enums: []string{"free", "starter", "pro"}, Default: "free"},
+		{Name: "monthly_quota", Type: field.TypeInt, Default: 1000},
+		{Name: "quota_used", Type: field.TypeInt, Default: 0},
+		{Name: "quota_reset_at", Type: field.TypeTime},
+		{Name: "active", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
 	}
-	// DeliveryAttemptsTable holds the schema information for the "delivery_attempts" table.
-	DeliveryAttemptsTable = &schema.Table{
-		Name:       "delivery_attempts",
-		Columns:    DeliveryAttemptsColumns,
-		PrimaryKey: []*schema.Column{DeliveryAttemptsColumns[0]},
+	// AppsTable holds the schema information for the "apps" table.
+	AppsTable = &schema.Table{
+		Name:       "apps",
+		Columns:    AppsColumns,
+		PrimaryKey: []*schema.Column{AppsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "app_slug",
+				Unique:  false,
+				Columns: []*schema.Column{AppsColumns[2]},
+			},
+			{
+				Name:    "app_active",
+				Unique:  false,
+				Columns: []*schema.Column{AppsColumns[7]},
+			},
+		},
+	}
+	// NotificationsColumns holds the columns for the "notifications" table.
+	NotificationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "template_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "data", Type: field.TypeJSON, Nullable: true},
+		{Name: "channels", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "queued", "sending", "delivered", "partial", "failed"}, Default: "pending"},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
+		{Name: "delivered_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "app_id", Type: field.TypeUUID},
+	}
+	// NotificationsTable holds the schema information for the "notifications" table.
+	NotificationsTable = &schema.Table{
+		Name:       "notifications",
+		Columns:    NotificationsColumns,
+		PrimaryKey: []*schema.Column{NotificationsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "notifications_apps_notifications",
+				Columns:    []*schema.Column{NotificationsColumns[9]},
+				RefColumns: []*schema.Column{AppsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uidx_notif_tenant_idempotency",
+				Unique:  true,
+				Columns: []*schema.Column{NotificationsColumns[9]},
+			},
+			{
+				Name:    "notification_status",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationsColumns[4]},
+			},
+			{
+				Name:    "notification_app_id_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationsColumns[9], NotificationsColumns[4], NotificationsColumns[7]},
+			},
+			{
+				Name:    "notification_app_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationsColumns[9], NotificationsColumns[7]},
+			},
+			{
+				Name:    "notification_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationsColumns[7]},
+			},
+		},
 	}
 	// NotificationLogsColumns holds the columns for the "notification_logs" table.
 	NotificationLogsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "notification_id", Type: field.TypeUUID},
+		{Name: "app_id", Type: field.TypeUUID},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"email", "sms", "push", "slack", "teams", "discord", "whatsapp", "webhook"}},
+		{Name: "provider", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "sending", "delivered", "bounced", "failed", "skipped", "expired"}, Default: "pending"},
+		{Name: "provider_message_id", Type: field.TypeString, Nullable: true, Size: 256},
+		{Name: "rendered_subject", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "rendered_body", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
 	}
 	// NotificationLogsTable holds the schema information for the "notification_logs" table.
 	NotificationLogsTable = &schema.Table{
 		Name:       "notification_logs",
 		Columns:    NotificationLogsColumns,
 		PrimaryKey: []*schema.Column{NotificationLogsColumns[0]},
-	}
-	// SecurityAuditLogsColumns holds the columns for the "security_audit_logs" table.
-	SecurityAuditLogsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
-	}
-	// SecurityAuditLogsTable holds the schema information for the "security_audit_logs" table.
-	SecurityAuditLogsTable = &schema.Table{
-		Name:       "security_audit_logs",
-		Columns:    SecurityAuditLogsColumns,
-		PrimaryKey: []*schema.Column{SecurityAuditLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "notificationlog_notification_id_channel",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationLogsColumns[1], NotificationLogsColumns[3]},
+			},
+			{
+				Name:    "notificationlog_app_id_channel_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{NotificationLogsColumns[2], NotificationLogsColumns[3], NotificationLogsColumns[5], NotificationLogsColumns[9]},
+			},
+		},
 	}
 	// TemplatesColumns holds the columns for the "templates" table.
 	TemplatesColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "slug", Type: field.TypeString, Size: 128},
+		{Name: "name", Type: field.TypeString, Size: 256},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "variables", Type: field.TypeJSON, Nullable: true},
+		{Name: "active", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "app_id", Type: field.TypeUUID},
 	}
 	// TemplatesTable holds the schema information for the "templates" table.
 	TemplatesTable = &schema.Table{
 		Name:       "templates",
 		Columns:    TemplatesColumns,
 		PrimaryKey: []*schema.Column{TemplatesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "templates_apps_templates",
+				Columns:    []*schema.Column{TemplatesColumns[8]},
+				RefColumns: []*schema.Column{AppsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uidx_template_tenant_slug",
+				Unique:  true,
+				Columns: []*schema.Column{TemplatesColumns[8], TemplatesColumns[1]},
+			},
+			{
+				Name:    "template_app_id_slug",
+				Unique:  false,
+				Columns: []*schema.Column{TemplatesColumns[8], TemplatesColumns[1]},
+			},
+			{
+				Name:    "template_app_id_active",
+				Unique:  false,
+				Columns: []*schema.Column{TemplatesColumns[8], TemplatesColumns[5]},
+			},
+		},
+	}
+	// TemplateContentsColumns holds the columns for the "template_contents" table.
+	TemplateContentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"email", "sms", "push", "slack", "teams", "discord", "whatsapp", "webhook"}},
+		{Name: "subject", Type: field.TypeString, Nullable: true, Size: 998},
+		{Name: "body_text", Type: field.TypeString, Size: 2147483647},
+		{Name: "body_html", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "extras", Type: field.TypeJSON, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "template_id", Type: field.TypeUUID},
+	}
+	// TemplateContentsTable holds the schema information for the "template_contents" table.
+	TemplateContentsTable = &schema.Table{
+		Name:       "template_contents",
+		Columns:    TemplateContentsColumns,
+		PrimaryKey: []*schema.Column{TemplateContentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "template_contents_templates_contents",
+				Columns:    []*schema.Column{TemplateContentsColumns[8]},
+				RefColumns: []*schema.Column{TemplatesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "uidx_tmpl_content_channel",
+				Unique:  true,
+				Columns: []*schema.Column{TemplateContentsColumns[8], TemplateContentsColumns[1]},
+			},
+		},
 	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "age", Type: field.TypeInt},
-		{Name: "name", Type: field.TypeString, Default: "unknown"},
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "email", Type: field.TypeString, Unique: true, Size: 320},
+		{Name: "full_name", Type: field.TypeString, Size: 256},
+		{Name: "password_hash", Type: field.TypeString, Nullable: true},
+		{Name: "email_verified", Type: field.TypeBool, Default: false},
+		{Name: "active", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{
 		Name:       "users",
 		Columns:    UsersColumns,
 		PrimaryKey: []*schema.Column{UsersColumns[0]},
-	}
-	// UserCredentialsColumns holds the columns for the "user_credentials" table.
-	UserCredentialsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
-	}
-	// UserCredentialsTable holds the schema information for the "user_credentials" table.
-	UserCredentialsTable = &schema.Table{
-		Name:       "user_credentials",
-		Columns:    UserCredentialsColumns,
-		PrimaryKey: []*schema.Column{UserCredentialsColumns[0]},
-	}
-	// UserPreferencesColumns holds the columns for the "user_preferences" table.
-	UserPreferencesColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
-	}
-	// UserPreferencesTable holds the schema information for the "user_preferences" table.
-	UserPreferencesTable = &schema.Table{
-		Name:       "user_preferences",
-		Columns:    UserPreferencesColumns,
-		PrimaryKey: []*schema.Column{UserPreferencesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "user_email",
+				Unique:  true,
+				Columns: []*schema.Column{UsersColumns[1]},
+			},
+		},
 	}
 	// UserSessionsColumns holds the columns for the "user_sessions" table.
 	UserSessionsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "refresh_token_hash", Type: field.TypeString, Unique: true, Size: 64},
+		{Name: "user_agent", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "ip_address", Type: field.TypeString, Nullable: true, Size: 45},
+		{Name: "device_label", Type: field.TypeString, Nullable: true, Size: 256},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "revoked", Type: field.TypeBool, Default: false},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "revoke_reason", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "user_id", Type: field.TypeUUID},
 	}
 	// UserSessionsTable holds the schema information for the "user_sessions" table.
 	UserSessionsTable = &schema.Table{
 		Name:       "user_sessions",
 		Columns:    UserSessionsColumns,
 		PrimaryKey: []*schema.Column{UserSessionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_sessions_users_sessions",
+				Columns:    []*schema.Column{UserSessionsColumns[10]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "usersession_refresh_token_hash",
+				Unique:  true,
+				Columns: []*schema.Column{UserSessionsColumns[1]},
+			},
+			{
+				Name:    "usersession_user_id_revoked_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{UserSessionsColumns[10], UserSessionsColumns[6], UserSessionsColumns[5]},
+			},
+			{
+				Name:    "usersession_expires_at_revoked",
+				Unique:  false,
+				Columns: []*schema.Column{UserSessionsColumns[5], UserSessionsColumns[6]},
+			},
+		},
 	}
-	// WorkspacesColumns holds the columns for the "workspaces" table.
-	WorkspacesColumns = []*schema.Column{
+	// VerificationTokensColumns holds the columns for the "verification_tokens" table.
+	VerificationTokensColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 	}
-	// WorkspacesTable holds the schema information for the "workspaces" table.
-	WorkspacesTable = &schema.Table{
-		Name:       "workspaces",
-		Columns:    WorkspacesColumns,
-		PrimaryKey: []*schema.Column{WorkspacesColumns[0]},
+	// VerificationTokensTable holds the schema information for the "verification_tokens" table.
+	VerificationTokensTable = &schema.Table{
+		Name:       "verification_tokens",
+		Columns:    VerificationTokensColumns,
+		PrimaryKey: []*schema.Column{VerificationTokensColumns[0]},
+	}
+	// AppNotificationlogColumns holds the columns for the "app_notificationlog" table.
+	AppNotificationlogColumns = []*schema.Column{
+		{Name: "app_id", Type: field.TypeUUID},
+		{Name: "notification_log_id", Type: field.TypeUUID},
+	}
+	// AppNotificationlogTable holds the schema information for the "app_notificationlog" table.
+	AppNotificationlogTable = &schema.Table{
+		Name:       "app_notificationlog",
+		Columns:    AppNotificationlogColumns,
+		PrimaryKey: []*schema.Column{AppNotificationlogColumns[0], AppNotificationlogColumns[1]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "app_notificationlog_app_id",
+				Columns:    []*schema.Column{AppNotificationlogColumns[0]},
+				RefColumns: []*schema.Column{AppsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+			{
+				Symbol:     "app_notificationlog_notification_log_id",
+				Columns:    []*schema.Column{AppNotificationlogColumns[1]},
+				RefColumns: []*schema.Column{NotificationLogsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+	}
+	// NotificationNotificationlogColumns holds the columns for the "notification_notificationlog" table.
+	NotificationNotificationlogColumns = []*schema.Column{
+		{Name: "notification_id", Type: field.TypeUUID},
+		{Name: "notification_log_id", Type: field.TypeUUID},
+	}
+	// NotificationNotificationlogTable holds the schema information for the "notification_notificationlog" table.
+	NotificationNotificationlogTable = &schema.Table{
+		Name:       "notification_notificationlog",
+		Columns:    NotificationNotificationlogColumns,
+		PrimaryKey: []*schema.Column{NotificationNotificationlogColumns[0], NotificationNotificationlogColumns[1]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "notification_notificationlog_notification_id",
+				Columns:    []*schema.Column{NotificationNotificationlogColumns[0]},
+				RefColumns: []*schema.Column{NotificationsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+			{
+				Symbol:     "notification_notificationlog_notification_log_id",
+				Columns:    []*schema.Column{NotificationNotificationlogColumns[1]},
+				RefColumns: []*schema.Column{NotificationLogsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APIKeysTable,
-		DeliveryAttemptsTable,
+		AppsTable,
+		NotificationsTable,
 		NotificationLogsTable,
-		SecurityAuditLogsTable,
 		TemplatesTable,
+		TemplateContentsTable,
 		UsersTable,
-		UserCredentialsTable,
-		UserPreferencesTable,
 		UserSessionsTable,
-		WorkspacesTable,
+		VerificationTokensTable,
+		AppNotificationlogTable,
+		NotificationNotificationlogTable,
 	}
 )
 
 func init() {
+	APIKeysTable.ForeignKeys[0].RefTable = AppsTable
+	NotificationsTable.ForeignKeys[0].RefTable = AppsTable
+	TemplatesTable.ForeignKeys[0].RefTable = AppsTable
+	TemplateContentsTable.ForeignKeys[0].RefTable = TemplatesTable
+	UserSessionsTable.ForeignKeys[0].RefTable = UsersTable
+	AppNotificationlogTable.ForeignKeys[0].RefTable = AppsTable
+	AppNotificationlogTable.ForeignKeys[1].RefTable = NotificationLogsTable
+	NotificationNotificationlogTable.ForeignKeys[0].RefTable = NotificationsTable
+	NotificationNotificationlogTable.ForeignKeys[1].RefTable = NotificationLogsTable
 }

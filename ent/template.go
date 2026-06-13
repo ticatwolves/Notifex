@@ -3,20 +3,75 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
+	"notifex/ent/app"
+	"notifex/ent/schema"
 	"notifex/ent/template"
 	"strings"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/google/uuid"
 )
 
 // Template is the model entity for the Template schema.
 type Template struct {
-	config
+	config `json:"-"`
 	// ID of the ent.
-	ID           int `json:"id,omitempty"`
+	ID uuid.UUID `json:"id,omitempty"`
+	// AppID holds the value of the "app_id" field.
+	AppID uuid.UUID `json:"app_id,omitempty"`
+	// Slug holds the value of the "slug" field.
+	Slug string `json:"slug,omitempty"`
+	// Human display name
+	Name string `json:"name,omitempty"`
+	// Description holds the value of the "description" field.
+	Description string `json:"description,omitempty"`
+	// Declared input variables for validation
+	Variables []schema.TemplateVariable `json:"variables,omitempty"`
+	// Active holds the value of the "active" field.
+	Active bool `json:"active,omitempty"`
+	// CreatedAt holds the value of the "created_at" field.
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// UpdatedAt holds the value of the "updated_at" field.
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the TemplateQuery when eager-loading is set.
+	Edges        TemplateEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// TemplateEdges holds the relations/edges for other nodes in the graph.
+type TemplateEdges struct {
+	// App holds the value of the app edge.
+	App *App `json:"app,omitempty"`
+	// Contents holds the value of the contents edge.
+	Contents []*TemplateContent `json:"contents,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [2]bool
+}
+
+// AppOrErr returns the App value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e TemplateEdges) AppOrErr() (*App, error) {
+	if e.App != nil {
+		return e.App, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: app.Label}
+	}
+	return nil, &NotLoadedError{edge: "app"}
+}
+
+// ContentsOrErr returns the Contents value or an error if the edge
+// was not loaded in eager-loading.
+func (e TemplateEdges) ContentsOrErr() ([]*TemplateContent, error) {
+	if e.loadedTypes[1] {
+		return e.Contents, nil
+	}
+	return nil, &NotLoadedError{edge: "contents"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -24,8 +79,16 @@ func (*Template) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case template.FieldID:
-			values[i] = new(sql.NullInt64)
+		case template.FieldVariables:
+			values[i] = new([]byte)
+		case template.FieldActive:
+			values[i] = new(sql.NullBool)
+		case template.FieldSlug, template.FieldName, template.FieldDescription:
+			values[i] = new(sql.NullString)
+		case template.FieldCreatedAt, template.FieldUpdatedAt:
+			values[i] = new(sql.NullTime)
+		case template.FieldID, template.FieldAppID:
+			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -42,11 +105,61 @@ func (_m *Template) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case template.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value != nil {
+				_m.ID = *value
 			}
-			_m.ID = int(value.Int64)
+		case template.FieldAppID:
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field app_id", values[i])
+			} else if value != nil {
+				_m.AppID = *value
+			}
+		case template.FieldSlug:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field slug", values[i])
+			} else if value.Valid {
+				_m.Slug = value.String
+			}
+		case template.FieldName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field name", values[i])
+			} else if value.Valid {
+				_m.Name = value.String
+			}
+		case template.FieldDescription:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field description", values[i])
+			} else if value.Valid {
+				_m.Description = value.String
+			}
+		case template.FieldVariables:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field variables", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Variables); err != nil {
+					return fmt.Errorf("unmarshal field variables: %w", err)
+				}
+			}
+		case template.FieldActive:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field active", values[i])
+			} else if value.Valid {
+				_m.Active = value.Bool
+			}
+		case template.FieldCreatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field created_at", values[i])
+			} else if value.Valid {
+				_m.CreatedAt = value.Time
+			}
+		case template.FieldUpdatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
+			} else if value.Valid {
+				_m.UpdatedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -58,6 +171,16 @@ func (_m *Template) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *Template) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryApp queries the "app" edge of the Template entity.
+func (_m *Template) QueryApp() *AppQuery {
+	return NewTemplateClient(_m.config).QueryApp(_m)
+}
+
+// QueryContents queries the "contents" edge of the Template entity.
+func (_m *Template) QueryContents() *TemplateContentQuery {
+	return NewTemplateClient(_m.config).QueryContents(_m)
 }
 
 // Update returns a builder for updating this Template.
@@ -82,7 +205,30 @@ func (_m *Template) Unwrap() *Template {
 func (_m *Template) String() string {
 	var builder strings.Builder
 	builder.WriteString("Template(")
-	builder.WriteString(fmt.Sprintf("id=%v", _m.ID))
+	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
+	builder.WriteString("app_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AppID))
+	builder.WriteString(", ")
+	builder.WriteString("slug=")
+	builder.WriteString(_m.Slug)
+	builder.WriteString(", ")
+	builder.WriteString("name=")
+	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	builder.WriteString("description=")
+	builder.WriteString(_m.Description)
+	builder.WriteString(", ")
+	builder.WriteString("variables=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Variables))
+	builder.WriteString(", ")
+	builder.WriteString("active=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Active))
+	builder.WriteString(", ")
+	builder.WriteString("created_at=")
+	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("updated_at=")
+	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
 	builder.WriteByte(')')
 	return builder.String()
 }

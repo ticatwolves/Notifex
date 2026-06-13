@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"notifex/ent/notificationlog"
 	"notifex/ent/predicate"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -27,6 +28,120 @@ func (_u *NotificationLogUpdate) Where(ps ...predicate.NotificationLog) *Notific
 	return _u
 }
 
+// SetChannel sets the "channel" field.
+func (_u *NotificationLogUpdate) SetChannel(v notificationlog.Channel) *NotificationLogUpdate {
+	_u.mutation.SetChannel(v)
+	return _u
+}
+
+// SetNillableChannel sets the "channel" field if the given value is not nil.
+func (_u *NotificationLogUpdate) SetNillableChannel(v *notificationlog.Channel) *NotificationLogUpdate {
+	if v != nil {
+		_u.SetChannel(*v)
+	}
+	return _u
+}
+
+// SetProvider sets the "provider" field.
+func (_u *NotificationLogUpdate) SetProvider(v string) *NotificationLogUpdate {
+	_u.mutation.SetProvider(v)
+	return _u
+}
+
+// SetNillableProvider sets the "provider" field if the given value is not nil.
+func (_u *NotificationLogUpdate) SetNillableProvider(v *string) *NotificationLogUpdate {
+	if v != nil {
+		_u.SetProvider(*v)
+	}
+	return _u
+}
+
+// ClearProvider clears the value of the "provider" field.
+func (_u *NotificationLogUpdate) ClearProvider() *NotificationLogUpdate {
+	_u.mutation.ClearProvider()
+	return _u
+}
+
+// SetStatus sets the "status" field.
+func (_u *NotificationLogUpdate) SetStatus(v notificationlog.Status) *NotificationLogUpdate {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *NotificationLogUpdate) SetNillableStatus(v *notificationlog.Status) *NotificationLogUpdate {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetProviderMessageID sets the "provider_message_id" field.
+func (_u *NotificationLogUpdate) SetProviderMessageID(v string) *NotificationLogUpdate {
+	_u.mutation.SetProviderMessageID(v)
+	return _u
+}
+
+// SetNillableProviderMessageID sets the "provider_message_id" field if the given value is not nil.
+func (_u *NotificationLogUpdate) SetNillableProviderMessageID(v *string) *NotificationLogUpdate {
+	if v != nil {
+		_u.SetProviderMessageID(*v)
+	}
+	return _u
+}
+
+// ClearProviderMessageID clears the value of the "provider_message_id" field.
+func (_u *NotificationLogUpdate) ClearProviderMessageID() *NotificationLogUpdate {
+	_u.mutation.ClearProviderMessageID()
+	return _u
+}
+
+// SetRenderedSubject sets the "rendered_subject" field.
+func (_u *NotificationLogUpdate) SetRenderedSubject(v string) *NotificationLogUpdate {
+	_u.mutation.SetRenderedSubject(v)
+	return _u
+}
+
+// SetNillableRenderedSubject sets the "rendered_subject" field if the given value is not nil.
+func (_u *NotificationLogUpdate) SetNillableRenderedSubject(v *string) *NotificationLogUpdate {
+	if v != nil {
+		_u.SetRenderedSubject(*v)
+	}
+	return _u
+}
+
+// ClearRenderedSubject clears the value of the "rendered_subject" field.
+func (_u *NotificationLogUpdate) ClearRenderedSubject() *NotificationLogUpdate {
+	_u.mutation.ClearRenderedSubject()
+	return _u
+}
+
+// SetRenderedBody sets the "rendered_body" field.
+func (_u *NotificationLogUpdate) SetRenderedBody(v string) *NotificationLogUpdate {
+	_u.mutation.SetRenderedBody(v)
+	return _u
+}
+
+// SetNillableRenderedBody sets the "rendered_body" field if the given value is not nil.
+func (_u *NotificationLogUpdate) SetNillableRenderedBody(v *string) *NotificationLogUpdate {
+	if v != nil {
+		_u.SetRenderedBody(*v)
+	}
+	return _u
+}
+
+// ClearRenderedBody clears the value of the "rendered_body" field.
+func (_u *NotificationLogUpdate) ClearRenderedBody() *NotificationLogUpdate {
+	_u.mutation.ClearRenderedBody()
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *NotificationLogUpdate) SetUpdatedAt(v time.Time) *NotificationLogUpdate {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
 // Mutation returns the NotificationLogMutation object of the builder.
 func (_u *NotificationLogUpdate) Mutation() *NotificationLogMutation {
 	return _u.mutation
@@ -34,6 +149,7 @@ func (_u *NotificationLogUpdate) Mutation() *NotificationLogMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *NotificationLogUpdate) Save(ctx context.Context) (int, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -59,14 +175,83 @@ func (_u *NotificationLogUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_u *NotificationLogUpdate) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := notificationlog.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
+	}
+}
+
+// check runs all checks and user-defined validators on the builder.
+func (_u *NotificationLogUpdate) check() error {
+	if v, ok := _u.mutation.Channel(); ok {
+		if err := notificationlog.ChannelValidator(v); err != nil {
+			return &ValidationError{Name: "channel", err: fmt.Errorf(`ent: validator failed for field "NotificationLog.channel": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Provider(); ok {
+		if err := notificationlog.ProviderValidator(v); err != nil {
+			return &ValidationError{Name: "provider", err: fmt.Errorf(`ent: validator failed for field "NotificationLog.provider": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Status(); ok {
+		if err := notificationlog.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "NotificationLog.status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ProviderMessageID(); ok {
+		if err := notificationlog.ProviderMessageIDValidator(v); err != nil {
+			return &ValidationError{Name: "provider_message_id", err: fmt.Errorf(`ent: validator failed for field "NotificationLog.provider_message_id": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *NotificationLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
-	_spec := sqlgraph.NewUpdateSpec(notificationlog.Table, notificationlog.Columns, sqlgraph.NewFieldSpec(notificationlog.FieldID, field.TypeInt))
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
+	_spec := sqlgraph.NewUpdateSpec(notificationlog.Table, notificationlog.Columns, sqlgraph.NewFieldSpec(notificationlog.FieldID, field.TypeUUID))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Channel(); ok {
+		_spec.SetField(notificationlog.FieldChannel, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Provider(); ok {
+		_spec.SetField(notificationlog.FieldProvider, field.TypeString, value)
+	}
+	if _u.mutation.ProviderCleared() {
+		_spec.ClearField(notificationlog.FieldProvider, field.TypeString)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(notificationlog.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ProviderMessageID(); ok {
+		_spec.SetField(notificationlog.FieldProviderMessageID, field.TypeString, value)
+	}
+	if _u.mutation.ProviderMessageIDCleared() {
+		_spec.ClearField(notificationlog.FieldProviderMessageID, field.TypeString)
+	}
+	if value, ok := _u.mutation.RenderedSubject(); ok {
+		_spec.SetField(notificationlog.FieldRenderedSubject, field.TypeString, value)
+	}
+	if _u.mutation.RenderedSubjectCleared() {
+		_spec.ClearField(notificationlog.FieldRenderedSubject, field.TypeString)
+	}
+	if value, ok := _u.mutation.RenderedBody(); ok {
+		_spec.SetField(notificationlog.FieldRenderedBody, field.TypeString, value)
+	}
+	if _u.mutation.RenderedBodyCleared() {
+		_spec.ClearField(notificationlog.FieldRenderedBody, field.TypeString)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(notificationlog.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -86,6 +271,120 @@ type NotificationLogUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *NotificationLogMutation
+}
+
+// SetChannel sets the "channel" field.
+func (_u *NotificationLogUpdateOne) SetChannel(v notificationlog.Channel) *NotificationLogUpdateOne {
+	_u.mutation.SetChannel(v)
+	return _u
+}
+
+// SetNillableChannel sets the "channel" field if the given value is not nil.
+func (_u *NotificationLogUpdateOne) SetNillableChannel(v *notificationlog.Channel) *NotificationLogUpdateOne {
+	if v != nil {
+		_u.SetChannel(*v)
+	}
+	return _u
+}
+
+// SetProvider sets the "provider" field.
+func (_u *NotificationLogUpdateOne) SetProvider(v string) *NotificationLogUpdateOne {
+	_u.mutation.SetProvider(v)
+	return _u
+}
+
+// SetNillableProvider sets the "provider" field if the given value is not nil.
+func (_u *NotificationLogUpdateOne) SetNillableProvider(v *string) *NotificationLogUpdateOne {
+	if v != nil {
+		_u.SetProvider(*v)
+	}
+	return _u
+}
+
+// ClearProvider clears the value of the "provider" field.
+func (_u *NotificationLogUpdateOne) ClearProvider() *NotificationLogUpdateOne {
+	_u.mutation.ClearProvider()
+	return _u
+}
+
+// SetStatus sets the "status" field.
+func (_u *NotificationLogUpdateOne) SetStatus(v notificationlog.Status) *NotificationLogUpdateOne {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *NotificationLogUpdateOne) SetNillableStatus(v *notificationlog.Status) *NotificationLogUpdateOne {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetProviderMessageID sets the "provider_message_id" field.
+func (_u *NotificationLogUpdateOne) SetProviderMessageID(v string) *NotificationLogUpdateOne {
+	_u.mutation.SetProviderMessageID(v)
+	return _u
+}
+
+// SetNillableProviderMessageID sets the "provider_message_id" field if the given value is not nil.
+func (_u *NotificationLogUpdateOne) SetNillableProviderMessageID(v *string) *NotificationLogUpdateOne {
+	if v != nil {
+		_u.SetProviderMessageID(*v)
+	}
+	return _u
+}
+
+// ClearProviderMessageID clears the value of the "provider_message_id" field.
+func (_u *NotificationLogUpdateOne) ClearProviderMessageID() *NotificationLogUpdateOne {
+	_u.mutation.ClearProviderMessageID()
+	return _u
+}
+
+// SetRenderedSubject sets the "rendered_subject" field.
+func (_u *NotificationLogUpdateOne) SetRenderedSubject(v string) *NotificationLogUpdateOne {
+	_u.mutation.SetRenderedSubject(v)
+	return _u
+}
+
+// SetNillableRenderedSubject sets the "rendered_subject" field if the given value is not nil.
+func (_u *NotificationLogUpdateOne) SetNillableRenderedSubject(v *string) *NotificationLogUpdateOne {
+	if v != nil {
+		_u.SetRenderedSubject(*v)
+	}
+	return _u
+}
+
+// ClearRenderedSubject clears the value of the "rendered_subject" field.
+func (_u *NotificationLogUpdateOne) ClearRenderedSubject() *NotificationLogUpdateOne {
+	_u.mutation.ClearRenderedSubject()
+	return _u
+}
+
+// SetRenderedBody sets the "rendered_body" field.
+func (_u *NotificationLogUpdateOne) SetRenderedBody(v string) *NotificationLogUpdateOne {
+	_u.mutation.SetRenderedBody(v)
+	return _u
+}
+
+// SetNillableRenderedBody sets the "rendered_body" field if the given value is not nil.
+func (_u *NotificationLogUpdateOne) SetNillableRenderedBody(v *string) *NotificationLogUpdateOne {
+	if v != nil {
+		_u.SetRenderedBody(*v)
+	}
+	return _u
+}
+
+// ClearRenderedBody clears the value of the "rendered_body" field.
+func (_u *NotificationLogUpdateOne) ClearRenderedBody() *NotificationLogUpdateOne {
+	_u.mutation.ClearRenderedBody()
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *NotificationLogUpdateOne) SetUpdatedAt(v time.Time) *NotificationLogUpdateOne {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
 }
 
 // Mutation returns the NotificationLogMutation object of the builder.
@@ -108,6 +407,7 @@ func (_u *NotificationLogUpdateOne) Select(field string, fields ...string) *Noti
 
 // Save executes the query and returns the updated NotificationLog entity.
 func (_u *NotificationLogUpdateOne) Save(ctx context.Context) (*NotificationLog, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -133,8 +433,44 @@ func (_u *NotificationLogUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_u *NotificationLogUpdateOne) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := notificationlog.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
+	}
+}
+
+// check runs all checks and user-defined validators on the builder.
+func (_u *NotificationLogUpdateOne) check() error {
+	if v, ok := _u.mutation.Channel(); ok {
+		if err := notificationlog.ChannelValidator(v); err != nil {
+			return &ValidationError{Name: "channel", err: fmt.Errorf(`ent: validator failed for field "NotificationLog.channel": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Provider(); ok {
+		if err := notificationlog.ProviderValidator(v); err != nil {
+			return &ValidationError{Name: "provider", err: fmt.Errorf(`ent: validator failed for field "NotificationLog.provider": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Status(); ok {
+		if err := notificationlog.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "NotificationLog.status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ProviderMessageID(); ok {
+		if err := notificationlog.ProviderMessageIDValidator(v); err != nil {
+			return &ValidationError{Name: "provider_message_id", err: fmt.Errorf(`ent: validator failed for field "NotificationLog.provider_message_id": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *NotificationLogUpdateOne) sqlSave(ctx context.Context) (_node *NotificationLog, err error) {
-	_spec := sqlgraph.NewUpdateSpec(notificationlog.Table, notificationlog.Columns, sqlgraph.NewFieldSpec(notificationlog.FieldID, field.TypeInt))
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
+	_spec := sqlgraph.NewUpdateSpec(notificationlog.Table, notificationlog.Columns, sqlgraph.NewFieldSpec(notificationlog.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "NotificationLog.id" for update`)}
@@ -158,6 +494,39 @@ func (_u *NotificationLogUpdateOne) sqlSave(ctx context.Context) (_node *Notific
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Channel(); ok {
+		_spec.SetField(notificationlog.FieldChannel, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Provider(); ok {
+		_spec.SetField(notificationlog.FieldProvider, field.TypeString, value)
+	}
+	if _u.mutation.ProviderCleared() {
+		_spec.ClearField(notificationlog.FieldProvider, field.TypeString)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(notificationlog.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ProviderMessageID(); ok {
+		_spec.SetField(notificationlog.FieldProviderMessageID, field.TypeString, value)
+	}
+	if _u.mutation.ProviderMessageIDCleared() {
+		_spec.ClearField(notificationlog.FieldProviderMessageID, field.TypeString)
+	}
+	if value, ok := _u.mutation.RenderedSubject(); ok {
+		_spec.SetField(notificationlog.FieldRenderedSubject, field.TypeString, value)
+	}
+	if _u.mutation.RenderedSubjectCleared() {
+		_spec.ClearField(notificationlog.FieldRenderedSubject, field.TypeString)
+	}
+	if value, ok := _u.mutation.RenderedBody(); ok {
+		_spec.SetField(notificationlog.FieldRenderedBody, field.TypeString, value)
+	}
+	if _u.mutation.RenderedBodyCleared() {
+		_spec.ClearField(notificationlog.FieldRenderedBody, field.TypeString)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(notificationlog.FieldUpdatedAt, field.TypeTime, value)
 	}
 	_node = &NotificationLog{config: _u.config}
 	_spec.Assign = _node.assignValues

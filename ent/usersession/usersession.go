@@ -3,7 +3,11 @@
 package usersession
 
 import (
+	"time"
+
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/google/uuid"
 )
 
 const (
@@ -11,13 +15,52 @@ const (
 	Label = "user_session"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
+	// FieldUserID holds the string denoting the user_id field in the database.
+	FieldUserID = "user_id"
+	// FieldRefreshTokenHash holds the string denoting the refresh_token_hash field in the database.
+	FieldRefreshTokenHash = "refresh_token_hash"
+	// FieldUserAgent holds the string denoting the user_agent field in the database.
+	FieldUserAgent = "user_agent"
+	// FieldIPAddress holds the string denoting the ip_address field in the database.
+	FieldIPAddress = "ip_address"
+	// FieldDeviceLabel holds the string denoting the device_label field in the database.
+	FieldDeviceLabel = "device_label"
+	// FieldExpiresAt holds the string denoting the expires_at field in the database.
+	FieldExpiresAt = "expires_at"
+	// FieldRevoked holds the string denoting the revoked field in the database.
+	FieldRevoked = "revoked"
+	// FieldRevokedAt holds the string denoting the revoked_at field in the database.
+	FieldRevokedAt = "revoked_at"
+	// FieldRevokeReason holds the string denoting the revoke_reason field in the database.
+	FieldRevokeReason = "revoke_reason"
+	// FieldCreatedAt holds the string denoting the created_at field in the database.
+	FieldCreatedAt = "created_at"
+	// EdgeUser holds the string denoting the user edge name in mutations.
+	EdgeUser = "user"
 	// Table holds the table name of the usersession in the database.
 	Table = "user_sessions"
+	// UserTable is the table that holds the user relation/edge.
+	UserTable = "user_sessions"
+	// UserInverseTable is the table name for the User entity.
+	// It exists in this package in order to avoid circular dependency with the "user" package.
+	UserInverseTable = "users"
+	// UserColumn is the table column denoting the user relation/edge.
+	UserColumn = "user_id"
 )
 
 // Columns holds all SQL columns for usersession fields.
 var Columns = []string{
 	FieldID,
+	FieldUserID,
+	FieldRefreshTokenHash,
+	FieldUserAgent,
+	FieldIPAddress,
+	FieldDeviceLabel,
+	FieldExpiresAt,
+	FieldRevoked,
+	FieldRevokedAt,
+	FieldRevokeReason,
+	FieldCreatedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -30,10 +73,93 @@ func ValidColumn(column string) bool {
 	return false
 }
 
+var (
+	// RefreshTokenHashValidator is a validator for the "refresh_token_hash" field. It is called by the builders before save.
+	RefreshTokenHashValidator func(string) error
+	// UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
+	UserAgentValidator func(string) error
+	// IPAddressValidator is a validator for the "ip_address" field. It is called by the builders before save.
+	IPAddressValidator func(string) error
+	// DeviceLabelValidator is a validator for the "device_label" field. It is called by the builders before save.
+	DeviceLabelValidator func(string) error
+	// DefaultRevoked holds the default value on creation for the "revoked" field.
+	DefaultRevoked bool
+	// RevokeReasonValidator is a validator for the "revoke_reason" field. It is called by the builders before save.
+	RevokeReasonValidator func(string) error
+	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
+	DefaultCreatedAt func() time.Time
+	// DefaultID holds the default value on creation for the "id" field.
+	DefaultID func() uuid.UUID
+)
+
 // OrderOption defines the ordering options for the UserSession queries.
 type OrderOption func(*sql.Selector)
 
 // ByID orders the results by the id field.
 func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
+}
+
+// ByUserID orders the results by the user_id field.
+func ByUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUserID, opts...).ToFunc()
+}
+
+// ByRefreshTokenHash orders the results by the refresh_token_hash field.
+func ByRefreshTokenHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRefreshTokenHash, opts...).ToFunc()
+}
+
+// ByUserAgent orders the results by the user_agent field.
+func ByUserAgent(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUserAgent, opts...).ToFunc()
+}
+
+// ByIPAddress orders the results by the ip_address field.
+func ByIPAddress(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIPAddress, opts...).ToFunc()
+}
+
+// ByDeviceLabel orders the results by the device_label field.
+func ByDeviceLabel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeviceLabel, opts...).ToFunc()
+}
+
+// ByExpiresAt orders the results by the expires_at field.
+func ByExpiresAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpiresAt, opts...).ToFunc()
+}
+
+// ByRevoked orders the results by the revoked field.
+func ByRevoked(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRevoked, opts...).ToFunc()
+}
+
+// ByRevokedAt orders the results by the revoked_at field.
+func ByRevokedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRevokedAt, opts...).ToFunc()
+}
+
+// ByRevokeReason orders the results by the revoke_reason field.
+func ByRevokeReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRevokeReason, opts...).ToFunc()
+}
+
+// ByCreatedAt orders the results by the created_at field.
+func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByUserField orders the results by user field.
+func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newUserStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(UserInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, UserTable, UserColumn),
+	)
 }

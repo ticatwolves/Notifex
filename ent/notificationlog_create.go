@@ -4,11 +4,16 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"notifex/ent/app"
+	"notifex/ent/notification"
 	"notifex/ent/notificationlog"
+	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // NotificationLogCreate is the builder for creating a NotificationLog entity.
@@ -18,6 +23,166 @@ type NotificationLogCreate struct {
 	hooks    []Hook
 }
 
+// SetNotificationID sets the "notification_id" field.
+func (_c *NotificationLogCreate) SetNotificationID(v uuid.UUID) *NotificationLogCreate {
+	_c.mutation.SetNotificationID(v)
+	return _c
+}
+
+// SetAppID sets the "app_id" field.
+func (_c *NotificationLogCreate) SetAppID(v uuid.UUID) *NotificationLogCreate {
+	_c.mutation.SetAppID(v)
+	return _c
+}
+
+// SetChannel sets the "channel" field.
+func (_c *NotificationLogCreate) SetChannel(v notificationlog.Channel) *NotificationLogCreate {
+	_c.mutation.SetChannel(v)
+	return _c
+}
+
+// SetProvider sets the "provider" field.
+func (_c *NotificationLogCreate) SetProvider(v string) *NotificationLogCreate {
+	_c.mutation.SetProvider(v)
+	return _c
+}
+
+// SetNillableProvider sets the "provider" field if the given value is not nil.
+func (_c *NotificationLogCreate) SetNillableProvider(v *string) *NotificationLogCreate {
+	if v != nil {
+		_c.SetProvider(*v)
+	}
+	return _c
+}
+
+// SetStatus sets the "status" field.
+func (_c *NotificationLogCreate) SetStatus(v notificationlog.Status) *NotificationLogCreate {
+	_c.mutation.SetStatus(v)
+	return _c
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_c *NotificationLogCreate) SetNillableStatus(v *notificationlog.Status) *NotificationLogCreate {
+	if v != nil {
+		_c.SetStatus(*v)
+	}
+	return _c
+}
+
+// SetProviderMessageID sets the "provider_message_id" field.
+func (_c *NotificationLogCreate) SetProviderMessageID(v string) *NotificationLogCreate {
+	_c.mutation.SetProviderMessageID(v)
+	return _c
+}
+
+// SetNillableProviderMessageID sets the "provider_message_id" field if the given value is not nil.
+func (_c *NotificationLogCreate) SetNillableProviderMessageID(v *string) *NotificationLogCreate {
+	if v != nil {
+		_c.SetProviderMessageID(*v)
+	}
+	return _c
+}
+
+// SetRenderedSubject sets the "rendered_subject" field.
+func (_c *NotificationLogCreate) SetRenderedSubject(v string) *NotificationLogCreate {
+	_c.mutation.SetRenderedSubject(v)
+	return _c
+}
+
+// SetNillableRenderedSubject sets the "rendered_subject" field if the given value is not nil.
+func (_c *NotificationLogCreate) SetNillableRenderedSubject(v *string) *NotificationLogCreate {
+	if v != nil {
+		_c.SetRenderedSubject(*v)
+	}
+	return _c
+}
+
+// SetRenderedBody sets the "rendered_body" field.
+func (_c *NotificationLogCreate) SetRenderedBody(v string) *NotificationLogCreate {
+	_c.mutation.SetRenderedBody(v)
+	return _c
+}
+
+// SetNillableRenderedBody sets the "rendered_body" field if the given value is not nil.
+func (_c *NotificationLogCreate) SetNillableRenderedBody(v *string) *NotificationLogCreate {
+	if v != nil {
+		_c.SetRenderedBody(*v)
+	}
+	return _c
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (_c *NotificationLogCreate) SetCreatedAt(v time.Time) *NotificationLogCreate {
+	_c.mutation.SetCreatedAt(v)
+	return _c
+}
+
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
+func (_c *NotificationLogCreate) SetNillableCreatedAt(v *time.Time) *NotificationLogCreate {
+	if v != nil {
+		_c.SetCreatedAt(*v)
+	}
+	return _c
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_c *NotificationLogCreate) SetUpdatedAt(v time.Time) *NotificationLogCreate {
+	_c.mutation.SetUpdatedAt(v)
+	return _c
+}
+
+// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
+func (_c *NotificationLogCreate) SetNillableUpdatedAt(v *time.Time) *NotificationLogCreate {
+	if v != nil {
+		_c.SetUpdatedAt(*v)
+	}
+	return _c
+}
+
+// SetID sets the "id" field.
+func (_c *NotificationLogCreate) SetID(v uuid.UUID) *NotificationLogCreate {
+	_c.mutation.SetID(v)
+	return _c
+}
+
+// SetNillableID sets the "id" field if the given value is not nil.
+func (_c *NotificationLogCreate) SetNillableID(v *uuid.UUID) *NotificationLogCreate {
+	if v != nil {
+		_c.SetID(*v)
+	}
+	return _c
+}
+
+// AddNotificationIDs adds the "notification" edge to the Notification entity by IDs.
+func (_c *NotificationLogCreate) AddNotificationIDs(ids ...uuid.UUID) *NotificationLogCreate {
+	_c.mutation.AddNotificationIDs(ids...)
+	return _c
+}
+
+// AddNotification adds the "notification" edges to the Notification entity.
+func (_c *NotificationLogCreate) AddNotification(v ...*Notification) *NotificationLogCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddNotificationIDs(ids...)
+}
+
+// AddAppIDs adds the "app" edge to the App entity by IDs.
+func (_c *NotificationLogCreate) AddAppIDs(ids ...uuid.UUID) *NotificationLogCreate {
+	_c.mutation.AddAppIDs(ids...)
+	return _c
+}
+
+// AddApp adds the "app" edges to the App entity.
+func (_c *NotificationLogCreate) AddApp(v ...*App) *NotificationLogCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAppIDs(ids...)
+}
+
 // Mutation returns the NotificationLogMutation object of the builder.
 func (_c *NotificationLogCreate) Mutation() *NotificationLogMutation {
 	return _c.mutation
@@ -25,6 +190,7 @@ func (_c *NotificationLogCreate) Mutation() *NotificationLogMutation {
 
 // Save creates the NotificationLog in the database.
 func (_c *NotificationLogCreate) Save(ctx context.Context) (*NotificationLog, error) {
+	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -50,8 +216,72 @@ func (_c *NotificationLogCreate) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_c *NotificationLogCreate) defaults() {
+	if _, ok := _c.mutation.Status(); !ok {
+		v := notificationlog.DefaultStatus
+		_c.mutation.SetStatus(v)
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		v := notificationlog.DefaultCreatedAt()
+		_c.mutation.SetCreatedAt(v)
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		v := notificationlog.DefaultUpdatedAt()
+		_c.mutation.SetUpdatedAt(v)
+	}
+	if _, ok := _c.mutation.ID(); !ok {
+		v := notificationlog.DefaultID()
+		_c.mutation.SetID(v)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (_c *NotificationLogCreate) check() error {
+	if _, ok := _c.mutation.NotificationID(); !ok {
+		return &ValidationError{Name: "notification_id", err: errors.New(`ent: missing required field "NotificationLog.notification_id"`)}
+	}
+	if _, ok := _c.mutation.AppID(); !ok {
+		return &ValidationError{Name: "app_id", err: errors.New(`ent: missing required field "NotificationLog.app_id"`)}
+	}
+	if _, ok := _c.mutation.Channel(); !ok {
+		return &ValidationError{Name: "channel", err: errors.New(`ent: missing required field "NotificationLog.channel"`)}
+	}
+	if v, ok := _c.mutation.Channel(); ok {
+		if err := notificationlog.ChannelValidator(v); err != nil {
+			return &ValidationError{Name: "channel", err: fmt.Errorf(`ent: validator failed for field "NotificationLog.channel": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.Provider(); ok {
+		if err := notificationlog.ProviderValidator(v); err != nil {
+			return &ValidationError{Name: "provider", err: fmt.Errorf(`ent: validator failed for field "NotificationLog.provider": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Status(); !ok {
+		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "NotificationLog.status"`)}
+	}
+	if v, ok := _c.mutation.Status(); ok {
+		if err := notificationlog.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "NotificationLog.status": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.ProviderMessageID(); ok {
+		if err := notificationlog.ProviderMessageIDValidator(v); err != nil {
+			return &ValidationError{Name: "provider_message_id", err: fmt.Errorf(`ent: validator failed for field "NotificationLog.provider_message_id": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "NotificationLog.created_at"`)}
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "NotificationLog.updated_at"`)}
+	}
+	if len(_c.mutation.NotificationIDs()) == 0 {
+		return &ValidationError{Name: "notification", err: errors.New(`ent: missing required edge "NotificationLog.notification"`)}
+	}
+	if len(_c.mutation.AppIDs()) == 0 {
+		return &ValidationError{Name: "app", err: errors.New(`ent: missing required edge "NotificationLog.app"`)}
+	}
 	return nil
 }
 
@@ -66,8 +296,13 @@ func (_c *NotificationLogCreate) sqlSave(ctx context.Context) (*NotificationLog,
 		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
+	if _spec.ID.Value != nil {
+		if id, ok := _spec.ID.Value.(*uuid.UUID); ok {
+			_node.ID = *id
+		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
+			return nil, err
+		}
+	}
 	_c.mutation.id = &_node.ID
 	_c.mutation.done = true
 	return _node, nil
@@ -76,8 +311,84 @@ func (_c *NotificationLogCreate) sqlSave(ctx context.Context) (*NotificationLog,
 func (_c *NotificationLogCreate) createSpec() (*NotificationLog, *sqlgraph.CreateSpec) {
 	var (
 		_node = &NotificationLog{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(notificationlog.Table, sqlgraph.NewFieldSpec(notificationlog.FieldID, field.TypeInt))
+		_spec = sqlgraph.NewCreateSpec(notificationlog.Table, sqlgraph.NewFieldSpec(notificationlog.FieldID, field.TypeUUID))
 	)
+	if id, ok := _c.mutation.ID(); ok {
+		_node.ID = id
+		_spec.ID.Value = &id
+	}
+	if value, ok := _c.mutation.NotificationID(); ok {
+		_spec.SetField(notificationlog.FieldNotificationID, field.TypeUUID, value)
+		_node.NotificationID = value
+	}
+	if value, ok := _c.mutation.AppID(); ok {
+		_spec.SetField(notificationlog.FieldAppID, field.TypeUUID, value)
+		_node.AppID = value
+	}
+	if value, ok := _c.mutation.Channel(); ok {
+		_spec.SetField(notificationlog.FieldChannel, field.TypeEnum, value)
+		_node.Channel = value
+	}
+	if value, ok := _c.mutation.Provider(); ok {
+		_spec.SetField(notificationlog.FieldProvider, field.TypeString, value)
+		_node.Provider = &value
+	}
+	if value, ok := _c.mutation.Status(); ok {
+		_spec.SetField(notificationlog.FieldStatus, field.TypeEnum, value)
+		_node.Status = value
+	}
+	if value, ok := _c.mutation.ProviderMessageID(); ok {
+		_spec.SetField(notificationlog.FieldProviderMessageID, field.TypeString, value)
+		_node.ProviderMessageID = &value
+	}
+	if value, ok := _c.mutation.RenderedSubject(); ok {
+		_spec.SetField(notificationlog.FieldRenderedSubject, field.TypeString, value)
+		_node.RenderedSubject = &value
+	}
+	if value, ok := _c.mutation.RenderedBody(); ok {
+		_spec.SetField(notificationlog.FieldRenderedBody, field.TypeString, value)
+		_node.RenderedBody = &value
+	}
+	if value, ok := _c.mutation.CreatedAt(); ok {
+		_spec.SetField(notificationlog.FieldCreatedAt, field.TypeTime, value)
+		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.UpdatedAt(); ok {
+		_spec.SetField(notificationlog.FieldUpdatedAt, field.TypeTime, value)
+		_node.UpdatedAt = value
+	}
+	if nodes := _c.mutation.NotificationIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   notificationlog.NotificationTable,
+			Columns: notificationlog.NotificationPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(notification.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AppIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   notificationlog.AppTable,
+			Columns: notificationlog.AppPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(app.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -99,6 +410,7 @@ func (_c *NotificationLogCreateBulk) Save(ctx context.Context) ([]*NotificationL
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
+			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 				mutation, ok := m.(*NotificationLogMutation)
 				if !ok {
@@ -125,10 +437,6 @@ func (_c *NotificationLogCreateBulk) Save(ctx context.Context) ([]*NotificationL
 					return nil, err
 				}
 				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
 				mutation.done = true
 				return nodes[i], nil
 			})

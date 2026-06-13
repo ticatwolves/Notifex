@@ -6,17 +6,71 @@ import (
 	"fmt"
 	"notifex/ent/notificationlog"
 	"strings"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/google/uuid"
 )
 
 // NotificationLog is the model entity for the NotificationLog schema.
 type NotificationLog struct {
-	config
+	config `json:"-"`
 	// ID of the ent.
-	ID           int `json:"id,omitempty"`
+	ID uuid.UUID `json:"id,omitempty"`
+	// NotificationID holds the value of the "notification_id" field.
+	NotificationID uuid.UUID `json:"notification_id,omitempty"`
+	// AppID holds the value of the "app_id" field.
+	AppID uuid.UUID `json:"app_id,omitempty"`
+	// Channel holds the value of the "channel" field.
+	Channel notificationlog.Channel `json:"channel,omitempty"`
+	// Provider holds the value of the "provider" field.
+	Provider *string `json:"provider,omitempty"`
+	// Status holds the value of the "status" field.
+	Status notificationlog.Status `json:"status,omitempty"`
+	// e.g. SES MessageId, Twilio SID, FCM message_id
+	ProviderMessageID *string `json:"provider_message_id,omitempty"`
+	// RenderedSubject holds the value of the "rendered_subject" field.
+	RenderedSubject *string `json:"rendered_subject,omitempty"`
+	// First 2048 bytes of rendered body, for audit
+	RenderedBody *string `json:"rendered_body,omitempty"`
+	// CreatedAt holds the value of the "created_at" field.
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// UpdatedAt holds the value of the "updated_at" field.
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the NotificationLogQuery when eager-loading is set.
+	Edges        NotificationLogEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// NotificationLogEdges holds the relations/edges for other nodes in the graph.
+type NotificationLogEdges struct {
+	// Notification holds the value of the notification edge.
+	Notification []*Notification `json:"notification,omitempty"`
+	// App holds the value of the app edge.
+	App []*App `json:"app,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [2]bool
+}
+
+// NotificationOrErr returns the Notification value or an error if the edge
+// was not loaded in eager-loading.
+func (e NotificationLogEdges) NotificationOrErr() ([]*Notification, error) {
+	if e.loadedTypes[0] {
+		return e.Notification, nil
+	}
+	return nil, &NotLoadedError{edge: "notification"}
+}
+
+// AppOrErr returns the App value or an error if the edge
+// was not loaded in eager-loading.
+func (e NotificationLogEdges) AppOrErr() ([]*App, error) {
+	if e.loadedTypes[1] {
+		return e.App, nil
+	}
+	return nil, &NotLoadedError{edge: "app"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -24,8 +78,12 @@ func (*NotificationLog) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case notificationlog.FieldID:
-			values[i] = new(sql.NullInt64)
+		case notificationlog.FieldChannel, notificationlog.FieldProvider, notificationlog.FieldStatus, notificationlog.FieldProviderMessageID, notificationlog.FieldRenderedSubject, notificationlog.FieldRenderedBody:
+			values[i] = new(sql.NullString)
+		case notificationlog.FieldCreatedAt, notificationlog.FieldUpdatedAt:
+			values[i] = new(sql.NullTime)
+		case notificationlog.FieldID, notificationlog.FieldNotificationID, notificationlog.FieldAppID:
+			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -42,11 +100,75 @@ func (_m *NotificationLog) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case notificationlog.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value != nil {
+				_m.ID = *value
 			}
-			_m.ID = int(value.Int64)
+		case notificationlog.FieldNotificationID:
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field notification_id", values[i])
+			} else if value != nil {
+				_m.NotificationID = *value
+			}
+		case notificationlog.FieldAppID:
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field app_id", values[i])
+			} else if value != nil {
+				_m.AppID = *value
+			}
+		case notificationlog.FieldChannel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field channel", values[i])
+			} else if value.Valid {
+				_m.Channel = notificationlog.Channel(value.String)
+			}
+		case notificationlog.FieldProvider:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field provider", values[i])
+			} else if value.Valid {
+				_m.Provider = new(string)
+				*_m.Provider = value.String
+			}
+		case notificationlog.FieldStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field status", values[i])
+			} else if value.Valid {
+				_m.Status = notificationlog.Status(value.String)
+			}
+		case notificationlog.FieldProviderMessageID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field provider_message_id", values[i])
+			} else if value.Valid {
+				_m.ProviderMessageID = new(string)
+				*_m.ProviderMessageID = value.String
+			}
+		case notificationlog.FieldRenderedSubject:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field rendered_subject", values[i])
+			} else if value.Valid {
+				_m.RenderedSubject = new(string)
+				*_m.RenderedSubject = value.String
+			}
+		case notificationlog.FieldRenderedBody:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field rendered_body", values[i])
+			} else if value.Valid {
+				_m.RenderedBody = new(string)
+				*_m.RenderedBody = value.String
+			}
+		case notificationlog.FieldCreatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field created_at", values[i])
+			} else if value.Valid {
+				_m.CreatedAt = value.Time
+			}
+		case notificationlog.FieldUpdatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
+			} else if value.Valid {
+				_m.UpdatedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -58,6 +180,16 @@ func (_m *NotificationLog) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *NotificationLog) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryNotification queries the "notification" edge of the NotificationLog entity.
+func (_m *NotificationLog) QueryNotification() *NotificationQuery {
+	return NewNotificationLogClient(_m.config).QueryNotification(_m)
+}
+
+// QueryApp queries the "app" edge of the NotificationLog entity.
+func (_m *NotificationLog) QueryApp() *AppQuery {
+	return NewNotificationLogClient(_m.config).QueryApp(_m)
 }
 
 // Update returns a builder for updating this NotificationLog.
@@ -82,7 +214,44 @@ func (_m *NotificationLog) Unwrap() *NotificationLog {
 func (_m *NotificationLog) String() string {
 	var builder strings.Builder
 	builder.WriteString("NotificationLog(")
-	builder.WriteString(fmt.Sprintf("id=%v", _m.ID))
+	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
+	builder.WriteString("notification_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.NotificationID))
+	builder.WriteString(", ")
+	builder.WriteString("app_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AppID))
+	builder.WriteString(", ")
+	builder.WriteString("channel=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Channel))
+	builder.WriteString(", ")
+	if v := _m.Provider; v != nil {
+		builder.WriteString("provider=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("status=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	if v := _m.ProviderMessageID; v != nil {
+		builder.WriteString("provider_message_id=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.RenderedSubject; v != nil {
+		builder.WriteString("rendered_subject=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.RenderedBody; v != nil {
+		builder.WriteString("rendered_body=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("created_at=")
+	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("updated_at=")
+	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
 	builder.WriteByte(')')
 	return builder.String()
 }

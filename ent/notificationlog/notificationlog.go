@@ -3,7 +3,12 @@
 package notificationlog
 
 import (
+	"fmt"
+	"time"
+
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/google/uuid"
 )
 
 const (
@@ -11,14 +16,67 @@ const (
 	Label = "notification_log"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
+	// FieldNotificationID holds the string denoting the notification_id field in the database.
+	FieldNotificationID = "notification_id"
+	// FieldAppID holds the string denoting the app_id field in the database.
+	FieldAppID = "app_id"
+	// FieldChannel holds the string denoting the channel field in the database.
+	FieldChannel = "channel"
+	// FieldProvider holds the string denoting the provider field in the database.
+	FieldProvider = "provider"
+	// FieldStatus holds the string denoting the status field in the database.
+	FieldStatus = "status"
+	// FieldProviderMessageID holds the string denoting the provider_message_id field in the database.
+	FieldProviderMessageID = "provider_message_id"
+	// FieldRenderedSubject holds the string denoting the rendered_subject field in the database.
+	FieldRenderedSubject = "rendered_subject"
+	// FieldRenderedBody holds the string denoting the rendered_body field in the database.
+	FieldRenderedBody = "rendered_body"
+	// FieldCreatedAt holds the string denoting the created_at field in the database.
+	FieldCreatedAt = "created_at"
+	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
+	FieldUpdatedAt = "updated_at"
+	// EdgeNotification holds the string denoting the notification edge name in mutations.
+	EdgeNotification = "notification"
+	// EdgeApp holds the string denoting the app edge name in mutations.
+	EdgeApp = "app"
 	// Table holds the table name of the notificationlog in the database.
 	Table = "notification_logs"
+	// NotificationTable is the table that holds the notification relation/edge. The primary key declared below.
+	NotificationTable = "notification_notificationlog"
+	// NotificationInverseTable is the table name for the Notification entity.
+	// It exists in this package in order to avoid circular dependency with the "notification" package.
+	NotificationInverseTable = "notifications"
+	// AppTable is the table that holds the app relation/edge. The primary key declared below.
+	AppTable = "app_notificationlog"
+	// AppInverseTable is the table name for the App entity.
+	// It exists in this package in order to avoid circular dependency with the "app" package.
+	AppInverseTable = "apps"
 )
 
 // Columns holds all SQL columns for notificationlog fields.
 var Columns = []string{
 	FieldID,
+	FieldNotificationID,
+	FieldAppID,
+	FieldChannel,
+	FieldProvider,
+	FieldStatus,
+	FieldProviderMessageID,
+	FieldRenderedSubject,
+	FieldRenderedBody,
+	FieldCreatedAt,
+	FieldUpdatedAt,
 }
+
+var (
+	// NotificationPrimaryKey and NotificationColumn2 are the table columns denoting the
+	// primary key for the notification relation (M2M).
+	NotificationPrimaryKey = []string{"notification_id", "notification_log_id"}
+	// AppPrimaryKey and AppColumn2 are the table columns denoting the
+	// primary key for the app relation (M2M).
+	AppPrimaryKey = []string{"app_id", "notification_log_id"}
+)
 
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
@@ -30,10 +88,177 @@ func ValidColumn(column string) bool {
 	return false
 }
 
+var (
+	// ProviderValidator is a validator for the "provider" field. It is called by the builders before save.
+	ProviderValidator func(string) error
+	// ProviderMessageIDValidator is a validator for the "provider_message_id" field. It is called by the builders before save.
+	ProviderMessageIDValidator func(string) error
+	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
+	DefaultCreatedAt func() time.Time
+	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
+	DefaultUpdatedAt func() time.Time
+	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
+	UpdateDefaultUpdatedAt func() time.Time
+	// DefaultID holds the default value on creation for the "id" field.
+	DefaultID func() uuid.UUID
+)
+
+// Channel defines the type for the "channel" enum field.
+type Channel string
+
+// Channel values.
+const (
+	ChannelEmail    Channel = "email"
+	ChannelSms      Channel = "sms"
+	ChannelPush     Channel = "push"
+	ChannelSlack    Channel = "slack"
+	ChannelTeams    Channel = "teams"
+	ChannelDiscord  Channel = "discord"
+	ChannelWhatsapp Channel = "whatsapp"
+	ChannelWebhook  Channel = "webhook"
+)
+
+func (c Channel) String() string {
+	return string(c)
+}
+
+// ChannelValidator is a validator for the "channel" field enum values. It is called by the builders before save.
+func ChannelValidator(c Channel) error {
+	switch c {
+	case ChannelEmail, ChannelSms, ChannelPush, ChannelSlack, ChannelTeams, ChannelDiscord, ChannelWhatsapp, ChannelWebhook:
+		return nil
+	default:
+		return fmt.Errorf("notificationlog: invalid enum value for channel field: %q", c)
+	}
+}
+
+// Status defines the type for the "status" enum field.
+type Status string
+
+// StatusPending is the default value of the Status enum.
+const DefaultStatus = StatusPending
+
+// Status values.
+const (
+	StatusPending   Status = "pending"
+	StatusSending   Status = "sending"
+	StatusDelivered Status = "delivered"
+	StatusBounced   Status = "bounced"
+	StatusFailed    Status = "failed"
+	StatusSkipped   Status = "skipped"
+	StatusExpired   Status = "expired"
+)
+
+func (s Status) String() string {
+	return string(s)
+}
+
+// StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
+func StatusValidator(s Status) error {
+	switch s {
+	case StatusPending, StatusSending, StatusDelivered, StatusBounced, StatusFailed, StatusSkipped, StatusExpired:
+		return nil
+	default:
+		return fmt.Errorf("notificationlog: invalid enum value for status field: %q", s)
+	}
+}
+
 // OrderOption defines the ordering options for the NotificationLog queries.
 type OrderOption func(*sql.Selector)
 
 // ByID orders the results by the id field.
 func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
+}
+
+// ByNotificationID orders the results by the notification_id field.
+func ByNotificationID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNotificationID, opts...).ToFunc()
+}
+
+// ByAppID orders the results by the app_id field.
+func ByAppID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAppID, opts...).ToFunc()
+}
+
+// ByChannel orders the results by the channel field.
+func ByChannel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChannel, opts...).ToFunc()
+}
+
+// ByProvider orders the results by the provider field.
+func ByProvider(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProvider, opts...).ToFunc()
+}
+
+// ByStatus orders the results by the status field.
+func ByStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByProviderMessageID orders the results by the provider_message_id field.
+func ByProviderMessageID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProviderMessageID, opts...).ToFunc()
+}
+
+// ByRenderedSubject orders the results by the rendered_subject field.
+func ByRenderedSubject(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRenderedSubject, opts...).ToFunc()
+}
+
+// ByRenderedBody orders the results by the rendered_body field.
+func ByRenderedBody(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRenderedBody, opts...).ToFunc()
+}
+
+// ByCreatedAt orders the results by the created_at field.
+func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByUpdatedAt orders the results by the updated_at field.
+func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByNotificationCount orders the results by notification count.
+func ByNotificationCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newNotificationStep(), opts...)
+	}
+}
+
+// ByNotification orders the results by notification terms.
+func ByNotification(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newNotificationStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByAppCount orders the results by app count.
+func ByAppCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAppStep(), opts...)
+	}
+}
+
+// ByApp orders the results by app terms.
+func ByApp(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAppStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newNotificationStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(NotificationInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2M, true, NotificationTable, NotificationPrimaryKey...),
+	)
+}
+func newAppStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AppInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2M, true, AppTable, AppPrimaryKey...),
+	)
 }

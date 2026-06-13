@@ -4,11 +4,15 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"notifex/ent/user"
 	"notifex/ent/usersession"
+	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // UserSessionCreate is the builder for creating a UserSession entity.
@@ -18,6 +22,141 @@ type UserSessionCreate struct {
 	hooks    []Hook
 }
 
+// SetUserID sets the "user_id" field.
+func (_c *UserSessionCreate) SetUserID(v uuid.UUID) *UserSessionCreate {
+	_c.mutation.SetUserID(v)
+	return _c
+}
+
+// SetRefreshTokenHash sets the "refresh_token_hash" field.
+func (_c *UserSessionCreate) SetRefreshTokenHash(v string) *UserSessionCreate {
+	_c.mutation.SetRefreshTokenHash(v)
+	return _c
+}
+
+// SetUserAgent sets the "user_agent" field.
+func (_c *UserSessionCreate) SetUserAgent(v string) *UserSessionCreate {
+	_c.mutation.SetUserAgent(v)
+	return _c
+}
+
+// SetNillableUserAgent sets the "user_agent" field if the given value is not nil.
+func (_c *UserSessionCreate) SetNillableUserAgent(v *string) *UserSessionCreate {
+	if v != nil {
+		_c.SetUserAgent(*v)
+	}
+	return _c
+}
+
+// SetIPAddress sets the "ip_address" field.
+func (_c *UserSessionCreate) SetIPAddress(v string) *UserSessionCreate {
+	_c.mutation.SetIPAddress(v)
+	return _c
+}
+
+// SetNillableIPAddress sets the "ip_address" field if the given value is not nil.
+func (_c *UserSessionCreate) SetNillableIPAddress(v *string) *UserSessionCreate {
+	if v != nil {
+		_c.SetIPAddress(*v)
+	}
+	return _c
+}
+
+// SetDeviceLabel sets the "device_label" field.
+func (_c *UserSessionCreate) SetDeviceLabel(v string) *UserSessionCreate {
+	_c.mutation.SetDeviceLabel(v)
+	return _c
+}
+
+// SetNillableDeviceLabel sets the "device_label" field if the given value is not nil.
+func (_c *UserSessionCreate) SetNillableDeviceLabel(v *string) *UserSessionCreate {
+	if v != nil {
+		_c.SetDeviceLabel(*v)
+	}
+	return _c
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (_c *UserSessionCreate) SetExpiresAt(v time.Time) *UserSessionCreate {
+	_c.mutation.SetExpiresAt(v)
+	return _c
+}
+
+// SetRevoked sets the "revoked" field.
+func (_c *UserSessionCreate) SetRevoked(v bool) *UserSessionCreate {
+	_c.mutation.SetRevoked(v)
+	return _c
+}
+
+// SetNillableRevoked sets the "revoked" field if the given value is not nil.
+func (_c *UserSessionCreate) SetNillableRevoked(v *bool) *UserSessionCreate {
+	if v != nil {
+		_c.SetRevoked(*v)
+	}
+	return _c
+}
+
+// SetRevokedAt sets the "revoked_at" field.
+func (_c *UserSessionCreate) SetRevokedAt(v time.Time) *UserSessionCreate {
+	_c.mutation.SetRevokedAt(v)
+	return _c
+}
+
+// SetNillableRevokedAt sets the "revoked_at" field if the given value is not nil.
+func (_c *UserSessionCreate) SetNillableRevokedAt(v *time.Time) *UserSessionCreate {
+	if v != nil {
+		_c.SetRevokedAt(*v)
+	}
+	return _c
+}
+
+// SetRevokeReason sets the "revoke_reason" field.
+func (_c *UserSessionCreate) SetRevokeReason(v string) *UserSessionCreate {
+	_c.mutation.SetRevokeReason(v)
+	return _c
+}
+
+// SetNillableRevokeReason sets the "revoke_reason" field if the given value is not nil.
+func (_c *UserSessionCreate) SetNillableRevokeReason(v *string) *UserSessionCreate {
+	if v != nil {
+		_c.SetRevokeReason(*v)
+	}
+	return _c
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (_c *UserSessionCreate) SetCreatedAt(v time.Time) *UserSessionCreate {
+	_c.mutation.SetCreatedAt(v)
+	return _c
+}
+
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
+func (_c *UserSessionCreate) SetNillableCreatedAt(v *time.Time) *UserSessionCreate {
+	if v != nil {
+		_c.SetCreatedAt(*v)
+	}
+	return _c
+}
+
+// SetID sets the "id" field.
+func (_c *UserSessionCreate) SetID(v uuid.UUID) *UserSessionCreate {
+	_c.mutation.SetID(v)
+	return _c
+}
+
+// SetNillableID sets the "id" field if the given value is not nil.
+func (_c *UserSessionCreate) SetNillableID(v *uuid.UUID) *UserSessionCreate {
+	if v != nil {
+		_c.SetID(*v)
+	}
+	return _c
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (_c *UserSessionCreate) SetUser(v *User) *UserSessionCreate {
+	return _c.SetUserID(v.ID)
+}
+
 // Mutation returns the UserSessionMutation object of the builder.
 func (_c *UserSessionCreate) Mutation() *UserSessionMutation {
 	return _c.mutation
@@ -25,6 +164,7 @@ func (_c *UserSessionCreate) Mutation() *UserSessionMutation {
 
 // Save creates the UserSession in the database.
 func (_c *UserSessionCreate) Save(ctx context.Context) (*UserSession, error) {
+	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -50,8 +190,67 @@ func (_c *UserSessionCreate) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_c *UserSessionCreate) defaults() {
+	if _, ok := _c.mutation.Revoked(); !ok {
+		v := usersession.DefaultRevoked
+		_c.mutation.SetRevoked(v)
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		v := usersession.DefaultCreatedAt()
+		_c.mutation.SetCreatedAt(v)
+	}
+	if _, ok := _c.mutation.ID(); !ok {
+		v := usersession.DefaultID()
+		_c.mutation.SetID(v)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (_c *UserSessionCreate) check() error {
+	if _, ok := _c.mutation.UserID(); !ok {
+		return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "UserSession.user_id"`)}
+	}
+	if _, ok := _c.mutation.RefreshTokenHash(); !ok {
+		return &ValidationError{Name: "refresh_token_hash", err: errors.New(`ent: missing required field "UserSession.refresh_token_hash"`)}
+	}
+	if v, ok := _c.mutation.RefreshTokenHash(); ok {
+		if err := usersession.RefreshTokenHashValidator(v); err != nil {
+			return &ValidationError{Name: "refresh_token_hash", err: fmt.Errorf(`ent: validator failed for field "UserSession.refresh_token_hash": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.UserAgent(); ok {
+		if err := usersession.UserAgentValidator(v); err != nil {
+			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UserSession.user_agent": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.IPAddress(); ok {
+		if err := usersession.IPAddressValidator(v); err != nil {
+			return &ValidationError{Name: "ip_address", err: fmt.Errorf(`ent: validator failed for field "UserSession.ip_address": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.DeviceLabel(); ok {
+		if err := usersession.DeviceLabelValidator(v); err != nil {
+			return &ValidationError{Name: "device_label", err: fmt.Errorf(`ent: validator failed for field "UserSession.device_label": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ExpiresAt(); !ok {
+		return &ValidationError{Name: "expires_at", err: errors.New(`ent: missing required field "UserSession.expires_at"`)}
+	}
+	if _, ok := _c.mutation.Revoked(); !ok {
+		return &ValidationError{Name: "revoked", err: errors.New(`ent: missing required field "UserSession.revoked"`)}
+	}
+	if v, ok := _c.mutation.RevokeReason(); ok {
+		if err := usersession.RevokeReasonValidator(v); err != nil {
+			return &ValidationError{Name: "revoke_reason", err: fmt.Errorf(`ent: validator failed for field "UserSession.revoke_reason": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "UserSession.created_at"`)}
+	}
+	if len(_c.mutation.UserIDs()) == 0 {
+		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "UserSession.user"`)}
+	}
 	return nil
 }
 
@@ -66,8 +265,13 @@ func (_c *UserSessionCreate) sqlSave(ctx context.Context) (*UserSession, error) 
 		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
+	if _spec.ID.Value != nil {
+		if id, ok := _spec.ID.Value.(*uuid.UUID); ok {
+			_node.ID = *id
+		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
+			return nil, err
+		}
+	}
 	_c.mutation.id = &_node.ID
 	_c.mutation.done = true
 	return _node, nil
@@ -76,8 +280,65 @@ func (_c *UserSessionCreate) sqlSave(ctx context.Context) (*UserSession, error) 
 func (_c *UserSessionCreate) createSpec() (*UserSession, *sqlgraph.CreateSpec) {
 	var (
 		_node = &UserSession{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(usersession.Table, sqlgraph.NewFieldSpec(usersession.FieldID, field.TypeInt))
+		_spec = sqlgraph.NewCreateSpec(usersession.Table, sqlgraph.NewFieldSpec(usersession.FieldID, field.TypeUUID))
 	)
+	if id, ok := _c.mutation.ID(); ok {
+		_node.ID = id
+		_spec.ID.Value = &id
+	}
+	if value, ok := _c.mutation.RefreshTokenHash(); ok {
+		_spec.SetField(usersession.FieldRefreshTokenHash, field.TypeString, value)
+		_node.RefreshTokenHash = value
+	}
+	if value, ok := _c.mutation.UserAgent(); ok {
+		_spec.SetField(usersession.FieldUserAgent, field.TypeString, value)
+		_node.UserAgent = &value
+	}
+	if value, ok := _c.mutation.IPAddress(); ok {
+		_spec.SetField(usersession.FieldIPAddress, field.TypeString, value)
+		_node.IPAddress = &value
+	}
+	if value, ok := _c.mutation.DeviceLabel(); ok {
+		_spec.SetField(usersession.FieldDeviceLabel, field.TypeString, value)
+		_node.DeviceLabel = &value
+	}
+	if value, ok := _c.mutation.ExpiresAt(); ok {
+		_spec.SetField(usersession.FieldExpiresAt, field.TypeTime, value)
+		_node.ExpiresAt = value
+	}
+	if value, ok := _c.mutation.Revoked(); ok {
+		_spec.SetField(usersession.FieldRevoked, field.TypeBool, value)
+		_node.Revoked = value
+	}
+	if value, ok := _c.mutation.RevokedAt(); ok {
+		_spec.SetField(usersession.FieldRevokedAt, field.TypeTime, value)
+		_node.RevokedAt = &value
+	}
+	if value, ok := _c.mutation.RevokeReason(); ok {
+		_spec.SetField(usersession.FieldRevokeReason, field.TypeString, value)
+		_node.RevokeReason = &value
+	}
+	if value, ok := _c.mutation.CreatedAt(); ok {
+		_spec.SetField(usersession.FieldCreatedAt, field.TypeTime, value)
+		_node.CreatedAt = value
+	}
+	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   usersession.UserTable,
+			Columns: []string{usersession.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.UserID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -99,6 +360,7 @@ func (_c *UserSessionCreateBulk) Save(ctx context.Context) ([]*UserSession, erro
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
+			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 				mutation, ok := m.(*UserSessionMutation)
 				if !ok {
@@ -125,10 +387,6 @@ func (_c *UserSessionCreateBulk) Save(ctx context.Context) ([]*UserSession, erro
 					return nil, err
 				}
 				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
 				mutation.done = true
 				return nodes[i], nil
 			})

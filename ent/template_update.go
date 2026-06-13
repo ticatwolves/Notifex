@@ -7,11 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"notifex/ent/predicate"
+	"notifex/ent/schema"
 	"notifex/ent/template"
+	"notifex/ent/templatecontent"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // TemplateUpdate is the builder for updating Template entities.
@@ -27,13 +32,136 @@ func (_u *TemplateUpdate) Where(ps ...predicate.Template) *TemplateUpdate {
 	return _u
 }
 
+// SetSlug sets the "slug" field.
+func (_u *TemplateUpdate) SetSlug(v string) *TemplateUpdate {
+	_u.mutation.SetSlug(v)
+	return _u
+}
+
+// SetNillableSlug sets the "slug" field if the given value is not nil.
+func (_u *TemplateUpdate) SetNillableSlug(v *string) *TemplateUpdate {
+	if v != nil {
+		_u.SetSlug(*v)
+	}
+	return _u
+}
+
+// SetName sets the "name" field.
+func (_u *TemplateUpdate) SetName(v string) *TemplateUpdate {
+	_u.mutation.SetName(v)
+	return _u
+}
+
+// SetNillableName sets the "name" field if the given value is not nil.
+func (_u *TemplateUpdate) SetNillableName(v *string) *TemplateUpdate {
+	if v != nil {
+		_u.SetName(*v)
+	}
+	return _u
+}
+
+// SetDescription sets the "description" field.
+func (_u *TemplateUpdate) SetDescription(v string) *TemplateUpdate {
+	_u.mutation.SetDescription(v)
+	return _u
+}
+
+// SetNillableDescription sets the "description" field if the given value is not nil.
+func (_u *TemplateUpdate) SetNillableDescription(v *string) *TemplateUpdate {
+	if v != nil {
+		_u.SetDescription(*v)
+	}
+	return _u
+}
+
+// ClearDescription clears the value of the "description" field.
+func (_u *TemplateUpdate) ClearDescription() *TemplateUpdate {
+	_u.mutation.ClearDescription()
+	return _u
+}
+
+// SetVariables sets the "variables" field.
+func (_u *TemplateUpdate) SetVariables(v []schema.TemplateVariable) *TemplateUpdate {
+	_u.mutation.SetVariables(v)
+	return _u
+}
+
+// AppendVariables appends value to the "variables" field.
+func (_u *TemplateUpdate) AppendVariables(v []schema.TemplateVariable) *TemplateUpdate {
+	_u.mutation.AppendVariables(v)
+	return _u
+}
+
+// ClearVariables clears the value of the "variables" field.
+func (_u *TemplateUpdate) ClearVariables() *TemplateUpdate {
+	_u.mutation.ClearVariables()
+	return _u
+}
+
+// SetActive sets the "active" field.
+func (_u *TemplateUpdate) SetActive(v bool) *TemplateUpdate {
+	_u.mutation.SetActive(v)
+	return _u
+}
+
+// SetNillableActive sets the "active" field if the given value is not nil.
+func (_u *TemplateUpdate) SetNillableActive(v *bool) *TemplateUpdate {
+	if v != nil {
+		_u.SetActive(*v)
+	}
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *TemplateUpdate) SetUpdatedAt(v time.Time) *TemplateUpdate {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
+// AddContentIDs adds the "contents" edge to the TemplateContent entity by IDs.
+func (_u *TemplateUpdate) AddContentIDs(ids ...uuid.UUID) *TemplateUpdate {
+	_u.mutation.AddContentIDs(ids...)
+	return _u
+}
+
+// AddContents adds the "contents" edges to the TemplateContent entity.
+func (_u *TemplateUpdate) AddContents(v ...*TemplateContent) *TemplateUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddContentIDs(ids...)
+}
+
 // Mutation returns the TemplateMutation object of the builder.
 func (_u *TemplateUpdate) Mutation() *TemplateMutation {
 	return _u.mutation
 }
 
+// ClearContents clears all "contents" edges to the TemplateContent entity.
+func (_u *TemplateUpdate) ClearContents() *TemplateUpdate {
+	_u.mutation.ClearContents()
+	return _u
+}
+
+// RemoveContentIDs removes the "contents" edge to TemplateContent entities by IDs.
+func (_u *TemplateUpdate) RemoveContentIDs(ids ...uuid.UUID) *TemplateUpdate {
+	_u.mutation.RemoveContentIDs(ids...)
+	return _u
+}
+
+// RemoveContents removes "contents" edges to TemplateContent entities.
+func (_u *TemplateUpdate) RemoveContents(v ...*TemplateContent) *TemplateUpdate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveContentIDs(ids...)
+}
+
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *TemplateUpdate) Save(ctx context.Context) (int, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -59,14 +187,122 @@ func (_u *TemplateUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_u *TemplateUpdate) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := template.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
+	}
+}
+
+// check runs all checks and user-defined validators on the builder.
+func (_u *TemplateUpdate) check() error {
+	if v, ok := _u.mutation.Slug(); ok {
+		if err := template.SlugValidator(v); err != nil {
+			return &ValidationError{Name: "slug", err: fmt.Errorf(`ent: validator failed for field "Template.slug": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Name(); ok {
+		if err := template.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Template.name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Description(); ok {
+		if err := template.DescriptionValidator(v); err != nil {
+			return &ValidationError{Name: "description", err: fmt.Errorf(`ent: validator failed for field "Template.description": %w`, err)}
+		}
+	}
+	if _u.mutation.AppCleared() && len(_u.mutation.AppIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "Template.app"`)
+	}
+	return nil
+}
+
 func (_u *TemplateUpdate) sqlSave(ctx context.Context) (_node int, err error) {
-	_spec := sqlgraph.NewUpdateSpec(template.Table, template.Columns, sqlgraph.NewFieldSpec(template.FieldID, field.TypeInt))
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
+	_spec := sqlgraph.NewUpdateSpec(template.Table, template.Columns, sqlgraph.NewFieldSpec(template.FieldID, field.TypeUUID))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Slug(); ok {
+		_spec.SetField(template.FieldSlug, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Name(); ok {
+		_spec.SetField(template.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Description(); ok {
+		_spec.SetField(template.FieldDescription, field.TypeString, value)
+	}
+	if _u.mutation.DescriptionCleared() {
+		_spec.ClearField(template.FieldDescription, field.TypeString)
+	}
+	if value, ok := _u.mutation.Variables(); ok {
+		_spec.SetField(template.FieldVariables, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedVariables(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, template.FieldVariables, value)
+		})
+	}
+	if _u.mutation.VariablesCleared() {
+		_spec.ClearField(template.FieldVariables, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Active(); ok {
+		_spec.SetField(template.FieldActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(template.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ContentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   template.ContentsTable,
+			Columns: []string{template.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templatecontent.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedContentsIDs(); len(nodes) > 0 && !_u.mutation.ContentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   template.ContentsTable,
+			Columns: []string{template.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templatecontent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ContentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   template.ContentsTable,
+			Columns: []string{template.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templatecontent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -88,9 +324,131 @@ type TemplateUpdateOne struct {
 	mutation *TemplateMutation
 }
 
+// SetSlug sets the "slug" field.
+func (_u *TemplateUpdateOne) SetSlug(v string) *TemplateUpdateOne {
+	_u.mutation.SetSlug(v)
+	return _u
+}
+
+// SetNillableSlug sets the "slug" field if the given value is not nil.
+func (_u *TemplateUpdateOne) SetNillableSlug(v *string) *TemplateUpdateOne {
+	if v != nil {
+		_u.SetSlug(*v)
+	}
+	return _u
+}
+
+// SetName sets the "name" field.
+func (_u *TemplateUpdateOne) SetName(v string) *TemplateUpdateOne {
+	_u.mutation.SetName(v)
+	return _u
+}
+
+// SetNillableName sets the "name" field if the given value is not nil.
+func (_u *TemplateUpdateOne) SetNillableName(v *string) *TemplateUpdateOne {
+	if v != nil {
+		_u.SetName(*v)
+	}
+	return _u
+}
+
+// SetDescription sets the "description" field.
+func (_u *TemplateUpdateOne) SetDescription(v string) *TemplateUpdateOne {
+	_u.mutation.SetDescription(v)
+	return _u
+}
+
+// SetNillableDescription sets the "description" field if the given value is not nil.
+func (_u *TemplateUpdateOne) SetNillableDescription(v *string) *TemplateUpdateOne {
+	if v != nil {
+		_u.SetDescription(*v)
+	}
+	return _u
+}
+
+// ClearDescription clears the value of the "description" field.
+func (_u *TemplateUpdateOne) ClearDescription() *TemplateUpdateOne {
+	_u.mutation.ClearDescription()
+	return _u
+}
+
+// SetVariables sets the "variables" field.
+func (_u *TemplateUpdateOne) SetVariables(v []schema.TemplateVariable) *TemplateUpdateOne {
+	_u.mutation.SetVariables(v)
+	return _u
+}
+
+// AppendVariables appends value to the "variables" field.
+func (_u *TemplateUpdateOne) AppendVariables(v []schema.TemplateVariable) *TemplateUpdateOne {
+	_u.mutation.AppendVariables(v)
+	return _u
+}
+
+// ClearVariables clears the value of the "variables" field.
+func (_u *TemplateUpdateOne) ClearVariables() *TemplateUpdateOne {
+	_u.mutation.ClearVariables()
+	return _u
+}
+
+// SetActive sets the "active" field.
+func (_u *TemplateUpdateOne) SetActive(v bool) *TemplateUpdateOne {
+	_u.mutation.SetActive(v)
+	return _u
+}
+
+// SetNillableActive sets the "active" field if the given value is not nil.
+func (_u *TemplateUpdateOne) SetNillableActive(v *bool) *TemplateUpdateOne {
+	if v != nil {
+		_u.SetActive(*v)
+	}
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *TemplateUpdateOne) SetUpdatedAt(v time.Time) *TemplateUpdateOne {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
+// AddContentIDs adds the "contents" edge to the TemplateContent entity by IDs.
+func (_u *TemplateUpdateOne) AddContentIDs(ids ...uuid.UUID) *TemplateUpdateOne {
+	_u.mutation.AddContentIDs(ids...)
+	return _u
+}
+
+// AddContents adds the "contents" edges to the TemplateContent entity.
+func (_u *TemplateUpdateOne) AddContents(v ...*TemplateContent) *TemplateUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddContentIDs(ids...)
+}
+
 // Mutation returns the TemplateMutation object of the builder.
 func (_u *TemplateUpdateOne) Mutation() *TemplateMutation {
 	return _u.mutation
+}
+
+// ClearContents clears all "contents" edges to the TemplateContent entity.
+func (_u *TemplateUpdateOne) ClearContents() *TemplateUpdateOne {
+	_u.mutation.ClearContents()
+	return _u
+}
+
+// RemoveContentIDs removes the "contents" edge to TemplateContent entities by IDs.
+func (_u *TemplateUpdateOne) RemoveContentIDs(ids ...uuid.UUID) *TemplateUpdateOne {
+	_u.mutation.RemoveContentIDs(ids...)
+	return _u
+}
+
+// RemoveContents removes "contents" edges to TemplateContent entities.
+func (_u *TemplateUpdateOne) RemoveContents(v ...*TemplateContent) *TemplateUpdateOne {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveContentIDs(ids...)
 }
 
 // Where appends a list predicates to the TemplateUpdate builder.
@@ -108,6 +466,7 @@ func (_u *TemplateUpdateOne) Select(field string, fields ...string) *TemplateUpd
 
 // Save executes the query and returns the updated Template entity.
 func (_u *TemplateUpdateOne) Save(ctx context.Context) (*Template, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -133,8 +492,42 @@ func (_u *TemplateUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_u *TemplateUpdateOne) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := template.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
+	}
+}
+
+// check runs all checks and user-defined validators on the builder.
+func (_u *TemplateUpdateOne) check() error {
+	if v, ok := _u.mutation.Slug(); ok {
+		if err := template.SlugValidator(v); err != nil {
+			return &ValidationError{Name: "slug", err: fmt.Errorf(`ent: validator failed for field "Template.slug": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Name(); ok {
+		if err := template.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Template.name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Description(); ok {
+		if err := template.DescriptionValidator(v); err != nil {
+			return &ValidationError{Name: "description", err: fmt.Errorf(`ent: validator failed for field "Template.description": %w`, err)}
+		}
+	}
+	if _u.mutation.AppCleared() && len(_u.mutation.AppIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "Template.app"`)
+	}
+	return nil
+}
+
 func (_u *TemplateUpdateOne) sqlSave(ctx context.Context) (_node *Template, err error) {
-	_spec := sqlgraph.NewUpdateSpec(template.Table, template.Columns, sqlgraph.NewFieldSpec(template.FieldID, field.TypeInt))
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
+	_spec := sqlgraph.NewUpdateSpec(template.Table, template.Columns, sqlgraph.NewFieldSpec(template.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "Template.id" for update`)}
@@ -158,6 +551,80 @@ func (_u *TemplateUpdateOne) sqlSave(ctx context.Context) (_node *Template, err 
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Slug(); ok {
+		_spec.SetField(template.FieldSlug, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Name(); ok {
+		_spec.SetField(template.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Description(); ok {
+		_spec.SetField(template.FieldDescription, field.TypeString, value)
+	}
+	if _u.mutation.DescriptionCleared() {
+		_spec.ClearField(template.FieldDescription, field.TypeString)
+	}
+	if value, ok := _u.mutation.Variables(); ok {
+		_spec.SetField(template.FieldVariables, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedVariables(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, template.FieldVariables, value)
+		})
+	}
+	if _u.mutation.VariablesCleared() {
+		_spec.ClearField(template.FieldVariables, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.Active(); ok {
+		_spec.SetField(template.FieldActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(template.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ContentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   template.ContentsTable,
+			Columns: []string{template.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templatecontent.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedContentsIDs(); len(nodes) > 0 && !_u.mutation.ContentsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   template.ContentsTable,
+			Columns: []string{template.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templatecontent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ContentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   template.ContentsTable,
+			Columns: []string{template.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templatecontent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Template{config: _u.config}
 	_spec.Assign = _node.assignValues

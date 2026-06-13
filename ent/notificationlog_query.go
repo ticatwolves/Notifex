@@ -4,8 +4,11 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
+	"notifex/ent/app"
+	"notifex/ent/notification"
 	"notifex/ent/notificationlog"
 	"notifex/ent/predicate"
 
@@ -13,15 +16,18 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // NotificationLogQuery is the builder for querying NotificationLog entities.
 type NotificationLogQuery struct {
 	config
-	ctx        *QueryContext
-	order      []notificationlog.OrderOption
-	inters     []Interceptor
-	predicates []predicate.NotificationLog
+	ctx              *QueryContext
+	order            []notificationlog.OrderOption
+	inters           []Interceptor
+	predicates       []predicate.NotificationLog
+	withNotification *NotificationQuery
+	withApp          *AppQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -58,6 +64,50 @@ func (_q *NotificationLogQuery) Order(o ...notificationlog.OrderOption) *Notific
 	return _q
 }
 
+// QueryNotification chains the current query on the "notification" edge.
+func (_q *NotificationLogQuery) QueryNotification() *NotificationQuery {
+	query := (&NotificationClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(notificationlog.Table, notificationlog.FieldID, selector),
+			sqlgraph.To(notification.Table, notification.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, notificationlog.NotificationTable, notificationlog.NotificationPrimaryKey...),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryApp chains the current query on the "app" edge.
+func (_q *NotificationLogQuery) QueryApp() *AppQuery {
+	query := (&AppClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(notificationlog.Table, notificationlog.FieldID, selector),
+			sqlgraph.To(app.Table, app.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, notificationlog.AppTable, notificationlog.AppPrimaryKey...),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first NotificationLog entity from the query.
 // Returns a *NotFoundError when no NotificationLog was found.
 func (_q *NotificationLogQuery) First(ctx context.Context) (*NotificationLog, error) {
@@ -82,8 +132,8 @@ func (_q *NotificationLogQuery) FirstX(ctx context.Context) *NotificationLog {
 
 // FirstID returns the first NotificationLog ID from the query.
 // Returns a *NotFoundError when no NotificationLog ID was found.
-func (_q *NotificationLogQuery) FirstID(ctx context.Context) (id int, err error) {
-	var ids []int
+func (_q *NotificationLogQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
+	var ids []uuid.UUID
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
@@ -95,7 +145,7 @@ func (_q *NotificationLogQuery) FirstID(ctx context.Context) (id int, err error)
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *NotificationLogQuery) FirstIDX(ctx context.Context) int {
+func (_q *NotificationLogQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -133,8 +183,8 @@ func (_q *NotificationLogQuery) OnlyX(ctx context.Context) *NotificationLog {
 // OnlyID is like Only, but returns the only NotificationLog ID in the query.
 // Returns a *NotSingularError when more than one NotificationLog ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *NotificationLogQuery) OnlyID(ctx context.Context) (id int, err error) {
-	var ids []int
+func (_q *NotificationLogQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
+	var ids []uuid.UUID
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
@@ -150,7 +200,7 @@ func (_q *NotificationLogQuery) OnlyID(ctx context.Context) (id int, err error) 
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *NotificationLogQuery) OnlyIDX(ctx context.Context) int {
+func (_q *NotificationLogQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -178,7 +228,7 @@ func (_q *NotificationLogQuery) AllX(ctx context.Context) []*NotificationLog {
 }
 
 // IDs executes the query and returns a list of NotificationLog IDs.
-func (_q *NotificationLogQuery) IDs(ctx context.Context) (ids []int, err error) {
+func (_q *NotificationLogQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
@@ -190,7 +240,7 @@ func (_q *NotificationLogQuery) IDs(ctx context.Context) (ids []int, err error) 
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *NotificationLogQuery) IDsX(ctx context.Context) []int {
+func (_q *NotificationLogQuery) IDsX(ctx context.Context) []uuid.UUID {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -245,19 +295,55 @@ func (_q *NotificationLogQuery) Clone() *NotificationLogQuery {
 		return nil
 	}
 	return &NotificationLogQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]notificationlog.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.NotificationLog{}, _q.predicates...),
+		config:           _q.config,
+		ctx:              _q.ctx.Clone(),
+		order:            append([]notificationlog.OrderOption{}, _q.order...),
+		inters:           append([]Interceptor{}, _q.inters...),
+		predicates:       append([]predicate.NotificationLog{}, _q.predicates...),
+		withNotification: _q.withNotification.Clone(),
+		withApp:          _q.withApp.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
 }
 
+// WithNotification tells the query-builder to eager-load the nodes that are connected to
+// the "notification" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *NotificationLogQuery) WithNotification(opts ...func(*NotificationQuery)) *NotificationLogQuery {
+	query := (&NotificationClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withNotification = query
+	return _q
+}
+
+// WithApp tells the query-builder to eager-load the nodes that are connected to
+// the "app" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *NotificationLogQuery) WithApp(opts ...func(*AppQuery)) *NotificationLogQuery {
+	query := (&AppClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withApp = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
+//
+// Example:
+//
+//	var v []struct {
+//		NotificationID uuid.UUID `json:"notification_id,omitempty"`
+//		Count int `json:"count,omitempty"`
+//	}
+//
+//	client.NotificationLog.Query().
+//		GroupBy(notificationlog.FieldNotificationID).
+//		Aggregate(ent.Count()).
+//		Scan(ctx, &v)
 func (_q *NotificationLogQuery) GroupBy(field string, fields ...string) *NotificationLogGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
 	grbuild := &NotificationLogGroupBy{build: _q}
@@ -269,6 +355,16 @@ func (_q *NotificationLogQuery) GroupBy(field string, fields ...string) *Notific
 
 // Select allows the selection one or more fields/columns for the given query,
 // instead of selecting all fields in the entity.
+//
+// Example:
+//
+//	var v []struct {
+//		NotificationID uuid.UUID `json:"notification_id,omitempty"`
+//	}
+//
+//	client.NotificationLog.Query().
+//		Select(notificationlog.FieldNotificationID).
+//		Scan(ctx, &v)
 func (_q *NotificationLogQuery) Select(fields ...string) *NotificationLogSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
 	sbuild := &NotificationLogSelect{NotificationLogQuery: _q}
@@ -310,8 +406,12 @@ func (_q *NotificationLogQuery) prepareQuery(ctx context.Context) error {
 
 func (_q *NotificationLogQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*NotificationLog, error) {
 	var (
-		nodes = []*NotificationLog{}
-		_spec = _q.querySpec()
+		nodes       = []*NotificationLog{}
+		_spec       = _q.querySpec()
+		loadedTypes = [2]bool{
+			_q.withNotification != nil,
+			_q.withApp != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*NotificationLog).scanValues(nil, columns)
@@ -319,6 +419,7 @@ func (_q *NotificationLogQuery) sqlAll(ctx context.Context, hooks ...queryHook) 
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &NotificationLog{config: _q.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -330,7 +431,144 @@ func (_q *NotificationLogQuery) sqlAll(ctx context.Context, hooks ...queryHook) 
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withNotification; query != nil {
+		if err := _q.loadNotification(ctx, query, nodes,
+			func(n *NotificationLog) { n.Edges.Notification = []*Notification{} },
+			func(n *NotificationLog, e *Notification) { n.Edges.Notification = append(n.Edges.Notification, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withApp; query != nil {
+		if err := _q.loadApp(ctx, query, nodes,
+			func(n *NotificationLog) { n.Edges.App = []*App{} },
+			func(n *NotificationLog, e *App) { n.Edges.App = append(n.Edges.App, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (_q *NotificationLogQuery) loadNotification(ctx context.Context, query *NotificationQuery, nodes []*NotificationLog, init func(*NotificationLog), assign func(*NotificationLog, *Notification)) error {
+	edgeIDs := make([]driver.Value, len(nodes))
+	byID := make(map[uuid.UUID]*NotificationLog)
+	nids := make(map[uuid.UUID]map[*NotificationLog]struct{})
+	for i, node := range nodes {
+		edgeIDs[i] = node.ID
+		byID[node.ID] = node
+		if init != nil {
+			init(node)
+		}
+	}
+	query.Where(func(s *sql.Selector) {
+		joinT := sql.Table(notificationlog.NotificationTable)
+		s.Join(joinT).On(s.C(notification.FieldID), joinT.C(notificationlog.NotificationPrimaryKey[0]))
+		s.Where(sql.InValues(joinT.C(notificationlog.NotificationPrimaryKey[1]), edgeIDs...))
+		columns := s.SelectedColumns()
+		s.Select(joinT.C(notificationlog.NotificationPrimaryKey[1]))
+		s.AppendSelect(columns...)
+		s.SetDistinct(false)
+	})
+	if err := query.prepareQuery(ctx); err != nil {
+		return err
+	}
+	qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
+		return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+			assign := spec.Assign
+			values := spec.ScanValues
+			spec.ScanValues = func(columns []string) ([]any, error) {
+				values, err := values(columns[1:])
+				if err != nil {
+					return nil, err
+				}
+				return append([]any{new(uuid.UUID)}, values...), nil
+			}
+			spec.Assign = func(columns []string, values []any) error {
+				outValue := *values[0].(*uuid.UUID)
+				inValue := *values[1].(*uuid.UUID)
+				if nids[inValue] == nil {
+					nids[inValue] = map[*NotificationLog]struct{}{byID[outValue]: {}}
+					return assign(columns[1:], values[1:])
+				}
+				nids[inValue][byID[outValue]] = struct{}{}
+				return nil
+			}
+		})
+	})
+	neighbors, err := withInterceptors[[]*Notification](ctx, query, qr, query.inters)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected "notification" node returned %v`, n.ID)
+		}
+		for kn := range nodes {
+			assign(kn, n)
+		}
+	}
+	return nil
+}
+func (_q *NotificationLogQuery) loadApp(ctx context.Context, query *AppQuery, nodes []*NotificationLog, init func(*NotificationLog), assign func(*NotificationLog, *App)) error {
+	edgeIDs := make([]driver.Value, len(nodes))
+	byID := make(map[uuid.UUID]*NotificationLog)
+	nids := make(map[uuid.UUID]map[*NotificationLog]struct{})
+	for i, node := range nodes {
+		edgeIDs[i] = node.ID
+		byID[node.ID] = node
+		if init != nil {
+			init(node)
+		}
+	}
+	query.Where(func(s *sql.Selector) {
+		joinT := sql.Table(notificationlog.AppTable)
+		s.Join(joinT).On(s.C(app.FieldID), joinT.C(notificationlog.AppPrimaryKey[0]))
+		s.Where(sql.InValues(joinT.C(notificationlog.AppPrimaryKey[1]), edgeIDs...))
+		columns := s.SelectedColumns()
+		s.Select(joinT.C(notificationlog.AppPrimaryKey[1]))
+		s.AppendSelect(columns...)
+		s.SetDistinct(false)
+	})
+	if err := query.prepareQuery(ctx); err != nil {
+		return err
+	}
+	qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
+		return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+			assign := spec.Assign
+			values := spec.ScanValues
+			spec.ScanValues = func(columns []string) ([]any, error) {
+				values, err := values(columns[1:])
+				if err != nil {
+					return nil, err
+				}
+				return append([]any{new(uuid.UUID)}, values...), nil
+			}
+			spec.Assign = func(columns []string, values []any) error {
+				outValue := *values[0].(*uuid.UUID)
+				inValue := *values[1].(*uuid.UUID)
+				if nids[inValue] == nil {
+					nids[inValue] = map[*NotificationLog]struct{}{byID[outValue]: {}}
+					return assign(columns[1:], values[1:])
+				}
+				nids[inValue][byID[outValue]] = struct{}{}
+				return nil
+			}
+		})
+	})
+	neighbors, err := withInterceptors[[]*App](ctx, query, qr, query.inters)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected "app" node returned %v`, n.ID)
+		}
+		for kn := range nodes {
+			assign(kn, n)
+		}
+	}
+	return nil
 }
 
 func (_q *NotificationLogQuery) sqlCount(ctx context.Context) (int, error) {
@@ -343,7 +581,7 @@ func (_q *NotificationLogQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (_q *NotificationLogQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(notificationlog.Table, notificationlog.Columns, sqlgraph.NewFieldSpec(notificationlog.FieldID, field.TypeInt))
+	_spec := sqlgraph.NewQuerySpec(notificationlog.Table, notificationlog.Columns, sqlgraph.NewFieldSpec(notificationlog.FieldID, field.TypeUUID))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique

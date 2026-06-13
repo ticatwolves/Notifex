@@ -4,53 +4,642 @@ package notificationlog
 
 import (
 	"notifex/ent/predicate"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/google/uuid"
 )
 
 // ID filters vertices based on their ID field.
-func ID(id int) predicate.NotificationLog {
+func ID(id uuid.UUID) predicate.NotificationLog {
 	return predicate.NotificationLog(sql.FieldEQ(FieldID, id))
 }
 
 // IDEQ applies the EQ predicate on the ID field.
-func IDEQ(id int) predicate.NotificationLog {
+func IDEQ(id uuid.UUID) predicate.NotificationLog {
 	return predicate.NotificationLog(sql.FieldEQ(FieldID, id))
 }
 
 // IDNEQ applies the NEQ predicate on the ID field.
-func IDNEQ(id int) predicate.NotificationLog {
+func IDNEQ(id uuid.UUID) predicate.NotificationLog {
 	return predicate.NotificationLog(sql.FieldNEQ(FieldID, id))
 }
 
 // IDIn applies the In predicate on the ID field.
-func IDIn(ids ...int) predicate.NotificationLog {
+func IDIn(ids ...uuid.UUID) predicate.NotificationLog {
 	return predicate.NotificationLog(sql.FieldIn(FieldID, ids...))
 }
 
 // IDNotIn applies the NotIn predicate on the ID field.
-func IDNotIn(ids ...int) predicate.NotificationLog {
+func IDNotIn(ids ...uuid.UUID) predicate.NotificationLog {
 	return predicate.NotificationLog(sql.FieldNotIn(FieldID, ids...))
 }
 
 // IDGT applies the GT predicate on the ID field.
-func IDGT(id int) predicate.NotificationLog {
+func IDGT(id uuid.UUID) predicate.NotificationLog {
 	return predicate.NotificationLog(sql.FieldGT(FieldID, id))
 }
 
 // IDGTE applies the GTE predicate on the ID field.
-func IDGTE(id int) predicate.NotificationLog {
+func IDGTE(id uuid.UUID) predicate.NotificationLog {
 	return predicate.NotificationLog(sql.FieldGTE(FieldID, id))
 }
 
 // IDLT applies the LT predicate on the ID field.
-func IDLT(id int) predicate.NotificationLog {
+func IDLT(id uuid.UUID) predicate.NotificationLog {
 	return predicate.NotificationLog(sql.FieldLT(FieldID, id))
 }
 
 // IDLTE applies the LTE predicate on the ID field.
-func IDLTE(id int) predicate.NotificationLog {
+func IDLTE(id uuid.UUID) predicate.NotificationLog {
 	return predicate.NotificationLog(sql.FieldLTE(FieldID, id))
+}
+
+// NotificationID applies equality check predicate on the "notification_id" field. It's identical to NotificationIDEQ.
+func NotificationID(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldNotificationID, v))
+}
+
+// AppID applies equality check predicate on the "app_id" field. It's identical to AppIDEQ.
+func AppID(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldAppID, v))
+}
+
+// Provider applies equality check predicate on the "provider" field. It's identical to ProviderEQ.
+func Provider(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldProvider, v))
+}
+
+// ProviderMessageID applies equality check predicate on the "provider_message_id" field. It's identical to ProviderMessageIDEQ.
+func ProviderMessageID(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldProviderMessageID, v))
+}
+
+// RenderedSubject applies equality check predicate on the "rendered_subject" field. It's identical to RenderedSubjectEQ.
+func RenderedSubject(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldRenderedSubject, v))
+}
+
+// RenderedBody applies equality check predicate on the "rendered_body" field. It's identical to RenderedBodyEQ.
+func RenderedBody(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldRenderedBody, v))
+}
+
+// CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
+func CreatedAt(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldCreatedAt, v))
+}
+
+// UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
+func UpdatedAt(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldUpdatedAt, v))
+}
+
+// NotificationIDEQ applies the EQ predicate on the "notification_id" field.
+func NotificationIDEQ(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldNotificationID, v))
+}
+
+// NotificationIDNEQ applies the NEQ predicate on the "notification_id" field.
+func NotificationIDNEQ(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNEQ(FieldNotificationID, v))
+}
+
+// NotificationIDIn applies the In predicate on the "notification_id" field.
+func NotificationIDIn(vs ...uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIn(FieldNotificationID, vs...))
+}
+
+// NotificationIDNotIn applies the NotIn predicate on the "notification_id" field.
+func NotificationIDNotIn(vs ...uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotIn(FieldNotificationID, vs...))
+}
+
+// NotificationIDGT applies the GT predicate on the "notification_id" field.
+func NotificationIDGT(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGT(FieldNotificationID, v))
+}
+
+// NotificationIDGTE applies the GTE predicate on the "notification_id" field.
+func NotificationIDGTE(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGTE(FieldNotificationID, v))
+}
+
+// NotificationIDLT applies the LT predicate on the "notification_id" field.
+func NotificationIDLT(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLT(FieldNotificationID, v))
+}
+
+// NotificationIDLTE applies the LTE predicate on the "notification_id" field.
+func NotificationIDLTE(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLTE(FieldNotificationID, v))
+}
+
+// AppIDEQ applies the EQ predicate on the "app_id" field.
+func AppIDEQ(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldAppID, v))
+}
+
+// AppIDNEQ applies the NEQ predicate on the "app_id" field.
+func AppIDNEQ(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNEQ(FieldAppID, v))
+}
+
+// AppIDIn applies the In predicate on the "app_id" field.
+func AppIDIn(vs ...uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIn(FieldAppID, vs...))
+}
+
+// AppIDNotIn applies the NotIn predicate on the "app_id" field.
+func AppIDNotIn(vs ...uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotIn(FieldAppID, vs...))
+}
+
+// AppIDGT applies the GT predicate on the "app_id" field.
+func AppIDGT(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGT(FieldAppID, v))
+}
+
+// AppIDGTE applies the GTE predicate on the "app_id" field.
+func AppIDGTE(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGTE(FieldAppID, v))
+}
+
+// AppIDLT applies the LT predicate on the "app_id" field.
+func AppIDLT(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLT(FieldAppID, v))
+}
+
+// AppIDLTE applies the LTE predicate on the "app_id" field.
+func AppIDLTE(v uuid.UUID) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLTE(FieldAppID, v))
+}
+
+// ChannelEQ applies the EQ predicate on the "channel" field.
+func ChannelEQ(v Channel) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldChannel, v))
+}
+
+// ChannelNEQ applies the NEQ predicate on the "channel" field.
+func ChannelNEQ(v Channel) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNEQ(FieldChannel, v))
+}
+
+// ChannelIn applies the In predicate on the "channel" field.
+func ChannelIn(vs ...Channel) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIn(FieldChannel, vs...))
+}
+
+// ChannelNotIn applies the NotIn predicate on the "channel" field.
+func ChannelNotIn(vs ...Channel) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotIn(FieldChannel, vs...))
+}
+
+// ProviderEQ applies the EQ predicate on the "provider" field.
+func ProviderEQ(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldProvider, v))
+}
+
+// ProviderNEQ applies the NEQ predicate on the "provider" field.
+func ProviderNEQ(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNEQ(FieldProvider, v))
+}
+
+// ProviderIn applies the In predicate on the "provider" field.
+func ProviderIn(vs ...string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIn(FieldProvider, vs...))
+}
+
+// ProviderNotIn applies the NotIn predicate on the "provider" field.
+func ProviderNotIn(vs ...string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotIn(FieldProvider, vs...))
+}
+
+// ProviderGT applies the GT predicate on the "provider" field.
+func ProviderGT(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGT(FieldProvider, v))
+}
+
+// ProviderGTE applies the GTE predicate on the "provider" field.
+func ProviderGTE(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGTE(FieldProvider, v))
+}
+
+// ProviderLT applies the LT predicate on the "provider" field.
+func ProviderLT(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLT(FieldProvider, v))
+}
+
+// ProviderLTE applies the LTE predicate on the "provider" field.
+func ProviderLTE(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLTE(FieldProvider, v))
+}
+
+// ProviderContains applies the Contains predicate on the "provider" field.
+func ProviderContains(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldContains(FieldProvider, v))
+}
+
+// ProviderHasPrefix applies the HasPrefix predicate on the "provider" field.
+func ProviderHasPrefix(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldHasPrefix(FieldProvider, v))
+}
+
+// ProviderHasSuffix applies the HasSuffix predicate on the "provider" field.
+func ProviderHasSuffix(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldHasSuffix(FieldProvider, v))
+}
+
+// ProviderIsNil applies the IsNil predicate on the "provider" field.
+func ProviderIsNil() predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIsNull(FieldProvider))
+}
+
+// ProviderNotNil applies the NotNil predicate on the "provider" field.
+func ProviderNotNil() predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotNull(FieldProvider))
+}
+
+// ProviderEqualFold applies the EqualFold predicate on the "provider" field.
+func ProviderEqualFold(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEqualFold(FieldProvider, v))
+}
+
+// ProviderContainsFold applies the ContainsFold predicate on the "provider" field.
+func ProviderContainsFold(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldContainsFold(FieldProvider, v))
+}
+
+// StatusEQ applies the EQ predicate on the "status" field.
+func StatusEQ(v Status) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldStatus, v))
+}
+
+// StatusNEQ applies the NEQ predicate on the "status" field.
+func StatusNEQ(v Status) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNEQ(FieldStatus, v))
+}
+
+// StatusIn applies the In predicate on the "status" field.
+func StatusIn(vs ...Status) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIn(FieldStatus, vs...))
+}
+
+// StatusNotIn applies the NotIn predicate on the "status" field.
+func StatusNotIn(vs ...Status) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// ProviderMessageIDEQ applies the EQ predicate on the "provider_message_id" field.
+func ProviderMessageIDEQ(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldProviderMessageID, v))
+}
+
+// ProviderMessageIDNEQ applies the NEQ predicate on the "provider_message_id" field.
+func ProviderMessageIDNEQ(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNEQ(FieldProviderMessageID, v))
+}
+
+// ProviderMessageIDIn applies the In predicate on the "provider_message_id" field.
+func ProviderMessageIDIn(vs ...string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIn(FieldProviderMessageID, vs...))
+}
+
+// ProviderMessageIDNotIn applies the NotIn predicate on the "provider_message_id" field.
+func ProviderMessageIDNotIn(vs ...string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotIn(FieldProviderMessageID, vs...))
+}
+
+// ProviderMessageIDGT applies the GT predicate on the "provider_message_id" field.
+func ProviderMessageIDGT(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGT(FieldProviderMessageID, v))
+}
+
+// ProviderMessageIDGTE applies the GTE predicate on the "provider_message_id" field.
+func ProviderMessageIDGTE(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGTE(FieldProviderMessageID, v))
+}
+
+// ProviderMessageIDLT applies the LT predicate on the "provider_message_id" field.
+func ProviderMessageIDLT(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLT(FieldProviderMessageID, v))
+}
+
+// ProviderMessageIDLTE applies the LTE predicate on the "provider_message_id" field.
+func ProviderMessageIDLTE(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLTE(FieldProviderMessageID, v))
+}
+
+// ProviderMessageIDContains applies the Contains predicate on the "provider_message_id" field.
+func ProviderMessageIDContains(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldContains(FieldProviderMessageID, v))
+}
+
+// ProviderMessageIDHasPrefix applies the HasPrefix predicate on the "provider_message_id" field.
+func ProviderMessageIDHasPrefix(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldHasPrefix(FieldProviderMessageID, v))
+}
+
+// ProviderMessageIDHasSuffix applies the HasSuffix predicate on the "provider_message_id" field.
+func ProviderMessageIDHasSuffix(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldHasSuffix(FieldProviderMessageID, v))
+}
+
+// ProviderMessageIDIsNil applies the IsNil predicate on the "provider_message_id" field.
+func ProviderMessageIDIsNil() predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIsNull(FieldProviderMessageID))
+}
+
+// ProviderMessageIDNotNil applies the NotNil predicate on the "provider_message_id" field.
+func ProviderMessageIDNotNil() predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotNull(FieldProviderMessageID))
+}
+
+// ProviderMessageIDEqualFold applies the EqualFold predicate on the "provider_message_id" field.
+func ProviderMessageIDEqualFold(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEqualFold(FieldProviderMessageID, v))
+}
+
+// ProviderMessageIDContainsFold applies the ContainsFold predicate on the "provider_message_id" field.
+func ProviderMessageIDContainsFold(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldContainsFold(FieldProviderMessageID, v))
+}
+
+// RenderedSubjectEQ applies the EQ predicate on the "rendered_subject" field.
+func RenderedSubjectEQ(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldRenderedSubject, v))
+}
+
+// RenderedSubjectNEQ applies the NEQ predicate on the "rendered_subject" field.
+func RenderedSubjectNEQ(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNEQ(FieldRenderedSubject, v))
+}
+
+// RenderedSubjectIn applies the In predicate on the "rendered_subject" field.
+func RenderedSubjectIn(vs ...string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIn(FieldRenderedSubject, vs...))
+}
+
+// RenderedSubjectNotIn applies the NotIn predicate on the "rendered_subject" field.
+func RenderedSubjectNotIn(vs ...string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotIn(FieldRenderedSubject, vs...))
+}
+
+// RenderedSubjectGT applies the GT predicate on the "rendered_subject" field.
+func RenderedSubjectGT(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGT(FieldRenderedSubject, v))
+}
+
+// RenderedSubjectGTE applies the GTE predicate on the "rendered_subject" field.
+func RenderedSubjectGTE(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGTE(FieldRenderedSubject, v))
+}
+
+// RenderedSubjectLT applies the LT predicate on the "rendered_subject" field.
+func RenderedSubjectLT(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLT(FieldRenderedSubject, v))
+}
+
+// RenderedSubjectLTE applies the LTE predicate on the "rendered_subject" field.
+func RenderedSubjectLTE(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLTE(FieldRenderedSubject, v))
+}
+
+// RenderedSubjectContains applies the Contains predicate on the "rendered_subject" field.
+func RenderedSubjectContains(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldContains(FieldRenderedSubject, v))
+}
+
+// RenderedSubjectHasPrefix applies the HasPrefix predicate on the "rendered_subject" field.
+func RenderedSubjectHasPrefix(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldHasPrefix(FieldRenderedSubject, v))
+}
+
+// RenderedSubjectHasSuffix applies the HasSuffix predicate on the "rendered_subject" field.
+func RenderedSubjectHasSuffix(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldHasSuffix(FieldRenderedSubject, v))
+}
+
+// RenderedSubjectIsNil applies the IsNil predicate on the "rendered_subject" field.
+func RenderedSubjectIsNil() predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIsNull(FieldRenderedSubject))
+}
+
+// RenderedSubjectNotNil applies the NotNil predicate on the "rendered_subject" field.
+func RenderedSubjectNotNil() predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotNull(FieldRenderedSubject))
+}
+
+// RenderedSubjectEqualFold applies the EqualFold predicate on the "rendered_subject" field.
+func RenderedSubjectEqualFold(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEqualFold(FieldRenderedSubject, v))
+}
+
+// RenderedSubjectContainsFold applies the ContainsFold predicate on the "rendered_subject" field.
+func RenderedSubjectContainsFold(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldContainsFold(FieldRenderedSubject, v))
+}
+
+// RenderedBodyEQ applies the EQ predicate on the "rendered_body" field.
+func RenderedBodyEQ(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldRenderedBody, v))
+}
+
+// RenderedBodyNEQ applies the NEQ predicate on the "rendered_body" field.
+func RenderedBodyNEQ(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNEQ(FieldRenderedBody, v))
+}
+
+// RenderedBodyIn applies the In predicate on the "rendered_body" field.
+func RenderedBodyIn(vs ...string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIn(FieldRenderedBody, vs...))
+}
+
+// RenderedBodyNotIn applies the NotIn predicate on the "rendered_body" field.
+func RenderedBodyNotIn(vs ...string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotIn(FieldRenderedBody, vs...))
+}
+
+// RenderedBodyGT applies the GT predicate on the "rendered_body" field.
+func RenderedBodyGT(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGT(FieldRenderedBody, v))
+}
+
+// RenderedBodyGTE applies the GTE predicate on the "rendered_body" field.
+func RenderedBodyGTE(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGTE(FieldRenderedBody, v))
+}
+
+// RenderedBodyLT applies the LT predicate on the "rendered_body" field.
+func RenderedBodyLT(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLT(FieldRenderedBody, v))
+}
+
+// RenderedBodyLTE applies the LTE predicate on the "rendered_body" field.
+func RenderedBodyLTE(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLTE(FieldRenderedBody, v))
+}
+
+// RenderedBodyContains applies the Contains predicate on the "rendered_body" field.
+func RenderedBodyContains(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldContains(FieldRenderedBody, v))
+}
+
+// RenderedBodyHasPrefix applies the HasPrefix predicate on the "rendered_body" field.
+func RenderedBodyHasPrefix(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldHasPrefix(FieldRenderedBody, v))
+}
+
+// RenderedBodyHasSuffix applies the HasSuffix predicate on the "rendered_body" field.
+func RenderedBodyHasSuffix(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldHasSuffix(FieldRenderedBody, v))
+}
+
+// RenderedBodyIsNil applies the IsNil predicate on the "rendered_body" field.
+func RenderedBodyIsNil() predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIsNull(FieldRenderedBody))
+}
+
+// RenderedBodyNotNil applies the NotNil predicate on the "rendered_body" field.
+func RenderedBodyNotNil() predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotNull(FieldRenderedBody))
+}
+
+// RenderedBodyEqualFold applies the EqualFold predicate on the "rendered_body" field.
+func RenderedBodyEqualFold(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEqualFold(FieldRenderedBody, v))
+}
+
+// RenderedBodyContainsFold applies the ContainsFold predicate on the "rendered_body" field.
+func RenderedBodyContainsFold(v string) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldContainsFold(FieldRenderedBody, v))
+}
+
+// CreatedAtEQ applies the EQ predicate on the "created_at" field.
+func CreatedAtEQ(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldCreatedAt, v))
+}
+
+// CreatedAtNEQ applies the NEQ predicate on the "created_at" field.
+func CreatedAtNEQ(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNEQ(FieldCreatedAt, v))
+}
+
+// CreatedAtIn applies the In predicate on the "created_at" field.
+func CreatedAtIn(vs ...time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIn(FieldCreatedAt, vs...))
+}
+
+// CreatedAtNotIn applies the NotIn predicate on the "created_at" field.
+func CreatedAtNotIn(vs ...time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotIn(FieldCreatedAt, vs...))
+}
+
+// CreatedAtGT applies the GT predicate on the "created_at" field.
+func CreatedAtGT(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGT(FieldCreatedAt, v))
+}
+
+// CreatedAtGTE applies the GTE predicate on the "created_at" field.
+func CreatedAtGTE(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGTE(FieldCreatedAt, v))
+}
+
+// CreatedAtLT applies the LT predicate on the "created_at" field.
+func CreatedAtLT(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLT(FieldCreatedAt, v))
+}
+
+// CreatedAtLTE applies the LTE predicate on the "created_at" field.
+func CreatedAtLTE(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// UpdatedAtEQ applies the EQ predicate on the "updated_at" field.
+func UpdatedAtEQ(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldEQ(FieldUpdatedAt, v))
+}
+
+// UpdatedAtNEQ applies the NEQ predicate on the "updated_at" field.
+func UpdatedAtNEQ(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNEQ(FieldUpdatedAt, v))
+}
+
+// UpdatedAtIn applies the In predicate on the "updated_at" field.
+func UpdatedAtIn(vs ...time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldIn(FieldUpdatedAt, vs...))
+}
+
+// UpdatedAtNotIn applies the NotIn predicate on the "updated_at" field.
+func UpdatedAtNotIn(vs ...time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldNotIn(FieldUpdatedAt, vs...))
+}
+
+// UpdatedAtGT applies the GT predicate on the "updated_at" field.
+func UpdatedAtGT(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGT(FieldUpdatedAt, v))
+}
+
+// UpdatedAtGTE applies the GTE predicate on the "updated_at" field.
+func UpdatedAtGTE(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldGTE(FieldUpdatedAt, v))
+}
+
+// UpdatedAtLT applies the LT predicate on the "updated_at" field.
+func UpdatedAtLT(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLT(FieldUpdatedAt, v))
+}
+
+// UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
+func UpdatedAtLTE(v time.Time) predicate.NotificationLog {
+	return predicate.NotificationLog(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// HasNotification applies the HasEdge predicate on the "notification" edge.
+func HasNotification() predicate.NotificationLog {
+	return predicate.NotificationLog(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, NotificationTable, NotificationPrimaryKey...),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasNotificationWith applies the HasEdge predicate on the "notification" edge with a given conditions (other predicates).
+func HasNotificationWith(preds ...predicate.Notification) predicate.NotificationLog {
+	return predicate.NotificationLog(func(s *sql.Selector) {
+		step := newNotificationStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasApp applies the HasEdge predicate on the "app" edge.
+func HasApp() predicate.NotificationLog {
+	return predicate.NotificationLog(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, AppTable, AppPrimaryKey...),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAppWith applies the HasEdge predicate on the "app" edge with a given conditions (other predicates).
+func HasAppWith(preds ...predicate.App) predicate.NotificationLog {
+	return predicate.NotificationLog(func(s *sql.Selector) {
+		step := newAppStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

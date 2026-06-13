@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"notifex/ent/predicate"
 	"notifex/ent/usersession"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -24,6 +25,148 @@ type UserSessionUpdate struct {
 // Where appends a list predicates to the UserSessionUpdate builder.
 func (_u *UserSessionUpdate) Where(ps ...predicate.UserSession) *UserSessionUpdate {
 	_u.mutation.Where(ps...)
+	return _u
+}
+
+// SetRefreshTokenHash sets the "refresh_token_hash" field.
+func (_u *UserSessionUpdate) SetRefreshTokenHash(v string) *UserSessionUpdate {
+	_u.mutation.SetRefreshTokenHash(v)
+	return _u
+}
+
+// SetNillableRefreshTokenHash sets the "refresh_token_hash" field if the given value is not nil.
+func (_u *UserSessionUpdate) SetNillableRefreshTokenHash(v *string) *UserSessionUpdate {
+	if v != nil {
+		_u.SetRefreshTokenHash(*v)
+	}
+	return _u
+}
+
+// SetUserAgent sets the "user_agent" field.
+func (_u *UserSessionUpdate) SetUserAgent(v string) *UserSessionUpdate {
+	_u.mutation.SetUserAgent(v)
+	return _u
+}
+
+// SetNillableUserAgent sets the "user_agent" field if the given value is not nil.
+func (_u *UserSessionUpdate) SetNillableUserAgent(v *string) *UserSessionUpdate {
+	if v != nil {
+		_u.SetUserAgent(*v)
+	}
+	return _u
+}
+
+// ClearUserAgent clears the value of the "user_agent" field.
+func (_u *UserSessionUpdate) ClearUserAgent() *UserSessionUpdate {
+	_u.mutation.ClearUserAgent()
+	return _u
+}
+
+// SetIPAddress sets the "ip_address" field.
+func (_u *UserSessionUpdate) SetIPAddress(v string) *UserSessionUpdate {
+	_u.mutation.SetIPAddress(v)
+	return _u
+}
+
+// SetNillableIPAddress sets the "ip_address" field if the given value is not nil.
+func (_u *UserSessionUpdate) SetNillableIPAddress(v *string) *UserSessionUpdate {
+	if v != nil {
+		_u.SetIPAddress(*v)
+	}
+	return _u
+}
+
+// ClearIPAddress clears the value of the "ip_address" field.
+func (_u *UserSessionUpdate) ClearIPAddress() *UserSessionUpdate {
+	_u.mutation.ClearIPAddress()
+	return _u
+}
+
+// SetDeviceLabel sets the "device_label" field.
+func (_u *UserSessionUpdate) SetDeviceLabel(v string) *UserSessionUpdate {
+	_u.mutation.SetDeviceLabel(v)
+	return _u
+}
+
+// SetNillableDeviceLabel sets the "device_label" field if the given value is not nil.
+func (_u *UserSessionUpdate) SetNillableDeviceLabel(v *string) *UserSessionUpdate {
+	if v != nil {
+		_u.SetDeviceLabel(*v)
+	}
+	return _u
+}
+
+// ClearDeviceLabel clears the value of the "device_label" field.
+func (_u *UserSessionUpdate) ClearDeviceLabel() *UserSessionUpdate {
+	_u.mutation.ClearDeviceLabel()
+	return _u
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (_u *UserSessionUpdate) SetExpiresAt(v time.Time) *UserSessionUpdate {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *UserSessionUpdate) SetNillableExpiresAt(v *time.Time) *UserSessionUpdate {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// SetRevoked sets the "revoked" field.
+func (_u *UserSessionUpdate) SetRevoked(v bool) *UserSessionUpdate {
+	_u.mutation.SetRevoked(v)
+	return _u
+}
+
+// SetNillableRevoked sets the "revoked" field if the given value is not nil.
+func (_u *UserSessionUpdate) SetNillableRevoked(v *bool) *UserSessionUpdate {
+	if v != nil {
+		_u.SetRevoked(*v)
+	}
+	return _u
+}
+
+// SetRevokedAt sets the "revoked_at" field.
+func (_u *UserSessionUpdate) SetRevokedAt(v time.Time) *UserSessionUpdate {
+	_u.mutation.SetRevokedAt(v)
+	return _u
+}
+
+// SetNillableRevokedAt sets the "revoked_at" field if the given value is not nil.
+func (_u *UserSessionUpdate) SetNillableRevokedAt(v *time.Time) *UserSessionUpdate {
+	if v != nil {
+		_u.SetRevokedAt(*v)
+	}
+	return _u
+}
+
+// ClearRevokedAt clears the value of the "revoked_at" field.
+func (_u *UserSessionUpdate) ClearRevokedAt() *UserSessionUpdate {
+	_u.mutation.ClearRevokedAt()
+	return _u
+}
+
+// SetRevokeReason sets the "revoke_reason" field.
+func (_u *UserSessionUpdate) SetRevokeReason(v string) *UserSessionUpdate {
+	_u.mutation.SetRevokeReason(v)
+	return _u
+}
+
+// SetNillableRevokeReason sets the "revoke_reason" field if the given value is not nil.
+func (_u *UserSessionUpdate) SetNillableRevokeReason(v *string) *UserSessionUpdate {
+	if v != nil {
+		_u.SetRevokeReason(*v)
+	}
+	return _u
+}
+
+// ClearRevokeReason clears the value of the "revoke_reason" field.
+func (_u *UserSessionUpdate) ClearRevokeReason() *UserSessionUpdate {
+	_u.mutation.ClearRevokeReason()
 	return _u
 }
 
@@ -59,14 +202,89 @@ func (_u *UserSessionUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *UserSessionUpdate) check() error {
+	if v, ok := _u.mutation.RefreshTokenHash(); ok {
+		if err := usersession.RefreshTokenHashValidator(v); err != nil {
+			return &ValidationError{Name: "refresh_token_hash", err: fmt.Errorf(`ent: validator failed for field "UserSession.refresh_token_hash": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.UserAgent(); ok {
+		if err := usersession.UserAgentValidator(v); err != nil {
+			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UserSession.user_agent": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.IPAddress(); ok {
+		if err := usersession.IPAddressValidator(v); err != nil {
+			return &ValidationError{Name: "ip_address", err: fmt.Errorf(`ent: validator failed for field "UserSession.ip_address": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DeviceLabel(); ok {
+		if err := usersession.DeviceLabelValidator(v); err != nil {
+			return &ValidationError{Name: "device_label", err: fmt.Errorf(`ent: validator failed for field "UserSession.device_label": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RevokeReason(); ok {
+		if err := usersession.RevokeReasonValidator(v); err != nil {
+			return &ValidationError{Name: "revoke_reason", err: fmt.Errorf(`ent: validator failed for field "UserSession.revoke_reason": %w`, err)}
+		}
+	}
+	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "UserSession.user"`)
+	}
+	return nil
+}
+
 func (_u *UserSessionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
-	_spec := sqlgraph.NewUpdateSpec(usersession.Table, usersession.Columns, sqlgraph.NewFieldSpec(usersession.FieldID, field.TypeInt))
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
+	_spec := sqlgraph.NewUpdateSpec(usersession.Table, usersession.Columns, sqlgraph.NewFieldSpec(usersession.FieldID, field.TypeUUID))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.RefreshTokenHash(); ok {
+		_spec.SetField(usersession.FieldRefreshTokenHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.UserAgent(); ok {
+		_spec.SetField(usersession.FieldUserAgent, field.TypeString, value)
+	}
+	if _u.mutation.UserAgentCleared() {
+		_spec.ClearField(usersession.FieldUserAgent, field.TypeString)
+	}
+	if value, ok := _u.mutation.IPAddress(); ok {
+		_spec.SetField(usersession.FieldIPAddress, field.TypeString, value)
+	}
+	if _u.mutation.IPAddressCleared() {
+		_spec.ClearField(usersession.FieldIPAddress, field.TypeString)
+	}
+	if value, ok := _u.mutation.DeviceLabel(); ok {
+		_spec.SetField(usersession.FieldDeviceLabel, field.TypeString, value)
+	}
+	if _u.mutation.DeviceLabelCleared() {
+		_spec.ClearField(usersession.FieldDeviceLabel, field.TypeString)
+	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(usersession.FieldExpiresAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.Revoked(); ok {
+		_spec.SetField(usersession.FieldRevoked, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RevokedAt(); ok {
+		_spec.SetField(usersession.FieldRevokedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RevokedAtCleared() {
+		_spec.ClearField(usersession.FieldRevokedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RevokeReason(); ok {
+		_spec.SetField(usersession.FieldRevokeReason, field.TypeString, value)
+	}
+	if _u.mutation.RevokeReasonCleared() {
+		_spec.ClearField(usersession.FieldRevokeReason, field.TypeString)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -86,6 +304,148 @@ type UserSessionUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *UserSessionMutation
+}
+
+// SetRefreshTokenHash sets the "refresh_token_hash" field.
+func (_u *UserSessionUpdateOne) SetRefreshTokenHash(v string) *UserSessionUpdateOne {
+	_u.mutation.SetRefreshTokenHash(v)
+	return _u
+}
+
+// SetNillableRefreshTokenHash sets the "refresh_token_hash" field if the given value is not nil.
+func (_u *UserSessionUpdateOne) SetNillableRefreshTokenHash(v *string) *UserSessionUpdateOne {
+	if v != nil {
+		_u.SetRefreshTokenHash(*v)
+	}
+	return _u
+}
+
+// SetUserAgent sets the "user_agent" field.
+func (_u *UserSessionUpdateOne) SetUserAgent(v string) *UserSessionUpdateOne {
+	_u.mutation.SetUserAgent(v)
+	return _u
+}
+
+// SetNillableUserAgent sets the "user_agent" field if the given value is not nil.
+func (_u *UserSessionUpdateOne) SetNillableUserAgent(v *string) *UserSessionUpdateOne {
+	if v != nil {
+		_u.SetUserAgent(*v)
+	}
+	return _u
+}
+
+// ClearUserAgent clears the value of the "user_agent" field.
+func (_u *UserSessionUpdateOne) ClearUserAgent() *UserSessionUpdateOne {
+	_u.mutation.ClearUserAgent()
+	return _u
+}
+
+// SetIPAddress sets the "ip_address" field.
+func (_u *UserSessionUpdateOne) SetIPAddress(v string) *UserSessionUpdateOne {
+	_u.mutation.SetIPAddress(v)
+	return _u
+}
+
+// SetNillableIPAddress sets the "ip_address" field if the given value is not nil.
+func (_u *UserSessionUpdateOne) SetNillableIPAddress(v *string) *UserSessionUpdateOne {
+	if v != nil {
+		_u.SetIPAddress(*v)
+	}
+	return _u
+}
+
+// ClearIPAddress clears the value of the "ip_address" field.
+func (_u *UserSessionUpdateOne) ClearIPAddress() *UserSessionUpdateOne {
+	_u.mutation.ClearIPAddress()
+	return _u
+}
+
+// SetDeviceLabel sets the "device_label" field.
+func (_u *UserSessionUpdateOne) SetDeviceLabel(v string) *UserSessionUpdateOne {
+	_u.mutation.SetDeviceLabel(v)
+	return _u
+}
+
+// SetNillableDeviceLabel sets the "device_label" field if the given value is not nil.
+func (_u *UserSessionUpdateOne) SetNillableDeviceLabel(v *string) *UserSessionUpdateOne {
+	if v != nil {
+		_u.SetDeviceLabel(*v)
+	}
+	return _u
+}
+
+// ClearDeviceLabel clears the value of the "device_label" field.
+func (_u *UserSessionUpdateOne) ClearDeviceLabel() *UserSessionUpdateOne {
+	_u.mutation.ClearDeviceLabel()
+	return _u
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (_u *UserSessionUpdateOne) SetExpiresAt(v time.Time) *UserSessionUpdateOne {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *UserSessionUpdateOne) SetNillableExpiresAt(v *time.Time) *UserSessionUpdateOne {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// SetRevoked sets the "revoked" field.
+func (_u *UserSessionUpdateOne) SetRevoked(v bool) *UserSessionUpdateOne {
+	_u.mutation.SetRevoked(v)
+	return _u
+}
+
+// SetNillableRevoked sets the "revoked" field if the given value is not nil.
+func (_u *UserSessionUpdateOne) SetNillableRevoked(v *bool) *UserSessionUpdateOne {
+	if v != nil {
+		_u.SetRevoked(*v)
+	}
+	return _u
+}
+
+// SetRevokedAt sets the "revoked_at" field.
+func (_u *UserSessionUpdateOne) SetRevokedAt(v time.Time) *UserSessionUpdateOne {
+	_u.mutation.SetRevokedAt(v)
+	return _u
+}
+
+// SetNillableRevokedAt sets the "revoked_at" field if the given value is not nil.
+func (_u *UserSessionUpdateOne) SetNillableRevokedAt(v *time.Time) *UserSessionUpdateOne {
+	if v != nil {
+		_u.SetRevokedAt(*v)
+	}
+	return _u
+}
+
+// ClearRevokedAt clears the value of the "revoked_at" field.
+func (_u *UserSessionUpdateOne) ClearRevokedAt() *UserSessionUpdateOne {
+	_u.mutation.ClearRevokedAt()
+	return _u
+}
+
+// SetRevokeReason sets the "revoke_reason" field.
+func (_u *UserSessionUpdateOne) SetRevokeReason(v string) *UserSessionUpdateOne {
+	_u.mutation.SetRevokeReason(v)
+	return _u
+}
+
+// SetNillableRevokeReason sets the "revoke_reason" field if the given value is not nil.
+func (_u *UserSessionUpdateOne) SetNillableRevokeReason(v *string) *UserSessionUpdateOne {
+	if v != nil {
+		_u.SetRevokeReason(*v)
+	}
+	return _u
+}
+
+// ClearRevokeReason clears the value of the "revoke_reason" field.
+func (_u *UserSessionUpdateOne) ClearRevokeReason() *UserSessionUpdateOne {
+	_u.mutation.ClearRevokeReason()
+	return _u
 }
 
 // Mutation returns the UserSessionMutation object of the builder.
@@ -133,8 +493,44 @@ func (_u *UserSessionUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *UserSessionUpdateOne) check() error {
+	if v, ok := _u.mutation.RefreshTokenHash(); ok {
+		if err := usersession.RefreshTokenHashValidator(v); err != nil {
+			return &ValidationError{Name: "refresh_token_hash", err: fmt.Errorf(`ent: validator failed for field "UserSession.refresh_token_hash": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.UserAgent(); ok {
+		if err := usersession.UserAgentValidator(v); err != nil {
+			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UserSession.user_agent": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.IPAddress(); ok {
+		if err := usersession.IPAddressValidator(v); err != nil {
+			return &ValidationError{Name: "ip_address", err: fmt.Errorf(`ent: validator failed for field "UserSession.ip_address": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DeviceLabel(); ok {
+		if err := usersession.DeviceLabelValidator(v); err != nil {
+			return &ValidationError{Name: "device_label", err: fmt.Errorf(`ent: validator failed for field "UserSession.device_label": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RevokeReason(); ok {
+		if err := usersession.RevokeReasonValidator(v); err != nil {
+			return &ValidationError{Name: "revoke_reason", err: fmt.Errorf(`ent: validator failed for field "UserSession.revoke_reason": %w`, err)}
+		}
+	}
+	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "UserSession.user"`)
+	}
+	return nil
+}
+
 func (_u *UserSessionUpdateOne) sqlSave(ctx context.Context) (_node *UserSession, err error) {
-	_spec := sqlgraph.NewUpdateSpec(usersession.Table, usersession.Columns, sqlgraph.NewFieldSpec(usersession.FieldID, field.TypeInt))
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
+	_spec := sqlgraph.NewUpdateSpec(usersession.Table, usersession.Columns, sqlgraph.NewFieldSpec(usersession.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "UserSession.id" for update`)}
@@ -158,6 +554,45 @@ func (_u *UserSessionUpdateOne) sqlSave(ctx context.Context) (_node *UserSession
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.RefreshTokenHash(); ok {
+		_spec.SetField(usersession.FieldRefreshTokenHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.UserAgent(); ok {
+		_spec.SetField(usersession.FieldUserAgent, field.TypeString, value)
+	}
+	if _u.mutation.UserAgentCleared() {
+		_spec.ClearField(usersession.FieldUserAgent, field.TypeString)
+	}
+	if value, ok := _u.mutation.IPAddress(); ok {
+		_spec.SetField(usersession.FieldIPAddress, field.TypeString, value)
+	}
+	if _u.mutation.IPAddressCleared() {
+		_spec.ClearField(usersession.FieldIPAddress, field.TypeString)
+	}
+	if value, ok := _u.mutation.DeviceLabel(); ok {
+		_spec.SetField(usersession.FieldDeviceLabel, field.TypeString, value)
+	}
+	if _u.mutation.DeviceLabelCleared() {
+		_spec.ClearField(usersession.FieldDeviceLabel, field.TypeString)
+	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(usersession.FieldExpiresAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.Revoked(); ok {
+		_spec.SetField(usersession.FieldRevoked, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RevokedAt(); ok {
+		_spec.SetField(usersession.FieldRevokedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RevokedAtCleared() {
+		_spec.ClearField(usersession.FieldRevokedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.RevokeReason(); ok {
+		_spec.SetField(usersession.FieldRevokeReason, field.TypeString, value)
+	}
+	if _u.mutation.RevokeReasonCleared() {
+		_spec.ClearField(usersession.FieldRevokeReason, field.TypeString)
 	}
 	_node = &UserSession{config: _u.config}
 	_spec.Assign = _node.assignValues

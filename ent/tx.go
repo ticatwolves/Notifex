@@ -14,24 +14,22 @@ type Tx struct {
 	config
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
-	// DeliveryAttempt is the client for interacting with the DeliveryAttempt builders.
-	DeliveryAttempt *DeliveryAttemptClient
+	// App is the client for interacting with the App builders.
+	App *AppClient
+	// Notification is the client for interacting with the Notification builders.
+	Notification *NotificationClient
 	// NotificationLog is the client for interacting with the NotificationLog builders.
 	NotificationLog *NotificationLogClient
-	// SecurityAuditLog is the client for interacting with the SecurityAuditLog builders.
-	SecurityAuditLog *SecurityAuditLogClient
 	// Template is the client for interacting with the Template builders.
 	Template *TemplateClient
+	// TemplateContent is the client for interacting with the TemplateContent builders.
+	TemplateContent *TemplateContentClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
-	// UserCredential is the client for interacting with the UserCredential builders.
-	UserCredential *UserCredentialClient
-	// UserPreference is the client for interacting with the UserPreference builders.
-	UserPreference *UserPreferenceClient
 	// UserSession is the client for interacting with the UserSession builders.
 	UserSession *UserSessionClient
-	// Workspace is the client for interacting with the Workspace builders.
-	Workspace *WorkspaceClient
+	// VerificationToken is the client for interacting with the VerificationToken builders.
+	VerificationToken *VerificationTokenClient
 
 	// lazily loaded.
 	client     *Client
@@ -164,15 +162,14 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.APIKey = NewAPIKeyClient(tx.config)
-	tx.DeliveryAttempt = NewDeliveryAttemptClient(tx.config)
+	tx.App = NewAppClient(tx.config)
+	tx.Notification = NewNotificationClient(tx.config)
 	tx.NotificationLog = NewNotificationLogClient(tx.config)
-	tx.SecurityAuditLog = NewSecurityAuditLogClient(tx.config)
 	tx.Template = NewTemplateClient(tx.config)
+	tx.TemplateContent = NewTemplateContentClient(tx.config)
 	tx.User = NewUserClient(tx.config)
-	tx.UserCredential = NewUserCredentialClient(tx.config)
-	tx.UserPreference = NewUserPreferenceClient(tx.config)
 	tx.UserSession = NewUserSessionClient(tx.config)
-	tx.Workspace = NewWorkspaceClient(tx.config)
+	tx.VerificationToken = NewVerificationTokenClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

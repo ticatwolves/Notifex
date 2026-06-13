@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"notifex/ent/apikey"
 	"notifex/ent/predicate"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 )
 
@@ -24,6 +26,134 @@ type APIKeyUpdate struct {
 // Where appends a list predicates to the APIKeyUpdate builder.
 func (_u *APIKeyUpdate) Where(ps ...predicate.APIKey) *APIKeyUpdate {
 	_u.mutation.Where(ps...)
+	return _u
+}
+
+// SetName sets the "name" field.
+func (_u *APIKeyUpdate) SetName(v string) *APIKeyUpdate {
+	_u.mutation.SetName(v)
+	return _u
+}
+
+// SetNillableName sets the "name" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableName(v *string) *APIKeyUpdate {
+	if v != nil {
+		_u.SetName(*v)
+	}
+	return _u
+}
+
+// SetKeyHash sets the "key_hash" field.
+func (_u *APIKeyUpdate) SetKeyHash(v string) *APIKeyUpdate {
+	_u.mutation.SetKeyHash(v)
+	return _u
+}
+
+// SetNillableKeyHash sets the "key_hash" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableKeyHash(v *string) *APIKeyUpdate {
+	if v != nil {
+		_u.SetKeyHash(*v)
+	}
+	return _u
+}
+
+// SetEnvironment sets the "environment" field.
+func (_u *APIKeyUpdate) SetEnvironment(v apikey.Environment) *APIKeyUpdate {
+	_u.mutation.SetEnvironment(v)
+	return _u
+}
+
+// SetNillableEnvironment sets the "environment" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableEnvironment(v *apikey.Environment) *APIKeyUpdate {
+	if v != nil {
+		_u.SetEnvironment(*v)
+	}
+	return _u
+}
+
+// SetScopes sets the "scopes" field.
+func (_u *APIKeyUpdate) SetScopes(v []string) *APIKeyUpdate {
+	_u.mutation.SetScopes(v)
+	return _u
+}
+
+// AppendScopes appends value to the "scopes" field.
+func (_u *APIKeyUpdate) AppendScopes(v []string) *APIKeyUpdate {
+	_u.mutation.AppendScopes(v)
+	return _u
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (_u *APIKeyUpdate) SetExpiresAt(v time.Time) *APIKeyUpdate {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableExpiresAt(v *time.Time) *APIKeyUpdate {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (_u *APIKeyUpdate) ClearExpiresAt() *APIKeyUpdate {
+	_u.mutation.ClearExpiresAt()
+	return _u
+}
+
+// SetLastUsedAt sets the "last_used_at" field.
+func (_u *APIKeyUpdate) SetLastUsedAt(v time.Time) *APIKeyUpdate {
+	_u.mutation.SetLastUsedAt(v)
+	return _u
+}
+
+// SetNillableLastUsedAt sets the "last_used_at" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableLastUsedAt(v *time.Time) *APIKeyUpdate {
+	if v != nil {
+		_u.SetLastUsedAt(*v)
+	}
+	return _u
+}
+
+// ClearLastUsedAt clears the value of the "last_used_at" field.
+func (_u *APIKeyUpdate) ClearLastUsedAt() *APIKeyUpdate {
+	_u.mutation.ClearLastUsedAt()
+	return _u
+}
+
+// SetActive sets the "active" field.
+func (_u *APIKeyUpdate) SetActive(v bool) *APIKeyUpdate {
+	_u.mutation.SetActive(v)
+	return _u
+}
+
+// SetNillableActive sets the "active" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableActive(v *bool) *APIKeyUpdate {
+	if v != nil {
+		_u.SetActive(*v)
+	}
+	return _u
+}
+
+// SetRevokedAt sets the "revoked_at" field.
+func (_u *APIKeyUpdate) SetRevokedAt(v time.Time) *APIKeyUpdate {
+	_u.mutation.SetRevokedAt(v)
+	return _u
+}
+
+// SetNillableRevokedAt sets the "revoked_at" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableRevokedAt(v *time.Time) *APIKeyUpdate {
+	if v != nil {
+		_u.SetRevokedAt(*v)
+	}
+	return _u
+}
+
+// ClearRevokedAt clears the value of the "revoked_at" field.
+func (_u *APIKeyUpdate) ClearRevokedAt() *APIKeyUpdate {
+	_u.mutation.ClearRevokedAt()
 	return _u
 }
 
@@ -59,14 +189,73 @@ func (_u *APIKeyUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *APIKeyUpdate) check() error {
+	if v, ok := _u.mutation.Name(); ok {
+		if err := apikey.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Environment(); ok {
+		if err := apikey.EnvironmentValidator(v); err != nil {
+			return &ValidationError{Name: "environment", err: fmt.Errorf(`ent: validator failed for field "APIKey.environment": %w`, err)}
+		}
+	}
+	if _u.mutation.AppCleared() && len(_u.mutation.AppIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "APIKey.app"`)
+	}
+	return nil
+}
+
 func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
-	_spec := sqlgraph.NewUpdateSpec(apikey.Table, apikey.Columns, sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt))
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
+	_spec := sqlgraph.NewUpdateSpec(apikey.Table, apikey.Columns, sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeUUID))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Name(); ok {
+		_spec.SetField(apikey.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.KeyHash(); ok {
+		_spec.SetField(apikey.FieldKeyHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Environment(); ok {
+		_spec.SetField(apikey.FieldEnvironment, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Scopes(); ok {
+		_spec.SetField(apikey.FieldScopes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedScopes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, apikey.FieldScopes, value)
+		})
+	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(apikey.FieldExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiresAtCleared() {
+		_spec.ClearField(apikey.FieldExpiresAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LastUsedAt(); ok {
+		_spec.SetField(apikey.FieldLastUsedAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastUsedAtCleared() {
+		_spec.ClearField(apikey.FieldLastUsedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Active(); ok {
+		_spec.SetField(apikey.FieldActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RevokedAt(); ok {
+		_spec.SetField(apikey.FieldRevokedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RevokedAtCleared() {
+		_spec.ClearField(apikey.FieldRevokedAt, field.TypeTime)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -86,6 +275,134 @@ type APIKeyUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *APIKeyMutation
+}
+
+// SetName sets the "name" field.
+func (_u *APIKeyUpdateOne) SetName(v string) *APIKeyUpdateOne {
+	_u.mutation.SetName(v)
+	return _u
+}
+
+// SetNillableName sets the "name" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableName(v *string) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetName(*v)
+	}
+	return _u
+}
+
+// SetKeyHash sets the "key_hash" field.
+func (_u *APIKeyUpdateOne) SetKeyHash(v string) *APIKeyUpdateOne {
+	_u.mutation.SetKeyHash(v)
+	return _u
+}
+
+// SetNillableKeyHash sets the "key_hash" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableKeyHash(v *string) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetKeyHash(*v)
+	}
+	return _u
+}
+
+// SetEnvironment sets the "environment" field.
+func (_u *APIKeyUpdateOne) SetEnvironment(v apikey.Environment) *APIKeyUpdateOne {
+	_u.mutation.SetEnvironment(v)
+	return _u
+}
+
+// SetNillableEnvironment sets the "environment" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableEnvironment(v *apikey.Environment) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetEnvironment(*v)
+	}
+	return _u
+}
+
+// SetScopes sets the "scopes" field.
+func (_u *APIKeyUpdateOne) SetScopes(v []string) *APIKeyUpdateOne {
+	_u.mutation.SetScopes(v)
+	return _u
+}
+
+// AppendScopes appends value to the "scopes" field.
+func (_u *APIKeyUpdateOne) AppendScopes(v []string) *APIKeyUpdateOne {
+	_u.mutation.AppendScopes(v)
+	return _u
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (_u *APIKeyUpdateOne) SetExpiresAt(v time.Time) *APIKeyUpdateOne {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableExpiresAt(v *time.Time) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (_u *APIKeyUpdateOne) ClearExpiresAt() *APIKeyUpdateOne {
+	_u.mutation.ClearExpiresAt()
+	return _u
+}
+
+// SetLastUsedAt sets the "last_used_at" field.
+func (_u *APIKeyUpdateOne) SetLastUsedAt(v time.Time) *APIKeyUpdateOne {
+	_u.mutation.SetLastUsedAt(v)
+	return _u
+}
+
+// SetNillableLastUsedAt sets the "last_used_at" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableLastUsedAt(v *time.Time) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetLastUsedAt(*v)
+	}
+	return _u
+}
+
+// ClearLastUsedAt clears the value of the "last_used_at" field.
+func (_u *APIKeyUpdateOne) ClearLastUsedAt() *APIKeyUpdateOne {
+	_u.mutation.ClearLastUsedAt()
+	return _u
+}
+
+// SetActive sets the "active" field.
+func (_u *APIKeyUpdateOne) SetActive(v bool) *APIKeyUpdateOne {
+	_u.mutation.SetActive(v)
+	return _u
+}
+
+// SetNillableActive sets the "active" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableActive(v *bool) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetActive(*v)
+	}
+	return _u
+}
+
+// SetRevokedAt sets the "revoked_at" field.
+func (_u *APIKeyUpdateOne) SetRevokedAt(v time.Time) *APIKeyUpdateOne {
+	_u.mutation.SetRevokedAt(v)
+	return _u
+}
+
+// SetNillableRevokedAt sets the "revoked_at" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableRevokedAt(v *time.Time) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetRevokedAt(*v)
+	}
+	return _u
+}
+
+// ClearRevokedAt clears the value of the "revoked_at" field.
+func (_u *APIKeyUpdateOne) ClearRevokedAt() *APIKeyUpdateOne {
+	_u.mutation.ClearRevokedAt()
+	return _u
 }
 
 // Mutation returns the APIKeyMutation object of the builder.
@@ -133,8 +450,29 @@ func (_u *APIKeyUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *APIKeyUpdateOne) check() error {
+	if v, ok := _u.mutation.Name(); ok {
+		if err := apikey.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Environment(); ok {
+		if err := apikey.EnvironmentValidator(v); err != nil {
+			return &ValidationError{Name: "environment", err: fmt.Errorf(`ent: validator failed for field "APIKey.environment": %w`, err)}
+		}
+	}
+	if _u.mutation.AppCleared() && len(_u.mutation.AppIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "APIKey.app"`)
+	}
+	return nil
+}
+
 func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err error) {
-	_spec := sqlgraph.NewUpdateSpec(apikey.Table, apikey.Columns, sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt))
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
+	_spec := sqlgraph.NewUpdateSpec(apikey.Table, apikey.Columns, sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeUUID))
 	id, ok := _u.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "APIKey.id" for update`)}
@@ -158,6 +496,44 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Name(); ok {
+		_spec.SetField(apikey.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.KeyHash(); ok {
+		_spec.SetField(apikey.FieldKeyHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Environment(); ok {
+		_spec.SetField(apikey.FieldEnvironment, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Scopes(); ok {
+		_spec.SetField(apikey.FieldScopes, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedScopes(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, apikey.FieldScopes, value)
+		})
+	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(apikey.FieldExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiresAtCleared() {
+		_spec.ClearField(apikey.FieldExpiresAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.LastUsedAt(); ok {
+		_spec.SetField(apikey.FieldLastUsedAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastUsedAtCleared() {
+		_spec.ClearField(apikey.FieldLastUsedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.Active(); ok {
+		_spec.SetField(apikey.FieldActive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RevokedAt(); ok {
+		_spec.SetField(apikey.FieldRevokedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RevokedAtCleared() {
+		_spec.ClearField(apikey.FieldRevokedAt, field.TypeTime)
 	}
 	_node = &APIKey{config: _u.config}
 	_spec.Assign = _node.assignValues

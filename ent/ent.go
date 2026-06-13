@@ -7,15 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"notifex/ent/apikey"
-	"notifex/ent/deliveryattempt"
+	"notifex/ent/app"
+	"notifex/ent/notification"
 	"notifex/ent/notificationlog"
-	"notifex/ent/securityauditlog"
 	"notifex/ent/template"
+	"notifex/ent/templatecontent"
 	"notifex/ent/user"
-	"notifex/ent/usercredential"
-	"notifex/ent/userpreference"
 	"notifex/ent/usersession"
-	"notifex/ent/workspace"
+	"notifex/ent/verificationtoken"
 	"reflect"
 	"sync"
 
@@ -82,16 +81,15 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			apikey.Table:           apikey.ValidColumn,
-			deliveryattempt.Table:  deliveryattempt.ValidColumn,
-			notificationlog.Table:  notificationlog.ValidColumn,
-			securityauditlog.Table: securityauditlog.ValidColumn,
-			template.Table:         template.ValidColumn,
-			user.Table:             user.ValidColumn,
-			usercredential.Table:   usercredential.ValidColumn,
-			userpreference.Table:   userpreference.ValidColumn,
-			usersession.Table:      usersession.ValidColumn,
-			workspace.Table:        workspace.ValidColumn,
+			apikey.Table:            apikey.ValidColumn,
+			app.Table:               app.ValidColumn,
+			notification.Table:      notification.ValidColumn,
+			notificationlog.Table:   notificationlog.ValidColumn,
+			template.Table:          template.ValidColumn,
+			templatecontent.Table:   templatecontent.ValidColumn,
+			user.Table:              user.ValidColumn,
+			usersession.Table:       usersession.ValidColumn,
+			verificationtoken.Table: verificationtoken.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

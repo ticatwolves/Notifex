@@ -3,7 +3,12 @@
 package apikey
 
 import (
+	"fmt"
+	"time"
+
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/google/uuid"
 )
 
 const (
@@ -11,13 +16,55 @@ const (
 	Label = "api_key"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
+	// FieldAppID holds the string denoting the app_id field in the database.
+	FieldAppID = "app_id"
+	// FieldName holds the string denoting the name field in the database.
+	FieldName = "name"
+	// FieldKeyPrefix holds the string denoting the key_prefix field in the database.
+	FieldKeyPrefix = "key_prefix"
+	// FieldKeyHash holds the string denoting the key_hash field in the database.
+	FieldKeyHash = "key_hash"
+	// FieldEnvironment holds the string denoting the environment field in the database.
+	FieldEnvironment = "environment"
+	// FieldScopes holds the string denoting the scopes field in the database.
+	FieldScopes = "scopes"
+	// FieldExpiresAt holds the string denoting the expires_at field in the database.
+	FieldExpiresAt = "expires_at"
+	// FieldLastUsedAt holds the string denoting the last_used_at field in the database.
+	FieldLastUsedAt = "last_used_at"
+	// FieldActive holds the string denoting the active field in the database.
+	FieldActive = "active"
+	// FieldCreatedAt holds the string denoting the created_at field in the database.
+	FieldCreatedAt = "created_at"
+	// FieldRevokedAt holds the string denoting the revoked_at field in the database.
+	FieldRevokedAt = "revoked_at"
+	// EdgeApp holds the string denoting the app edge name in mutations.
+	EdgeApp = "app"
 	// Table holds the table name of the apikey in the database.
 	Table = "api_keys"
+	// AppTable is the table that holds the app relation/edge.
+	AppTable = "api_keys"
+	// AppInverseTable is the table name for the App entity.
+	// It exists in this package in order to avoid circular dependency with the "app" package.
+	AppInverseTable = "apps"
+	// AppColumn is the table column denoting the app relation/edge.
+	AppColumn = "app_id"
 )
 
 // Columns holds all SQL columns for apikey fields.
 var Columns = []string{
 	FieldID,
+	FieldAppID,
+	FieldName,
+	FieldKeyPrefix,
+	FieldKeyHash,
+	FieldEnvironment,
+	FieldScopes,
+	FieldExpiresAt,
+	FieldLastUsedAt,
+	FieldActive,
+	FieldCreatedAt,
+	FieldRevokedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -30,10 +77,115 @@ func ValidColumn(column string) bool {
 	return false
 }
 
+var (
+	// NameValidator is a validator for the "name" field. It is called by the builders before save.
+	NameValidator func(string) error
+	// KeyPrefixValidator is a validator for the "key_prefix" field. It is called by the builders before save.
+	KeyPrefixValidator func(string) error
+	// DefaultScopes holds the default value on creation for the "scopes" field.
+	DefaultScopes []string
+	// DefaultActive holds the default value on creation for the "active" field.
+	DefaultActive bool
+	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
+	DefaultCreatedAt func() time.Time
+	// DefaultID holds the default value on creation for the "id" field.
+	DefaultID func() uuid.UUID
+)
+
+// Environment defines the type for the "environment" enum field.
+type Environment string
+
+// EnvironmentLive is the default value of the Environment enum.
+const DefaultEnvironment = EnvironmentLive
+
+// Environment values.
+const (
+	EnvironmentLive Environment = "live"
+	EnvironmentTest Environment = "test"
+)
+
+func (e Environment) String() string {
+	return string(e)
+}
+
+// EnvironmentValidator is a validator for the "environment" field enum values. It is called by the builders before save.
+func EnvironmentValidator(e Environment) error {
+	switch e {
+	case EnvironmentLive, EnvironmentTest:
+		return nil
+	default:
+		return fmt.Errorf("apikey: invalid enum value for environment field: %q", e)
+	}
+}
+
 // OrderOption defines the ordering options for the APIKey queries.
 type OrderOption func(*sql.Selector)
 
 // ByID orders the results by the id field.
 func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
+}
+
+// ByAppID orders the results by the app_id field.
+func ByAppID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAppID, opts...).ToFunc()
+}
+
+// ByName orders the results by the name field.
+func ByName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// ByKeyPrefix orders the results by the key_prefix field.
+func ByKeyPrefix(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldKeyPrefix, opts...).ToFunc()
+}
+
+// ByKeyHash orders the results by the key_hash field.
+func ByKeyHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldKeyHash, opts...).ToFunc()
+}
+
+// ByEnvironment orders the results by the environment field.
+func ByEnvironment(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEnvironment, opts...).ToFunc()
+}
+
+// ByExpiresAt orders the results by the expires_at field.
+func ByExpiresAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpiresAt, opts...).ToFunc()
+}
+
+// ByLastUsedAt orders the results by the last_used_at field.
+func ByLastUsedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastUsedAt, opts...).ToFunc()
+}
+
+// ByActive orders the results by the active field.
+func ByActive(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldActive, opts...).ToFunc()
+}
+
+// ByCreatedAt orders the results by the created_at field.
+func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByRevokedAt orders the results by the revoked_at field.
+func ByRevokedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRevokedAt, opts...).ToFunc()
+}
+
+// ByAppField orders the results by app field.
+func ByAppField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAppStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newAppStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AppInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, AppTable, AppColumn),
+	)
 }

@@ -4,11 +4,15 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"notifex/ent/apikey"
+	"notifex/ent/app"
+	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // APIKeyCreate is the builder for creating a APIKey entity.
@@ -18,6 +22,139 @@ type APIKeyCreate struct {
 	hooks    []Hook
 }
 
+// SetAppID sets the "app_id" field.
+func (_c *APIKeyCreate) SetAppID(v uuid.UUID) *APIKeyCreate {
+	_c.mutation.SetAppID(v)
+	return _c
+}
+
+// SetName sets the "name" field.
+func (_c *APIKeyCreate) SetName(v string) *APIKeyCreate {
+	_c.mutation.SetName(v)
+	return _c
+}
+
+// SetKeyPrefix sets the "key_prefix" field.
+func (_c *APIKeyCreate) SetKeyPrefix(v string) *APIKeyCreate {
+	_c.mutation.SetKeyPrefix(v)
+	return _c
+}
+
+// SetKeyHash sets the "key_hash" field.
+func (_c *APIKeyCreate) SetKeyHash(v string) *APIKeyCreate {
+	_c.mutation.SetKeyHash(v)
+	return _c
+}
+
+// SetEnvironment sets the "environment" field.
+func (_c *APIKeyCreate) SetEnvironment(v apikey.Environment) *APIKeyCreate {
+	_c.mutation.SetEnvironment(v)
+	return _c
+}
+
+// SetNillableEnvironment sets the "environment" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableEnvironment(v *apikey.Environment) *APIKeyCreate {
+	if v != nil {
+		_c.SetEnvironment(*v)
+	}
+	return _c
+}
+
+// SetScopes sets the "scopes" field.
+func (_c *APIKeyCreate) SetScopes(v []string) *APIKeyCreate {
+	_c.mutation.SetScopes(v)
+	return _c
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (_c *APIKeyCreate) SetExpiresAt(v time.Time) *APIKeyCreate {
+	_c.mutation.SetExpiresAt(v)
+	return _c
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableExpiresAt(v *time.Time) *APIKeyCreate {
+	if v != nil {
+		_c.SetExpiresAt(*v)
+	}
+	return _c
+}
+
+// SetLastUsedAt sets the "last_used_at" field.
+func (_c *APIKeyCreate) SetLastUsedAt(v time.Time) *APIKeyCreate {
+	_c.mutation.SetLastUsedAt(v)
+	return _c
+}
+
+// SetNillableLastUsedAt sets the "last_used_at" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableLastUsedAt(v *time.Time) *APIKeyCreate {
+	if v != nil {
+		_c.SetLastUsedAt(*v)
+	}
+	return _c
+}
+
+// SetActive sets the "active" field.
+func (_c *APIKeyCreate) SetActive(v bool) *APIKeyCreate {
+	_c.mutation.SetActive(v)
+	return _c
+}
+
+// SetNillableActive sets the "active" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableActive(v *bool) *APIKeyCreate {
+	if v != nil {
+		_c.SetActive(*v)
+	}
+	return _c
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (_c *APIKeyCreate) SetCreatedAt(v time.Time) *APIKeyCreate {
+	_c.mutation.SetCreatedAt(v)
+	return _c
+}
+
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableCreatedAt(v *time.Time) *APIKeyCreate {
+	if v != nil {
+		_c.SetCreatedAt(*v)
+	}
+	return _c
+}
+
+// SetRevokedAt sets the "revoked_at" field.
+func (_c *APIKeyCreate) SetRevokedAt(v time.Time) *APIKeyCreate {
+	_c.mutation.SetRevokedAt(v)
+	return _c
+}
+
+// SetNillableRevokedAt sets the "revoked_at" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableRevokedAt(v *time.Time) *APIKeyCreate {
+	if v != nil {
+		_c.SetRevokedAt(*v)
+	}
+	return _c
+}
+
+// SetID sets the "id" field.
+func (_c *APIKeyCreate) SetID(v uuid.UUID) *APIKeyCreate {
+	_c.mutation.SetID(v)
+	return _c
+}
+
+// SetNillableID sets the "id" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableID(v *uuid.UUID) *APIKeyCreate {
+	if v != nil {
+		_c.SetID(*v)
+	}
+	return _c
+}
+
+// SetApp sets the "app" edge to the App entity.
+func (_c *APIKeyCreate) SetApp(v *App) *APIKeyCreate {
+	return _c.SetAppID(v.ID)
+}
+
 // Mutation returns the APIKeyMutation object of the builder.
 func (_c *APIKeyCreate) Mutation() *APIKeyMutation {
 	return _c.mutation
@@ -25,6 +162,7 @@ func (_c *APIKeyCreate) Mutation() *APIKeyMutation {
 
 // Save creates the APIKey in the database.
 func (_c *APIKeyCreate) Save(ctx context.Context) (*APIKey, error) {
+	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -50,8 +188,74 @@ func (_c *APIKeyCreate) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_c *APIKeyCreate) defaults() {
+	if _, ok := _c.mutation.Environment(); !ok {
+		v := apikey.DefaultEnvironment
+		_c.mutation.SetEnvironment(v)
+	}
+	if _, ok := _c.mutation.Scopes(); !ok {
+		v := apikey.DefaultScopes
+		_c.mutation.SetScopes(v)
+	}
+	if _, ok := _c.mutation.Active(); !ok {
+		v := apikey.DefaultActive
+		_c.mutation.SetActive(v)
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		v := apikey.DefaultCreatedAt()
+		_c.mutation.SetCreatedAt(v)
+	}
+	if _, ok := _c.mutation.ID(); !ok {
+		v := apikey.DefaultID()
+		_c.mutation.SetID(v)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (_c *APIKeyCreate) check() error {
+	if _, ok := _c.mutation.AppID(); !ok {
+		return &ValidationError{Name: "app_id", err: errors.New(`ent: missing required field "APIKey.app_id"`)}
+	}
+	if _, ok := _c.mutation.Name(); !ok {
+		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "APIKey.name"`)}
+	}
+	if v, ok := _c.mutation.Name(); ok {
+		if err := apikey.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.KeyPrefix(); !ok {
+		return &ValidationError{Name: "key_prefix", err: errors.New(`ent: missing required field "APIKey.key_prefix"`)}
+	}
+	if v, ok := _c.mutation.KeyPrefix(); ok {
+		if err := apikey.KeyPrefixValidator(v); err != nil {
+			return &ValidationError{Name: "key_prefix", err: fmt.Errorf(`ent: validator failed for field "APIKey.key_prefix": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.KeyHash(); !ok {
+		return &ValidationError{Name: "key_hash", err: errors.New(`ent: missing required field "APIKey.key_hash"`)}
+	}
+	if _, ok := _c.mutation.Environment(); !ok {
+		return &ValidationError{Name: "environment", err: errors.New(`ent: missing required field "APIKey.environment"`)}
+	}
+	if v, ok := _c.mutation.Environment(); ok {
+		if err := apikey.EnvironmentValidator(v); err != nil {
+			return &ValidationError{Name: "environment", err: fmt.Errorf(`ent: validator failed for field "APIKey.environment": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Scopes(); !ok {
+		return &ValidationError{Name: "scopes", err: errors.New(`ent: missing required field "APIKey.scopes"`)}
+	}
+	if _, ok := _c.mutation.Active(); !ok {
+		return &ValidationError{Name: "active", err: errors.New(`ent: missing required field "APIKey.active"`)}
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "APIKey.created_at"`)}
+	}
+	if len(_c.mutation.AppIDs()) == 0 {
+		return &ValidationError{Name: "app", err: errors.New(`ent: missing required edge "APIKey.app"`)}
+	}
 	return nil
 }
 
@@ -66,8 +270,13 @@ func (_c *APIKeyCreate) sqlSave(ctx context.Context) (*APIKey, error) {
 		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
+	if _spec.ID.Value != nil {
+		if id, ok := _spec.ID.Value.(*uuid.UUID); ok {
+			_node.ID = *id
+		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
+			return nil, err
+		}
+	}
 	_c.mutation.id = &_node.ID
 	_c.mutation.done = true
 	return _node, nil
@@ -76,8 +285,69 @@ func (_c *APIKeyCreate) sqlSave(ctx context.Context) (*APIKey, error) {
 func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 	var (
 		_node = &APIKey{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(apikey.Table, sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt))
+		_spec = sqlgraph.NewCreateSpec(apikey.Table, sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeUUID))
 	)
+	if id, ok := _c.mutation.ID(); ok {
+		_node.ID = id
+		_spec.ID.Value = &id
+	}
+	if value, ok := _c.mutation.Name(); ok {
+		_spec.SetField(apikey.FieldName, field.TypeString, value)
+		_node.Name = value
+	}
+	if value, ok := _c.mutation.KeyPrefix(); ok {
+		_spec.SetField(apikey.FieldKeyPrefix, field.TypeString, value)
+		_node.KeyPrefix = value
+	}
+	if value, ok := _c.mutation.KeyHash(); ok {
+		_spec.SetField(apikey.FieldKeyHash, field.TypeString, value)
+		_node.KeyHash = value
+	}
+	if value, ok := _c.mutation.Environment(); ok {
+		_spec.SetField(apikey.FieldEnvironment, field.TypeEnum, value)
+		_node.Environment = value
+	}
+	if value, ok := _c.mutation.Scopes(); ok {
+		_spec.SetField(apikey.FieldScopes, field.TypeJSON, value)
+		_node.Scopes = value
+	}
+	if value, ok := _c.mutation.ExpiresAt(); ok {
+		_spec.SetField(apikey.FieldExpiresAt, field.TypeTime, value)
+		_node.ExpiresAt = &value
+	}
+	if value, ok := _c.mutation.LastUsedAt(); ok {
+		_spec.SetField(apikey.FieldLastUsedAt, field.TypeTime, value)
+		_node.LastUsedAt = &value
+	}
+	if value, ok := _c.mutation.Active(); ok {
+		_spec.SetField(apikey.FieldActive, field.TypeBool, value)
+		_node.Active = value
+	}
+	if value, ok := _c.mutation.CreatedAt(); ok {
+		_spec.SetField(apikey.FieldCreatedAt, field.TypeTime, value)
+		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.RevokedAt(); ok {
+		_spec.SetField(apikey.FieldRevokedAt, field.TypeTime, value)
+		_node.RevokedAt = &value
+	}
+	if nodes := _c.mutation.AppIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   apikey.AppTable,
+			Columns: []string{apikey.AppColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(app.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.AppID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -99,6 +369,7 @@ func (_c *APIKeyCreateBulk) Save(ctx context.Context) ([]*APIKey, error) {
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
+			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 				mutation, ok := m.(*APIKeyMutation)
 				if !ok {
@@ -125,10 +396,6 @@ func (_c *APIKeyCreateBulk) Save(ctx context.Context) ([]*APIKey, error) {
 					return nil, err
 				}
 				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
 				mutation.done = true
 				return nodes[i], nil
 			})

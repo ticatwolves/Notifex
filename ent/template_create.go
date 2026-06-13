@@ -4,11 +4,17 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"notifex/ent/app"
+	"notifex/ent/schema"
 	"notifex/ent/template"
+	"notifex/ent/templatecontent"
+	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // TemplateCreate is the builder for creating a Template entity.
@@ -18,6 +24,120 @@ type TemplateCreate struct {
 	hooks    []Hook
 }
 
+// SetAppID sets the "app_id" field.
+func (_c *TemplateCreate) SetAppID(v uuid.UUID) *TemplateCreate {
+	_c.mutation.SetAppID(v)
+	return _c
+}
+
+// SetSlug sets the "slug" field.
+func (_c *TemplateCreate) SetSlug(v string) *TemplateCreate {
+	_c.mutation.SetSlug(v)
+	return _c
+}
+
+// SetName sets the "name" field.
+func (_c *TemplateCreate) SetName(v string) *TemplateCreate {
+	_c.mutation.SetName(v)
+	return _c
+}
+
+// SetDescription sets the "description" field.
+func (_c *TemplateCreate) SetDescription(v string) *TemplateCreate {
+	_c.mutation.SetDescription(v)
+	return _c
+}
+
+// SetNillableDescription sets the "description" field if the given value is not nil.
+func (_c *TemplateCreate) SetNillableDescription(v *string) *TemplateCreate {
+	if v != nil {
+		_c.SetDescription(*v)
+	}
+	return _c
+}
+
+// SetVariables sets the "variables" field.
+func (_c *TemplateCreate) SetVariables(v []schema.TemplateVariable) *TemplateCreate {
+	_c.mutation.SetVariables(v)
+	return _c
+}
+
+// SetActive sets the "active" field.
+func (_c *TemplateCreate) SetActive(v bool) *TemplateCreate {
+	_c.mutation.SetActive(v)
+	return _c
+}
+
+// SetNillableActive sets the "active" field if the given value is not nil.
+func (_c *TemplateCreate) SetNillableActive(v *bool) *TemplateCreate {
+	if v != nil {
+		_c.SetActive(*v)
+	}
+	return _c
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (_c *TemplateCreate) SetCreatedAt(v time.Time) *TemplateCreate {
+	_c.mutation.SetCreatedAt(v)
+	return _c
+}
+
+// SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
+func (_c *TemplateCreate) SetNillableCreatedAt(v *time.Time) *TemplateCreate {
+	if v != nil {
+		_c.SetCreatedAt(*v)
+	}
+	return _c
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_c *TemplateCreate) SetUpdatedAt(v time.Time) *TemplateCreate {
+	_c.mutation.SetUpdatedAt(v)
+	return _c
+}
+
+// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
+func (_c *TemplateCreate) SetNillableUpdatedAt(v *time.Time) *TemplateCreate {
+	if v != nil {
+		_c.SetUpdatedAt(*v)
+	}
+	return _c
+}
+
+// SetID sets the "id" field.
+func (_c *TemplateCreate) SetID(v uuid.UUID) *TemplateCreate {
+	_c.mutation.SetID(v)
+	return _c
+}
+
+// SetNillableID sets the "id" field if the given value is not nil.
+func (_c *TemplateCreate) SetNillableID(v *uuid.UUID) *TemplateCreate {
+	if v != nil {
+		_c.SetID(*v)
+	}
+	return _c
+}
+
+// SetApp sets the "app" edge to the App entity.
+func (_c *TemplateCreate) SetApp(v *App) *TemplateCreate {
+	return _c.SetAppID(v.ID)
+}
+
+// AddContentIDs adds the "contents" edge to the TemplateContent entity by IDs.
+func (_c *TemplateCreate) AddContentIDs(ids ...uuid.UUID) *TemplateCreate {
+	_c.mutation.AddContentIDs(ids...)
+	return _c
+}
+
+// AddContents adds the "contents" edges to the TemplateContent entity.
+func (_c *TemplateCreate) AddContents(v ...*TemplateContent) *TemplateCreate {
+	ids := make([]uuid.UUID, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddContentIDs(ids...)
+}
+
 // Mutation returns the TemplateMutation object of the builder.
 func (_c *TemplateCreate) Mutation() *TemplateMutation {
 	return _c.mutation
@@ -25,6 +145,7 @@ func (_c *TemplateCreate) Mutation() *TemplateMutation {
 
 // Save creates the Template in the database.
 func (_c *TemplateCreate) Save(ctx context.Context) (*Template, error) {
+	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
@@ -50,8 +171,64 @@ func (_c *TemplateCreate) ExecX(ctx context.Context) {
 	}
 }
 
+// defaults sets the default values of the builder before save.
+func (_c *TemplateCreate) defaults() {
+	if _, ok := _c.mutation.Active(); !ok {
+		v := template.DefaultActive
+		_c.mutation.SetActive(v)
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		v := template.DefaultCreatedAt()
+		_c.mutation.SetCreatedAt(v)
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		v := template.DefaultUpdatedAt()
+		_c.mutation.SetUpdatedAt(v)
+	}
+	if _, ok := _c.mutation.ID(); !ok {
+		v := template.DefaultID()
+		_c.mutation.SetID(v)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (_c *TemplateCreate) check() error {
+	if _, ok := _c.mutation.AppID(); !ok {
+		return &ValidationError{Name: "app_id", err: errors.New(`ent: missing required field "Template.app_id"`)}
+	}
+	if _, ok := _c.mutation.Slug(); !ok {
+		return &ValidationError{Name: "slug", err: errors.New(`ent: missing required field "Template.slug"`)}
+	}
+	if v, ok := _c.mutation.Slug(); ok {
+		if err := template.SlugValidator(v); err != nil {
+			return &ValidationError{Name: "slug", err: fmt.Errorf(`ent: validator failed for field "Template.slug": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Name(); !ok {
+		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Template.name"`)}
+	}
+	if v, ok := _c.mutation.Name(); ok {
+		if err := template.NameValidator(v); err != nil {
+			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Template.name": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.Description(); ok {
+		if err := template.DescriptionValidator(v); err != nil {
+			return &ValidationError{Name: "description", err: fmt.Errorf(`ent: validator failed for field "Template.description": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Active(); !ok {
+		return &ValidationError{Name: "active", err: errors.New(`ent: missing required field "Template.active"`)}
+	}
+	if _, ok := _c.mutation.CreatedAt(); !ok {
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Template.created_at"`)}
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "Template.updated_at"`)}
+	}
+	if len(_c.mutation.AppIDs()) == 0 {
+		return &ValidationError{Name: "app", err: errors.New(`ent: missing required edge "Template.app"`)}
+	}
 	return nil
 }
 
@@ -66,8 +243,13 @@ func (_c *TemplateCreate) sqlSave(ctx context.Context) (*Template, error) {
 		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
+	if _spec.ID.Value != nil {
+		if id, ok := _spec.ID.Value.(*uuid.UUID); ok {
+			_node.ID = *id
+		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
+			return nil, err
+		}
+	}
 	_c.mutation.id = &_node.ID
 	_c.mutation.done = true
 	return _node, nil
@@ -76,8 +258,73 @@ func (_c *TemplateCreate) sqlSave(ctx context.Context) (*Template, error) {
 func (_c *TemplateCreate) createSpec() (*Template, *sqlgraph.CreateSpec) {
 	var (
 		_node = &Template{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(template.Table, sqlgraph.NewFieldSpec(template.FieldID, field.TypeInt))
+		_spec = sqlgraph.NewCreateSpec(template.Table, sqlgraph.NewFieldSpec(template.FieldID, field.TypeUUID))
 	)
+	if id, ok := _c.mutation.ID(); ok {
+		_node.ID = id
+		_spec.ID.Value = &id
+	}
+	if value, ok := _c.mutation.Slug(); ok {
+		_spec.SetField(template.FieldSlug, field.TypeString, value)
+		_node.Slug = value
+	}
+	if value, ok := _c.mutation.Name(); ok {
+		_spec.SetField(template.FieldName, field.TypeString, value)
+		_node.Name = value
+	}
+	if value, ok := _c.mutation.Description(); ok {
+		_spec.SetField(template.FieldDescription, field.TypeString, value)
+		_node.Description = value
+	}
+	if value, ok := _c.mutation.Variables(); ok {
+		_spec.SetField(template.FieldVariables, field.TypeJSON, value)
+		_node.Variables = value
+	}
+	if value, ok := _c.mutation.Active(); ok {
+		_spec.SetField(template.FieldActive, field.TypeBool, value)
+		_node.Active = value
+	}
+	if value, ok := _c.mutation.CreatedAt(); ok {
+		_spec.SetField(template.FieldCreatedAt, field.TypeTime, value)
+		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.UpdatedAt(); ok {
+		_spec.SetField(template.FieldUpdatedAt, field.TypeTime, value)
+		_node.UpdatedAt = value
+	}
+	if nodes := _c.mutation.AppIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   template.AppTable,
+			Columns: []string{template.AppColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(app.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.AppID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ContentsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   template.ContentsTable,
+			Columns: []string{template.ContentsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(templatecontent.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -99,6 +346,7 @@ func (_c *TemplateCreateBulk) Save(ctx context.Context) ([]*Template, error) {
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
+			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 				mutation, ok := m.(*TemplateMutation)
 				if !ok {
@@ -125,10 +373,6 @@ func (_c *TemplateCreateBulk) Save(ctx context.Context) ([]*Template, error) {
 					return nil, err
 				}
 				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
 				mutation.done = true
 				return nodes[i], nil
 			})

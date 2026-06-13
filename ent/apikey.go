@@ -3,20 +3,69 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"notifex/ent/apikey"
+	"notifex/ent/app"
 	"strings"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/google/uuid"
 )
 
 // APIKey is the model entity for the APIKey schema.
 type APIKey struct {
-	config
+	config `json:"-"`
 	// ID of the ent.
-	ID           int `json:"id,omitempty"`
+	ID uuid.UUID `json:"id,omitempty"`
+	// AppID holds the value of the "app_id" field.
+	AppID uuid.UUID `json:"app_id,omitempty"`
+	// Human label, e.g. production-server
+	Name string `json:"name,omitempty"`
+	// First 8 chars of key shown in UI: nfx_live_xxxxxxxx
+	KeyPrefix string `json:"key_prefix,omitempty"`
+	// bcrypt hash of the full API key
+	KeyHash string `json:"-"`
+	// Environment holds the value of the "environment" field.
+	Environment apikey.Environment `json:"environment,omitempty"`
+	// Allowed: notify:send, notify:read, templates:write, recipients:write, analytics:read
+	Scopes []string `json:"scopes,omitempty"`
+	// Nil = never expires
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	// LastUsedAt holds the value of the "last_used_at" field.
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	// Active holds the value of the "active" field.
+	Active bool `json:"active,omitempty"`
+	// CreatedAt holds the value of the "created_at" field.
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// RevokedAt holds the value of the "revoked_at" field.
+	RevokedAt *time.Time `json:"revoked_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the APIKeyQuery when eager-loading is set.
+	Edges        APIKeyEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// APIKeyEdges holds the relations/edges for other nodes in the graph.
+type APIKeyEdges struct {
+	// App holds the value of the app edge.
+	App *App `json:"app,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// AppOrErr returns the App value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e APIKeyEdges) AppOrErr() (*App, error) {
+	if e.App != nil {
+		return e.App, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: app.Label}
+	}
+	return nil, &NotLoadedError{edge: "app"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -24,8 +73,16 @@ func (*APIKey) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case apikey.FieldID:
-			values[i] = new(sql.NullInt64)
+		case apikey.FieldScopes:
+			values[i] = new([]byte)
+		case apikey.FieldActive:
+			values[i] = new(sql.NullBool)
+		case apikey.FieldName, apikey.FieldKeyPrefix, apikey.FieldKeyHash, apikey.FieldEnvironment:
+			values[i] = new(sql.NullString)
+		case apikey.FieldExpiresAt, apikey.FieldLastUsedAt, apikey.FieldCreatedAt, apikey.FieldRevokedAt:
+			values[i] = new(sql.NullTime)
+		case apikey.FieldID, apikey.FieldAppID:
+			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -42,11 +99,82 @@ func (_m *APIKey) assignValues(columns []string, values []any) error {
 	for i := range columns {
 		switch columns[i] {
 		case apikey.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value != nil {
+				_m.ID = *value
 			}
-			_m.ID = int(value.Int64)
+		case apikey.FieldAppID:
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field app_id", values[i])
+			} else if value != nil {
+				_m.AppID = *value
+			}
+		case apikey.FieldName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field name", values[i])
+			} else if value.Valid {
+				_m.Name = value.String
+			}
+		case apikey.FieldKeyPrefix:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field key_prefix", values[i])
+			} else if value.Valid {
+				_m.KeyPrefix = value.String
+			}
+		case apikey.FieldKeyHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field key_hash", values[i])
+			} else if value.Valid {
+				_m.KeyHash = value.String
+			}
+		case apikey.FieldEnvironment:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field environment", values[i])
+			} else if value.Valid {
+				_m.Environment = apikey.Environment(value.String)
+			}
+		case apikey.FieldScopes:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field scopes", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Scopes); err != nil {
+					return fmt.Errorf("unmarshal field scopes: %w", err)
+				}
+			}
+		case apikey.FieldExpiresAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field expires_at", values[i])
+			} else if value.Valid {
+				_m.ExpiresAt = new(time.Time)
+				*_m.ExpiresAt = value.Time
+			}
+		case apikey.FieldLastUsedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_used_at", values[i])
+			} else if value.Valid {
+				_m.LastUsedAt = new(time.Time)
+				*_m.LastUsedAt = value.Time
+			}
+		case apikey.FieldActive:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field active", values[i])
+			} else if value.Valid {
+				_m.Active = value.Bool
+			}
+		case apikey.FieldCreatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field created_at", values[i])
+			} else if value.Valid {
+				_m.CreatedAt = value.Time
+			}
+		case apikey.FieldRevokedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field revoked_at", values[i])
+			} else if value.Valid {
+				_m.RevokedAt = new(time.Time)
+				*_m.RevokedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -58,6 +186,11 @@ func (_m *APIKey) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *APIKey) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryApp queries the "app" edge of the APIKey entity.
+func (_m *APIKey) QueryApp() *AppQuery {
+	return NewAPIKeyClient(_m.config).QueryApp(_m)
 }
 
 // Update returns a builder for updating this APIKey.
@@ -82,7 +215,44 @@ func (_m *APIKey) Unwrap() *APIKey {
 func (_m *APIKey) String() string {
 	var builder strings.Builder
 	builder.WriteString("APIKey(")
-	builder.WriteString(fmt.Sprintf("id=%v", _m.ID))
+	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
+	builder.WriteString("app_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AppID))
+	builder.WriteString(", ")
+	builder.WriteString("name=")
+	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	builder.WriteString("key_prefix=")
+	builder.WriteString(_m.KeyPrefix)
+	builder.WriteString(", ")
+	builder.WriteString("key_hash=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("environment=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Environment))
+	builder.WriteString(", ")
+	builder.WriteString("scopes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Scopes))
+	builder.WriteString(", ")
+	if v := _m.ExpiresAt; v != nil {
+		builder.WriteString("expires_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.LastUsedAt; v != nil {
+		builder.WriteString("last_used_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("active=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Active))
+	builder.WriteString(", ")
+	builder.WriteString("created_at=")
+	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	if v := _m.RevokedAt; v != nil {
+		builder.WriteString("revoked_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

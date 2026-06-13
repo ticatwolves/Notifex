@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package notifex;
+option go_package = "github.com/ticatwolves/notifex/proto;notifexpb";
+
+message NotificationRequest {
+    string id = 1;
+}
+
+message NotificationResponse {
+    string id = 1;
+}
+
+service NotificationService {
+    rpc CreateNotification (NotificationRequest) returns (NotificationResponse);
+}

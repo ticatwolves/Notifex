@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"math"
 	"notifex/ent/apikey"
+	"notifex/ent/app"
 	"notifex/ent/predicate"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // APIKeyQuery is the builder for querying APIKey entities.
@@ -22,6 +24,7 @@ type APIKeyQuery struct {
 	order      []apikey.OrderOption
 	inters     []Interceptor
 	predicates []predicate.APIKey
+	withApp    *AppQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -58,6 +61,28 @@ func (_q *APIKeyQuery) Order(o ...apikey.OrderOption) *APIKeyQuery {
 	return _q
 }
 
+// QueryApp chains the current query on the "app" edge.
+func (_q *APIKeyQuery) QueryApp() *AppQuery {
+	query := (&AppClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikey.Table, apikey.FieldID, selector),
+			sqlgraph.To(app.Table, app.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, apikey.AppTable, apikey.AppColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // First returns the first APIKey entity from the query.
 // Returns a *NotFoundError when no APIKey was found.
 func (_q *APIKeyQuery) First(ctx context.Context) (*APIKey, error) {
@@ -82,8 +107,8 @@ func (_q *APIKeyQuery) FirstX(ctx context.Context) *APIKey {
 
 // FirstID returns the first APIKey ID from the query.
 // Returns a *NotFoundError when no APIKey ID was found.
-func (_q *APIKeyQuery) FirstID(ctx context.Context) (id int, err error) {
-	var ids []int
+func (_q *APIKeyQuery) FirstID(ctx context.Context) (id uuid.UUID, err error) {
+	var ids []uuid.UUID
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
@@ -95,7 +120,7 @@ func (_q *APIKeyQuery) FirstID(ctx context.Context) (id int, err error) {
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *APIKeyQuery) FirstIDX(ctx context.Context) int {
+func (_q *APIKeyQuery) FirstIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -133,8 +158,8 @@ func (_q *APIKeyQuery) OnlyX(ctx context.Context) *APIKey {
 // OnlyID is like Only, but returns the only APIKey ID in the query.
 // Returns a *NotSingularError when more than one APIKey ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *APIKeyQuery) OnlyID(ctx context.Context) (id int, err error) {
-	var ids []int
+func (_q *APIKeyQuery) OnlyID(ctx context.Context) (id uuid.UUID, err error) {
+	var ids []uuid.UUID
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
@@ -150,7 +175,7 @@ func (_q *APIKeyQuery) OnlyID(ctx context.Context) (id int, err error) {
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *APIKeyQuery) OnlyIDX(ctx context.Context) int {
+func (_q *APIKeyQuery) OnlyIDX(ctx context.Context) uuid.UUID {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -178,7 +203,7 @@ func (_q *APIKeyQuery) AllX(ctx context.Context) []*APIKey {
 }
 
 // IDs executes the query and returns a list of APIKey IDs.
-func (_q *APIKeyQuery) IDs(ctx context.Context) (ids []int, err error) {
+func (_q *APIKeyQuery) IDs(ctx context.Context) (ids []uuid.UUID, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
@@ -190,7 +215,7 @@ func (_q *APIKeyQuery) IDs(ctx context.Context) (ids []int, err error) {
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *APIKeyQuery) IDsX(ctx context.Context) []int {
+func (_q *APIKeyQuery) IDsX(ctx context.Context) []uuid.UUID {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -250,14 +275,38 @@ func (_q *APIKeyQuery) Clone() *APIKeyQuery {
 		order:      append([]apikey.OrderOption{}, _q.order...),
 		inters:     append([]Interceptor{}, _q.inters...),
 		predicates: append([]predicate.APIKey{}, _q.predicates...),
+		withApp:    _q.withApp.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
 }
 
+// WithApp tells the query-builder to eager-load the nodes that are connected to
+// the "app" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *APIKeyQuery) WithApp(opts ...func(*AppQuery)) *APIKeyQuery {
+	query := (&AppClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withApp = query
+	return _q
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
+//
+// Example:
+//
+//	var v []struct {
+//		AppID uuid.UUID `json:"app_id,omitempty"`
+//		Count int `json:"count,omitempty"`
+//	}
+//
+//	client.APIKey.Query().
+//		GroupBy(apikey.FieldAppID).
+//		Aggregate(ent.Count()).
+//		Scan(ctx, &v)
 func (_q *APIKeyQuery) GroupBy(field string, fields ...string) *APIKeyGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
 	grbuild := &APIKeyGroupBy{build: _q}
@@ -269,6 +318,16 @@ func (_q *APIKeyQuery) GroupBy(field string, fields ...string) *APIKeyGroupBy {
 
 // Select allows the selection one or more fields/columns for the given query,
 // instead of selecting all fields in the entity.
+//
+// Example:
+//
+//	var v []struct {
+//		AppID uuid.UUID `json:"app_id,omitempty"`
+//	}
+//
+//	client.APIKey.Query().
+//		Select(apikey.FieldAppID).
+//		Scan(ctx, &v)
 func (_q *APIKeyQuery) Select(fields ...string) *APIKeySelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
 	sbuild := &APIKeySelect{APIKeyQuery: _q}
@@ -310,8 +369,11 @@ func (_q *APIKeyQuery) prepareQuery(ctx context.Context) error {
 
 func (_q *APIKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*APIKey, error) {
 	var (
-		nodes = []*APIKey{}
-		_spec = _q.querySpec()
+		nodes       = []*APIKey{}
+		_spec       = _q.querySpec()
+		loadedTypes = [1]bool{
+			_q.withApp != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*APIKey).scanValues(nil, columns)
@@ -319,6 +381,7 @@ func (_q *APIKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*APIKe
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &APIKey{config: _q.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -330,7 +393,43 @@ func (_q *APIKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*APIKe
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withApp; query != nil {
+		if err := _q.loadApp(ctx, query, nodes, nil,
+			func(n *APIKey, e *App) { n.Edges.App = e }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (_q *APIKeyQuery) loadApp(ctx context.Context, query *AppQuery, nodes []*APIKey, init func(*APIKey), assign func(*APIKey, *App)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*APIKey)
+	for i := range nodes {
+		fk := nodes[i].AppID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(app.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "app_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
 }
 
 func (_q *APIKeyQuery) sqlCount(ctx context.Context) (int, error) {
@@ -343,7 +442,7 @@ func (_q *APIKeyQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (_q *APIKeyQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(apikey.Table, apikey.Columns, sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt))
+	_spec := sqlgraph.NewQuerySpec(apikey.Table, apikey.Columns, sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeUUID))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -357,6 +456,9 @@ func (_q *APIKeyQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != apikey.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if _q.withApp != nil {
+			_spec.Node.AddColumnOnce(apikey.FieldAppID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

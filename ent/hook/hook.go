@@ -20,16 +20,28 @@ func (f APIKeyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeyMutation", m)
 }
 
-// The DeliveryAttemptFunc type is an adapter to allow the use of ordinary
-// function as DeliveryAttempt mutator.
-type DeliveryAttemptFunc func(context.Context, *ent.DeliveryAttemptMutation) (ent.Value, error)
+// The AppFunc type is an adapter to allow the use of ordinary
+// function as App mutator.
+type AppFunc func(context.Context, *ent.AppMutation) (ent.Value, error)
 
 // Mutate calls f(ctx, m).
-func (f DeliveryAttemptFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.DeliveryAttemptMutation); ok {
+func (f AppFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AppMutation); ok {
 		return f(ctx, mv)
 	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeliveryAttemptMutation", m)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AppMutation", m)
+}
+
+// The NotificationFunc type is an adapter to allow the use of ordinary
+// function as Notification mutator.
+type NotificationFunc func(context.Context, *ent.NotificationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NotificationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NotificationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NotificationMutation", m)
 }
 
 // The NotificationLogFunc type is an adapter to allow the use of ordinary
@@ -44,18 +56,6 @@ func (f NotificationLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NotificationLogMutation", m)
 }
 
-// The SecurityAuditLogFunc type is an adapter to allow the use of ordinary
-// function as SecurityAuditLog mutator.
-type SecurityAuditLogFunc func(context.Context, *ent.SecurityAuditLogMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f SecurityAuditLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.SecurityAuditLogMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SecurityAuditLogMutation", m)
-}
-
 // The TemplateFunc type is an adapter to allow the use of ordinary
 // function as Template mutator.
 type TemplateFunc func(context.Context, *ent.TemplateMutation) (ent.Value, error)
@@ -66,6 +66,18 @@ func (f TemplateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TemplateMutation", m)
+}
+
+// The TemplateContentFunc type is an adapter to allow the use of ordinary
+// function as TemplateContent mutator.
+type TemplateContentFunc func(context.Context, *ent.TemplateContentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TemplateContentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TemplateContentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TemplateContentMutation", m)
 }
 
 // The UserFunc type is an adapter to allow the use of ordinary
@@ -80,30 +92,6 @@ func (f UserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserMutation", m)
 }
 
-// The UserCredentialFunc type is an adapter to allow the use of ordinary
-// function as UserCredential mutator.
-type UserCredentialFunc func(context.Context, *ent.UserCredentialMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f UserCredentialFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.UserCredentialMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserCredentialMutation", m)
-}
-
-// The UserPreferenceFunc type is an adapter to allow the use of ordinary
-// function as UserPreference mutator.
-type UserPreferenceFunc func(context.Context, *ent.UserPreferenceMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f UserPreferenceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.UserPreferenceMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserPreferenceMutation", m)
-}
-
 // The UserSessionFunc type is an adapter to allow the use of ordinary
 // function as UserSession mutator.
 type UserSessionFunc func(context.Context, *ent.UserSessionMutation) (ent.Value, error)
@@ -116,16 +104,16 @@ func (f UserSessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserSessionMutation", m)
 }
 
-// The WorkspaceFunc type is an adapter to allow the use of ordinary
-// function as Workspace mutator.
-type WorkspaceFunc func(context.Context, *ent.WorkspaceMutation) (ent.Value, error)
+// The VerificationTokenFunc type is an adapter to allow the use of ordinary
+// function as VerificationToken mutator.
+type VerificationTokenFunc func(context.Context, *ent.VerificationTokenMutation) (ent.Value, error)
 
 // Mutate calls f(ctx, m).
-func (f WorkspaceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.WorkspaceMutation); ok {
+func (f VerificationTokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.VerificationTokenMutation); ok {
 		return f(ctx, mv)
 	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WorkspaceMutation", m)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VerificationTokenMutation", m)
 }
 
 // Condition is a hook condition function.
