@@ -1,25 +1,29 @@
-package api
+package main
 
 import (
+	"log"
 	"notifex/config"
-	"notifex/ent"
-	"notifex/internal/store/postgres"
+	"notifex/internal/bootstrap"
+	rest "notifex/internal/transport/rest"
+
+	"github.com/gin-gonic/gin"
 )
-
-type DBService struct {
-	client *ent.Client
-}
-
-func NewDBService(client *ent.Client) *DBService {
-	return &DBService{client: client}
-}
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		panic(err)
 	}
-	client := postgres.DBClint(cfg.DatabaseURL)
-	router := NewRouter(client)
-	router.Run(":" + cfg.Port)
+
+	app, err := bootstrap.New(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	router := gin.Default()
+
+	rest.RegisterRoutes(router, app)
+
+	router.Run(":8001")
+
 }

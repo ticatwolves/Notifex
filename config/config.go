@@ -8,11 +8,12 @@ import (
 
 type Config struct {
 	// Server
-	Port         string        `env:"PORT"          envDefault:"5000"`
-	ReadTimeout  time.Duration `env:"READ_TIMEOUT"  envDefault:"10s"`
-	WriteTimeout time.Duration `env:"WRITE_TIMEOUT" envDefault:"30s"`
-	GracePeriod  time.Duration `env:"GRACE_PERIOD"  envDefault:"30s"`
-	Environment  string        `env:"APP_ENV"       envDefault:"production"`
+	GRPCAddressPort string        `env:"GRPC_PORT"      envDefault:"localhost:9090"`
+	Port            string        `env:"PORT"          envDefault:"5000"`
+	ReadTimeout     time.Duration `env:"READ_TIMEOUT"  envDefault:"10s"`
+	WriteTimeout    time.Duration `env:"WRITE_TIMEOUT" envDefault:"30s"`
+	GracePeriod     time.Duration `env:"GRACE_PERIOD"  envDefault:"30s"`
+	Environment     string        `env:"APP_ENV"       envDefault:"production"`
 
 	// Database
 	DatabaseURL     string        `env:"DATABASE_URL"      required:"true"`
