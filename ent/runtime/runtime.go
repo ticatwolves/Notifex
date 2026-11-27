@@ -13,10 +13,12 @@ import (
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
 	"github.com/ticatwolves/notifex/ent/membership"
+	"github.com/ticatwolves/notifex/ent/oauthstate"
 	"github.com/ticatwolves/notifex/ent/schema"
 	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/tenant"
 	"github.com/ticatwolves/notifex/ent/user"
+	"github.com/ticatwolves/notifex/ent/useridentity"
 )
 
 // The init function reads all schema descriptors with runtime code
@@ -311,6 +313,45 @@ func init() {
 	membershipDescID := membershipMixinFields0[0].Descriptor()
 	// membership.DefaultID holds the default value on creation for the id field.
 	membership.DefaultID = membershipDescID.Default.(func() uuid.UUID)
+	oauthstateMixin := schema.OAuthState{}.Mixin()
+	oauthstateMixinFields0 := oauthstateMixin[0].Fields()
+	_ = oauthstateMixinFields0
+	oauthstateFields := schema.OAuthState{}.Fields()
+	_ = oauthstateFields
+	// oauthstateDescStateHash is the schema descriptor for state_hash field.
+	oauthstateDescStateHash := oauthstateFields[0].Descriptor()
+	// oauthstate.StateHashValidator is a validator for the "state_hash" field. It is called by the builders before save.
+	oauthstate.StateHashValidator = oauthstateDescStateHash.Validators[0].(func([]byte) error)
+	// oauthstateDescRedirectURI is the schema descriptor for redirect_uri field.
+	oauthstateDescRedirectURI := oauthstateFields[2].Descriptor()
+	// oauthstate.RedirectURIValidator is a validator for the "redirect_uri" field. It is called by the builders before save.
+	oauthstate.RedirectURIValidator = func() func(string) error {
+		validators := oauthstateDescRedirectURI.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(redirect_uri string) error {
+			for _, fn := range fns {
+				if err := fn(redirect_uri); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// oauthstateDescCodeVerifier is the schema descriptor for code_verifier field.
+	oauthstateDescCodeVerifier := oauthstateFields[3].Descriptor()
+	// oauthstate.CodeVerifierValidator is a validator for the "code_verifier" field. It is called by the builders before save.
+	oauthstate.CodeVerifierValidator = oauthstateDescCodeVerifier.Validators[0].(func(string) error)
+	// oauthstateDescNonce is the schema descriptor for nonce field.
+	oauthstateDescNonce := oauthstateFields[4].Descriptor()
+	// oauthstate.NonceValidator is a validator for the "nonce" field. It is called by the builders before save.
+	oauthstate.NonceValidator = oauthstateDescNonce.Validators[0].(func(string) error)
+	// oauthstateDescID is the schema descriptor for id field.
+	oauthstateDescID := oauthstateMixinFields0[0].Descriptor()
+	// oauthstate.DefaultID holds the default value on creation for the id field.
+	oauthstate.DefaultID = oauthstateDescID.Default.(func() uuid.UUID)
 	sessionMixin := schema.Session{}.Mixin()
 	sessionMixinFields0 := sessionMixin[0].Fields()
 	_ = sessionMixinFields0
@@ -486,6 +527,39 @@ func init() {
 	userDescID := userMixinFields0[0].Descriptor()
 	// user.DefaultID holds the default value on creation for the id field.
 	user.DefaultID = userDescID.Default.(func() uuid.UUID)
+	useridentityMixin := schema.UserIdentity{}.Mixin()
+	useridentityMixinFields0 := useridentityMixin[0].Fields()
+	_ = useridentityMixinFields0
+	useridentityFields := schema.UserIdentity{}.Fields()
+	_ = useridentityFields
+	// useridentityDescSubject is the schema descriptor for subject field.
+	useridentityDescSubject := useridentityFields[2].Descriptor()
+	// useridentity.SubjectValidator is a validator for the "subject" field. It is called by the builders before save.
+	useridentity.SubjectValidator = func() func(string) error {
+		validators := useridentityDescSubject.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(subject string) error {
+			for _, fn := range fns {
+				if err := fn(subject); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// useridentityDescEmail is the schema descriptor for email field.
+	useridentityDescEmail := useridentityFields[3].Descriptor()
+	// useridentity.DefaultEmail holds the default value on creation for the email field.
+	useridentity.DefaultEmail = useridentityDescEmail.Default.(string)
+	// useridentity.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	useridentity.EmailValidator = useridentityDescEmail.Validators[0].(func(string) error)
+	// useridentityDescID is the schema descriptor for id field.
+	useridentityDescID := useridentityMixinFields0[0].Descriptor()
+	// useridentity.DefaultID holds the default value on creation for the id field.
+	useridentity.DefaultID = useridentityDescID.Default.(func() uuid.UUID)
 }
 
 const (

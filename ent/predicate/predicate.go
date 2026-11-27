@@ -27,6 +27,9 @@ type Environment func(*sql.Selector)
 // Membership is the predicate function for membership builders.
 type Membership func(*sql.Selector)
 
+// OAuthState is the predicate function for oauthstate builders.
+type OAuthState func(*sql.Selector)
+
 // Session is the predicate function for session builders.
 type Session func(*sql.Selector)
 
@@ -35,3 +38,6 @@ type Tenant func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)
+
+// UserIdentity is the predicate function for useridentity builders.
+type UserIdentity func(*sql.Selector)

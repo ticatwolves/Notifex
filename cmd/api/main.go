@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"time"
 
@@ -42,6 +43,10 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 	}
 	accounts := auth.NewAccounts(st, auth.NewPasswordHasher(rt.Config.PasswordHashConcurrency), mailer, rt.Logger,
 		rt.Config.ConsoleURL, auth.DefaultSessionPolicy)
+	if err := auth.ValidateRedirectURIs(rt.Config.OAuthRedirectURIs); err != nil {
+		return nil, err
+	}
+	oauth := auth.NewOAuth(accounts, oauthProviders(ctx, rt), rt.Config.OAuthRedirectURIs)
 
 	rest := lifecycle.NewHTTPServer("http", rt.Config.HTTPAddr, httptransport.NewRouter(httptransport.Deps{
 		Service:        rt.Config.Service,
@@ -51,6 +56,7 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 		APIKeys:        auth.NewAPIKeyAuthenticator(st, hasher, rt.Logger, rt.Metrics),
 		Accounts:       accounts,
 		Sessions:       auth.NewSessionAuthenticator(st, rt.Logger, auth.DefaultSessionPolicy),
+		OAuth:          oauth,
 		TrustedProxies: rt.Config.TrustedProxies,
 	}), rt.Logger)
 	if err := rest.Listen(ctx); err != nil {
@@ -85,4 +91,25 @@ func systemMailer(rt *app.Runtime) (mail.Mailer, error) {
 		return q.Close(ctx)
 	})
 	return q, nil
+}
+
+// oauthProviders enables each provider whose client id is configured.
+func oauthProviders(ctx context.Context, rt *app.Runtime) []auth.Provider {
+	c := rt.Config
+	var ps []auth.Provider
+	if c.GoogleClientID != "" {
+		ps = append(ps, auth.NewGoogle(ctx, auth.ClientCredentials{ID: c.GoogleClientID, Secret: c.GoogleClientSecret}, auth.GoogleEndpoints))
+	}
+	if c.MicrosoftClientID != "" {
+		ps = append(ps, auth.NewMicrosoft(ctx, auth.ClientCredentials{ID: c.MicrosoftClientID, Secret: c.MicrosoftClientSecret}, auth.MicrosoftEndpoints))
+	}
+	if c.GitHubClientID != "" {
+		ps = append(ps, auth.NewGitHub(auth.ClientCredentials{ID: c.GitHubClientID, Secret: c.GitHubClientSecret}, auth.GitHubDefaultEndpoints))
+	}
+	names := make([]string, len(ps))
+	for i, p := range ps {
+		names[i] = string(p.Name())
+	}
+	rt.Logger.Info("oauth providers", slog.Any("enabled", names))
+	return ps
 }

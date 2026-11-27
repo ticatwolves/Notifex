@@ -28,6 +28,8 @@ type Deps struct {
 	// Accounts and Sessions enable the console routes (/v1/auth, /v1/me).
 	Accounts ConsoleAccounts
 	Sessions SessionAuthenticator
+	// OAuth enables provider sign-in and identity linking (optional).
+	OAuth ConsoleOAuth
 	// Limits are per-IP limits; zero value means DefaultLimits.
 	Limits Limits
 	// TrustedProxies are CIDRs whose X-Forwarded-For is believed (the ALB).

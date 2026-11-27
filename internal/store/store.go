@@ -55,6 +55,8 @@ type Store interface {
 	Sessions() SessionStore
 	EmailTokens() EmailTokenStore
 	Throttle() ThrottleStore
+	Identities() IdentityStore
+	OAuthStates() OAuthStateStore
 	// WithTx runs fn in one transaction. The Store passed to fn is bound to it,
 	// so a mutation and its audit event commit or roll back together. fn's
 	// error rolls back; a panic rolls back and re-panics.
@@ -179,7 +181,10 @@ type User struct {
 type NewUser struct {
 	Email        string
 	Name         string
-	PasswordHash *string
+	PasswordHash *string // nil for OAuth-only accounts
+	// EmailVerifiedAt is set when the email is already proven (e.g. an OAuth
+	// provider asserted it as verified).
+	EmailVerifiedAt *time.Time
 }
 
 // UserStore manages console users. Emails are compared case-insensitively
@@ -462,4 +467,78 @@ type ThrottleStore interface {
 	// after FreeFailures, 2^(n-FreeFailures+1) seconds, capped at MaxBackoff.
 	RecordFailure(ctx context.Context, key string, now time.Time, p ThrottlePolicy) (ThrottleState, error)
 	Reset(ctx context.Context, key string) error
+}
+
+// ---- OAuth (ADR-011 §3) ----
+
+// OAuthProvider names a supported identity provider.
+type OAuthProvider string
+
+// Supported providers.
+const (
+	ProviderGoogle    OAuthProvider = "google"
+	ProviderMicrosoft OAuthProvider = "microsoft"
+	ProviderGitHub    OAuthProvider = "github"
+)
+
+// Identity links an external account to a user.
+type Identity struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	Provider   OAuthProvider
+	Subject    string
+	Email      string
+	CreatedAt  time.Time
+	LastUsedAt time.Time
+}
+
+// NewIdentity is the input to IdentityStore.Create.
+type NewIdentity struct {
+	UserID   uuid.UUID
+	Provider OAuthProvider
+	Subject  string
+	Email    string
+	Now      time.Time
+}
+
+// IdentityStore persists external identities. (provider, subject) is unique
+// across users and (user, provider) is unique per user; both surface as
+// ErrConflict.
+type IdentityStore interface {
+	Create(ctx context.Context, in NewIdentity) (Identity, error)
+	GetBySubject(ctx context.Context, p OAuthProvider, subject string) (Identity, error)
+	ListForUser(ctx context.Context, userID uuid.UUID) ([]Identity, error)
+	Delete(ctx context.Context, userID uuid.UUID, p OAuthProvider) error
+	Touch(ctx context.Context, id uuid.UUID, now time.Time) error
+}
+
+// OAuthState is a pending authorization.
+type OAuthState struct {
+	ID           uuid.UUID
+	Provider     OAuthProvider
+	RedirectURI  string
+	CodeVerifier string
+	Nonce        string
+	LinkUserID   *uuid.UUID
+	ExpiresAt    time.Time
+}
+
+// NewOAuthState is the input to OAuthStateStore.Create.
+type NewOAuthState struct {
+	StateHash    []byte
+	Provider     OAuthProvider
+	RedirectURI  string
+	CodeVerifier string
+	Nonce        string
+	LinkUserID   *uuid.UUID
+	Now          time.Time
+	ExpiresAt    time.Time
+}
+
+// OAuthStateStore persists pending authorizations.
+type OAuthStateStore interface {
+	Create(ctx context.Context, in NewOAuthState) error
+	// Consume atomically marks the state used and returns it. Unknown, used,
+	// expired or other-provider states return ErrNotFound.
+	Consume(ctx context.Context, stateHash []byte, p OAuthProvider, now time.Time) (OAuthState, error)
 }

@@ -26,6 +26,7 @@ func (u users) Create(ctx context.Context, in store.NewUser) (store.User, error)
 		SetEmail(email).
 		SetName(in.Name).
 		SetNillablePasswordHash(in.PasswordHash).
+		SetNillableEmailVerifiedAt(in.EmailVerifiedAt).
 		Save(ctx)
 	if err != nil {
 		return store.User{}, fmt.Errorf("users.create: %w", mapErr(err, opCreate))

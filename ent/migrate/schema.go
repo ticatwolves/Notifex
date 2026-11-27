@@ -198,6 +198,37 @@ var (
 			},
 		},
 	}
+	// OauthStatesColumns holds the columns for the "oauth_states" table.
+	OauthStatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "state_hash", Type: field.TypeBytes},
+		{Name: "provider", Type: field.TypeEnum, Enums: []string{"google", "microsoft", "github"}},
+		{Name: "redirect_uri", Type: field.TypeString, Size: 2048},
+		{Name: "code_verifier", Type: field.TypeString},
+		{Name: "nonce", Type: field.TypeString},
+		{Name: "link_user_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "used_at", Type: field.TypeTime, Nullable: true},
+	}
+	// OauthStatesTable holds the schema information for the "oauth_states" table.
+	OauthStatesTable = &schema.Table{
+		Name:       "oauth_states",
+		Columns:    OauthStatesColumns,
+		PrimaryKey: []*schema.Column{OauthStatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "oauthstate_state_hash",
+				Unique:  true,
+				Columns: []*schema.Column{OauthStatesColumns[1]},
+			},
+			{
+				Name:    "oauthstate_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{OauthStatesColumns[8]},
+			},
+		},
+	}
 	// SessionsColumns holds the columns for the "sessions" table.
 	SessionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -272,6 +303,34 @@ var (
 		Columns:    UsersColumns,
 		PrimaryKey: []*schema.Column{UsersColumns[0]},
 	}
+	// UserIdentitiesColumns holds the columns for the "user_identities" table.
+	UserIdentitiesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "provider", Type: field.TypeEnum, Enums: []string{"google", "microsoft", "github"}},
+		{Name: "subject", Type: field.TypeString, Size: 255},
+		{Name: "email", Type: field.TypeString, Size: 320, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "last_used_at", Type: field.TypeTime},
+	}
+	// UserIdentitiesTable holds the schema information for the "user_identities" table.
+	UserIdentitiesTable = &schema.Table{
+		Name:       "user_identities",
+		Columns:    UserIdentitiesColumns,
+		PrimaryKey: []*schema.Column{UserIdentitiesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "useridentity_provider_subject",
+				Unique:  true,
+				Columns: []*schema.Column{UserIdentitiesColumns[2], UserIdentitiesColumns[3]},
+			},
+			{
+				Name:    "useridentity_user_id_provider",
+				Unique:  true,
+				Columns: []*schema.Column{UserIdentitiesColumns[1], UserIdentitiesColumns[2]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APIKeysTable,
@@ -281,9 +340,11 @@ var (
 		EmailTokensTable,
 		EnvironmentsTable,
 		MembershipsTable,
+		OauthStatesTable,
 		SessionsTable,
 		TenantsTable,
 		UsersTable,
+		UserIdentitiesTable,
 	}
 )
 

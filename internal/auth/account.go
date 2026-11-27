@@ -220,23 +220,33 @@ func (a *Accounts) Login(ctx context.Context, in LoginInput) (NewSessionToken, e
 				return err
 			}
 		}
-		token, tokenHash := newSessionToken()
-		s, err := tx.Sessions().Create(ctx, store.NewSession{
-			UserID: u.ID, TokenHash: tokenHash, Now: now, AbsoluteExpiresAt: now.Add(a.policy.Absolute), UserAgent: in.UserAgent,
-		})
-		if err != nil {
-			return err
-		}
-		out = NewSessionToken{Token: token, Session: s}
-		return audit.Record(ctx, tx, userActor(u.ID), audit.Event{
-			Action: "session.login", EntityType: "session", EntityID: s.ID.String(),
-			After: map[string]any{"method": "password"},
-		})
+		var err error
+		out, err = a.createSession(ctx, tx, u.ID, in.UserAgent, now, "password")
+		return err
 	})
 	if err != nil {
 		return NewSessionToken{}, fmt.Errorf("login: %w", err)
 	}
 	return out, nil
+}
+
+// createSession issues a session for userID inside tx and audits the login.
+func (a *Accounts) createSession(ctx context.Context, tx store.Store, userID uuid.UUID, userAgent string, now time.Time, method string) (NewSessionToken, error) {
+	token, tokenHash := newSessionToken()
+	s, err := tx.Sessions().Create(ctx, store.NewSession{
+		UserID: userID, TokenHash: tokenHash, Now: now, AbsoluteExpiresAt: now.Add(a.policy.Absolute), UserAgent: userAgent,
+	})
+	if err != nil {
+		return NewSessionToken{}, err
+	}
+	err = audit.Record(ctx, tx, userActor(userID), audit.Event{
+		Action: "session.login", EntityType: "session", EntityID: s.ID.String(),
+		After: map[string]any{"method": method},
+	})
+	if err != nil {
+		return NewSessionToken{}, err
+	}
+	return NewSessionToken{Token: token, Session: s}, nil
 }
 
 func (a *Accounts) loginFailed(ctx context.Context, key, email string, uid *uuid.UUID, now time.Time) error {

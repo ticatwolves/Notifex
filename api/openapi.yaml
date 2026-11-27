@@ -387,10 +387,15 @@ paths:
     post:
       operationId: oauthAuthorize
       tags: [auth]
-      summary: Start an OAuth login
-      description: Returns the provider URL. State, PKCE verifier and nonce are kept server-side (10 min, single use) and bound to the allowlisted redirect_uri.
-      security: []
-      x-notifex-status: draft
+      summary: Start an OAuth login, or link a provider to the signed-in user
+      description: |
+        Returns the provider URL. State, PKCE verifier and nonce are kept
+        server-side (10 min, single use) and bound to the allowlisted
+        redirect_uri. Called **with** a console session, it starts a link of
+        this provider to that user; the callback must then present the same
+        session (prevents linking CSRF).
+      security: [{}, { consoleSession: [] }]
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - $ref: "#/components/parameters/OAuthProvider"
@@ -406,14 +411,23 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/OAuthAuthorizeResponse" }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/auth/oauth/{provider}/callback:
     post:
       operationId: oauthCallback
       tags: [auth]
-      summary: Complete an OAuth login
-      description: "`409 link_required` when the email belongs to an account that must log in first to link (ADR-011 §3)."
-      security: []
-      x-notifex-status: draft
+      summary: Complete an OAuth login or link
+      description: |
+        Login: `200` with a session. Link (started with a session): `204`.
+        `403 email_not_verified` when the provider does not vouch for the
+        email (no account lookup happens); `409 link_required` when the email
+        belongs to an account that must sign in and link from settings
+        (ADR-011 §3 and its amendment).
+      security: [{}, { consoleSession: [] }]
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - $ref: "#/components/parameters/OAuthProvider"
@@ -428,8 +442,14 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SessionCreated" }
+        "204": { description: Identity linked to the signed-in user. }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/Unavailable" }
 
   /v1/me:
     get:
@@ -477,6 +497,39 @@ paths:
         "204": { description: Revoked. }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/me/identities:
+    get:
+      operationId: listMyIdentities
+      tags: [auth]
+      summary: List the OAuth identities linked to the current user
+      security: [{ consoleSession: [] }]
+      x-notifex-status: implemented
+      x-notifex-phase: 1
+      responses:
+        "200":
+          description: Linked identities.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IdentityList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/me/identities/{provider}:
+    delete:
+      operationId: unlinkMyIdentity
+      tags: [auth]
+      summary: Unlink an OAuth provider from the current user
+      description: "`409 conflict` if it is the user's last way to sign in (no password and no other identity)."
+      security: [{ consoleSession: [] }]
+      x-notifex-status: implemented
+      x-notifex-phase: 1
+      parameters:
+        - $ref: "#/components/parameters/OAuthProvider"
+      responses:
+        "204": { description: Unlinked. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /v1/invitations/accept:
     post:
@@ -1769,6 +1822,22 @@ components:
       properties:
         data: { type: array, items: { $ref: "#/components/schemas/AuditEvent" } }
         next_cursor: { $ref: "#/components/schemas/NextCursor" }
+
+    Identity:
+      type: object
+      additionalProperties: false
+      required: [provider, email, created_at, last_used_at]
+      properties:
+        provider: { type: string, enum: [google, microsoft, github] }
+        email: { type: string, description: Email the provider asserted when linked (informational). }
+        created_at: { type: string, format: date-time }
+        last_used_at: { type: string, format: date-time }
+    IdentityList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Identity" } }
 
     OperatorTenant:
       type: object

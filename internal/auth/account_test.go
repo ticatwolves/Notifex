@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"context"
+	"database/sql"
 	"io"
 	"log/slog"
 	"regexp"
@@ -348,7 +349,10 @@ func TestSecurityEventsAreAudited(t *testing.T) {
 		assert.NotContains(t, after, goodPassword)
 		assert.NotContains(t, entity, e, "raw email never stored in audit")
 	}
+	require.NoError(t, rows.Err())
 	for _, want := range []string{"user.signup", "user.email_verified", "session.login", "session.login_failed", "session.logout"} {
 		assert.Contains(t, actions, want)
 	}
 }
+
+func storetestDB(t *testing.T) *sql.DB { return storetest.DB(t) }

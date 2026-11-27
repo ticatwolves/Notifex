@@ -64,6 +64,17 @@ type Config struct {
 	MailFrom string `env:"MAIL_FROM" envDefault:"Notifex <noreply@notifex.local>"`
 	// PasswordHashConcurrency bounds concurrent argon2id hashes (~46 MiB each).
 	PasswordHashConcurrency int `env:"PASSWORD_HASH_CONCURRENCY" envDefault:"4"`
+	// OAuth clients (ADR-011 §3). A provider is enabled when its client id is
+	// set. Secrets come from Secrets Manager in AWS.
+	GoogleClientID        string `env:"OAUTH_GOOGLE_CLIENT_ID"`
+	GoogleClientSecret    string `env:"OAUTH_GOOGLE_CLIENT_SECRET"`
+	MicrosoftClientID     string `env:"OAUTH_MICROSOFT_CLIENT_ID"`
+	MicrosoftClientSecret string `env:"OAUTH_MICROSOFT_CLIENT_SECRET"`
+	GitHubClientID        string `env:"OAUTH_GITHUB_CLIENT_ID"`
+	GitHubClientSecret    string `env:"OAUTH_GITHUB_CLIENT_SECRET"`
+	// OAuthRedirectURIs is the exact-match allowlist of console callback URLs.
+	OAuthRedirectURIs []string `env:"OAUTH_REDIRECT_URIS" envSeparator:","`
+
 	// TrustedProxies are CIDRs whose X-Forwarded-For is believed (the ALB).
 	TrustedProxies []string `env:"TRUSTED_PROXIES" envSeparator:","`
 
@@ -131,6 +142,18 @@ func (c Config) Validate() error {
 	}
 	if c.PasswordHashConcurrency < 1 || c.PasswordHashConcurrency > 64 {
 		errs = append(errs, fmt.Errorf("PASSWORD_HASH_CONCURRENCY %d: must be within [1, 64]", c.PasswordHashConcurrency))
+	}
+	for _, pair := range [][3]string{
+		{"OAUTH_GOOGLE", c.GoogleClientID, c.GoogleClientSecret},
+		{"OAUTH_MICROSOFT", c.MicrosoftClientID, c.MicrosoftClientSecret},
+		{"OAUTH_GITHUB", c.GitHubClientID, c.GitHubClientSecret},
+	} {
+		if (pair[1] == "") != (pair[2] == "") {
+			errs = append(errs, fmt.Errorf("%s_CLIENT_ID and %s_CLIENT_SECRET must be set together", pair[0], pair[0]))
+		}
+	}
+	if (c.GoogleClientID != "" || c.MicrosoftClientID != "" || c.GitHubClientID != "") && len(c.OAuthRedirectURIs) == 0 {
+		errs = append(errs, errors.New("OAUTH_REDIRECT_URIS is required when an OAuth provider is enabled"))
 	}
 	for _, cidr := range c.TrustedProxies {
 		if _, _, err := net.ParseCIDR(strings.TrimSpace(cidr)); err != nil {
