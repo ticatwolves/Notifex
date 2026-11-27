@@ -41,6 +41,8 @@ type TenantAdmin interface {
 	CreateAPIKey(ctx context.Context, a tenant.Actor, appID uuid.UUID, in tenant.KeyInput) (auth.Issued, error)
 	RevokeAPIKey(ctx context.Context, a tenant.Actor, appID, keyID uuid.UUID) error
 	RotateAPIKey(ctx context.Context, a tenant.Actor, appID, keyID uuid.UUID, grace time.Duration) (tenant.Rotated, error)
+
+	ListAuditEvents(ctx context.Context, a tenant.Actor, p store.Page) ([]store.AuditEvent, error)
 }
 
 const ctxActor = "tenant_actor"
@@ -167,6 +169,27 @@ func registerAdmin(r *gin.Engine, d Deps) {
 	})
 
 	registerApps(one, t)
+
+	one.GET("/audit-events", func(c *gin.Context) {
+		p, ok := pageParams(c, ids.AuditEvent)
+		if !ok {
+			return
+		}
+		evs, err := t.ListAuditEvents(c.Request.Context(), actor(c), p)
+		if err != nil {
+			consoleError(c, err)
+			return
+		}
+		out := make([]gin.H, len(evs))
+		for i, ev := range evs {
+			out[i] = auditEventJSON(ev)
+		}
+		var next any
+		if len(evs) == p.Limit {
+			next = ids.Format(ids.AuditEvent, evs[len(evs)-1].ID)
+		}
+		c.JSON(http.StatusOK, gin.H{"data": out, "next_cursor": next})
+	})
 
 	one.GET("/invitations", func(c *gin.Context) {
 		invs, err := t.ListInvitations(c.Request.Context(), actor(c))
@@ -555,4 +578,47 @@ func utcPtr(t *time.Time) any {
 		return nil
 	}
 	return t.UTC()
+}
+
+// auditEntityKinds maps entity types to public id prefixes, so the trail
+// shows the same ids as the rest of the API.
+var auditEntityKinds = map[string]ids.Kind{
+	"tenant": ids.Tenant, "application": ids.Application, "environment": ids.Environment,
+	"api_key": ids.APIKey, "membership": ids.Membership, "invitation": ids.Invitation,
+	"user": ids.User, "session": ids.Session,
+}
+
+func publicID(k ids.Kind, raw string) string {
+	id, err := uuid.Parse(raw)
+	if err != nil || id == uuid.Nil {
+		return raw
+	}
+	return ids.Format(k, id)
+}
+
+func auditEventJSON(ev store.AuditEvent) gin.H {
+	actorID := ev.ActorID
+	switch ev.ActorType {
+	case store.ActorUser:
+		actorID = publicID(ids.User, actorID)
+	case store.ActorAPIKey:
+		actorID = publicID(ids.APIKey, actorID)
+	case store.ActorOperator:
+		// Tenants see that Notifex staff acted, not which staff account.
+		actorID = "notifex"
+	case store.ActorSystem:
+	}
+	entityID := ev.EntityID
+	if k, ok := auditEntityKinds[ev.EntityType]; ok {
+		entityID = publicID(k, entityID)
+	}
+	out := gin.H{
+		"id": ids.Format(ids.AuditEvent, ev.ID), "actor_type": string(ev.ActorType), "actor_id": actorID,
+		"action": ev.Action, "entity_type": ev.EntityType, "entity_id": entityID,
+		"before": ev.Before, "after": ev.After, "created_at": ev.CreatedAt.UTC(),
+	}
+	if ev.RequestID != "" {
+		out["request_id"] = ev.RequestID
+	}
+	return out
 }

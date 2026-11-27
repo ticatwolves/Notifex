@@ -1060,7 +1060,7 @@ paths:
       tags: [audit]
       summary: List the tenant's audit trail, newest first (admin, owner)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - $ref: "#/components/parameters/TenantIDPath"
@@ -1072,6 +1072,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuditEventList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -1856,7 +1857,7 @@ components:
       properties:
         id: { $ref: "#/components/schemas/AuditEventID" }
         actor_type: { type: string, enum: [user, api_key, operator, system] }
-        actor_id: { type: string }
+        actor_id: { type: string, description: "Public id of the actor (`usr_…`, `key_…`), `system`, or `notifex` for Notifex staff (operator identities are not disclosed)." }
         action: { type: string, examples: ["api_key.create"] }
         entity_type: { type: string }
         entity_id: { type: string }

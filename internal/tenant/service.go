@@ -223,6 +223,18 @@ type Member struct {
 	User       store.User
 }
 
+// ListAuditEvents returns the tenant's audit trail, newest first.
+func (s *Service) ListAuditEvents(ctx context.Context, a Actor, p store.Page) ([]store.AuditEvent, error) {
+	if err := s.require(a, rbac.ViewAudit); err != nil {
+		return nil, err
+	}
+	evs, err := s.st.Audit().List(ctx, a.TenantID, p)
+	if err != nil {
+		return nil, fmt.Errorf("list audit events: %w", err)
+	}
+	return evs, nil
+}
+
 // ListMembers returns a page of members.
 func (s *Service) ListMembers(ctx context.Context, a Actor, p store.Page) ([]Member, error) {
 	if err := s.require(a, rbac.ViewTenant); err != nil {

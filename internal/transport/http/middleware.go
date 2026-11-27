@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/ticatwolves/notifex/internal/audit"
 	"github.com/ticatwolves/notifex/internal/observability"
 )
 
@@ -35,8 +36,8 @@ func requestID() gin.HandlerFunc {
 		}
 		c.Set(ctxRequestID, id)
 		c.Header(headerRequestID, id)
-		c.Request = c.Request.WithContext(observability.WithLogAttrs(
-			c.Request.Context(), slog.String(observability.KeyRequestID, id)))
+		ctx := observability.WithLogAttrs(c.Request.Context(), slog.String(observability.KeyRequestID, id))
+		c.Request = c.Request.WithContext(audit.WithRequestID(ctx, id))
 		c.Next()
 	}
 }

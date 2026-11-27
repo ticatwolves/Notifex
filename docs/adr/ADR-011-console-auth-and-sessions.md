@@ -98,3 +98,11 @@ Every control-plane mutation is audited in the same transaction (ADR-010 helpers
 - **Login failures are uniform:** unknown email (dummy hash), wrong password, wrong or replayed code and disabled account all return the same `401 invalid_credentials`. A wrong password never reaches TOTP verification, so the code is only consumed by a fully successful login. Per-account backoff uses the shared throttle table under an `operator-login:` key; the per-IP limit is 5/min, separate from console login.
 - **Every request is audited, reads included.** Search records the query, filter and result count. A view of an unknown tenant id is recorded as a platform-level event (`found: false`). If the audit write fails, the read returns an error, not data.
 - **Tenant changes require a `reason`** (1–500 characters) and at least one field. Status can only be `active` or `suspended`, and deleted tenants are `404`. The spec's `OperatorTenantPatch` now has `required: [reason]`.
+
+## Amendment (2026-11-27, Phase 1 slice 7): audit trail and BOLA sweep
+- **`GET /v1/admin/tenants/{id}/audit-events`** (admin and owner, `audit.view`) returns the tenant's events newest first with keyset pagination. Ids are public ids (`usr_…`, `app_…`, `key_…`) so the trail matches the rest of the API; unknown entity types keep their raw id.
+- **Operator actions are visible to the tenant** (access transparency), with `actor_type: operator` and `actor_id: notifex`. The staff account id is never disclosed. The operator's `reason` is shown, so it must be written for the customer to read.
+- **Every event carries the request id.** The HTTP middleware puts it in the context and `audit.Record` copies it, so an event can be joined to logs and traces. A caller-supplied `X-Request-ID` is accepted if it matches the id pattern; it is a correlation aid, not evidence.
+- Reading the trail is not itself audited for tenants (it would make the trail self-referential and noisy). Operator reads are audited (§5).
+- **BOLA is tested by enumeration, not by hand:** `TestBOLASweep` walks every served tenant-scoped route. A new route without an entry fails CI.
+
