@@ -61,6 +61,9 @@ func NewAPIKeyAuthenticator(st store.Store, h *Hasher, log *slog.Logger, reg pro
 	}
 }
 
+// SetClock overrides the clock (tests).
+func (a *APIKeyAuthenticator) SetClock(now func() time.Time) { a.now = now }
+
 // Authenticate verifies raw and returns its principal. It returns
 // ErrUnauthenticated for any credential problem and ErrUnavailable when the
 // answer can't be determined.

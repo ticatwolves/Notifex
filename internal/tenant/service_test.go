@@ -3,6 +3,7 @@ package tenant_test
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"io"
 	"log/slog"
 	"regexp"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ticatwolves/notifex/internal/auth"
 	"github.com/ticatwolves/notifex/internal/crypto"
 	"github.com/ticatwolves/notifex/internal/mail"
 	"github.com/ticatwolves/notifex/internal/store"
@@ -25,12 +27,13 @@ import (
 )
 
 type env struct {
-	st    *entstore.Store
-	svc   *tenant.Service
-	mail  *mail.Recorder
-	now   time.Time
-	mu    sync.Mutex
-	shred []store.TenantID
+	hasher *auth.Hasher
+	st     *entstore.Store
+	svc    *tenant.Service
+	mail   *mail.Recorder
+	now    time.Time
+	mu     sync.Mutex
+	shred  []store.TenantID
 }
 
 func newEnv(t *testing.T) *env {
@@ -43,6 +46,11 @@ func newEnv(t *testing.T) *env {
 	e.svc = tenant.NewService(e.st, kp, e.mail, slog.New(slog.NewTextHandler(io.Discard, nil)), "https://console.test", tenant.DefaultPolicy)
 	e.svc.SetClock(func() time.Time { e.mu.Lock(); defer e.mu.Unlock(); return e.now })
 	e.svc.OnShred = func(id store.TenantID) { e.mu.Lock(); e.shred = append(e.shred, id); e.mu.Unlock() }
+	pepper := make([]byte, 32)
+	_, _ = rand.Read(pepper)
+	e.hasher, err = auth.NewHasher(base64.StdEncoding.EncodeToString(pepper))
+	require.NoError(t, err)
+	e.svc.KeyHasher = e.hasher
 	return e
 }
 

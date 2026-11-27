@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/ticatwolves/notifex/internal/audit"
+	"github.com/ticatwolves/notifex/internal/auth"
 	"github.com/ticatwolves/notifex/internal/crypto"
 	"github.com/ticatwolves/notifex/internal/mail"
 	"github.com/ticatwolves/notifex/internal/observability"
@@ -70,6 +71,8 @@ type Service struct {
 	now        func() time.Time
 	// OnShred is called after a tenant's DEK is destroyed (drop cached keys).
 	OnShred func(store.TenantID)
+	// KeyHasher hashes new API keys (required for key issue and rotation).
+	KeyHasher *auth.Hasher
 }
 
 // NewService builds the service.

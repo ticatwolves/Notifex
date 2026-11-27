@@ -352,8 +352,18 @@ type APIKeyStore interface {
 	// tenant. Callers must verify the hash, revocation and expiry.
 	GetByPrefix(ctx context.Context, prefix string) (APIKey, error)
 	List(ctx context.Context, tid TenantID, appID uuid.UUID, p Page) ([]APIKey, error)
-	// Revoke is idempotent: revoking a revoked key keeps the first timestamp.
+	// Revoke sets revoked_at to `at` unless the key is already revoked at or
+	// before `at` (the earliest revocation wins). `at` may be in the future
+	// (rotation grace period); revoking "now" during a grace period takes
+	// effect immediately.
 	Revoke(ctx context.Context, tid TenantID, id uuid.UUID, at time.Time) error
+	Get(ctx context.Context, tid TenantID, id uuid.UUID) (APIKey, error)
+	// CountActiveForEnvironment counts keys usable at now (not revoked or
+	// revocation still in the future, not expired).
+	CountActiveForEnvironment(ctx context.Context, tid TenantID, envID uuid.UUID, now time.Time) (int, error)
+	// DeleteInactiveForEnvironment deletes revoked or expired key rows so the
+	// environment can be deleted. Their history stays in the audit log.
+	DeleteInactiveForEnvironment(ctx context.Context, tid TenantID, envID uuid.UUID, now time.Time) (int, error)
 	TouchLastUsed(ctx context.Context, tid TenantID, id uuid.UUID, at time.Time) error
 	// RevokeAllForTenant revokes every active key of the tenant.
 	RevokeAllForTenant(ctx context.Context, tid TenantID, at time.Time) (int, error)

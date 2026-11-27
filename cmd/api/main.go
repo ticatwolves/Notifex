@@ -55,6 +55,7 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 		return nil, err
 	}
 	tenants := tenant.NewService(st, keys, mailer, rt.Logger, rt.Config.ConsoleURL, tenant.DefaultPolicy)
+	tenants.KeyHasher = hasher
 
 	rest := lifecycle.NewHTTPServer("http", rt.Config.HTTPAddr, httptransport.NewRouter(httptransport.Deps{
 		Service:        rt.Config.Service,

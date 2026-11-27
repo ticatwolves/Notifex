@@ -72,7 +72,12 @@ func newConsoleEnvWith(t *testing.T, limits Limits, trusted []string, mk func(*a
 	_, _ = rand.Read(mk2)
 	kp, err := crypto.NewLocal(mk2)
 	require.NoError(t, err)
-	deps.Tenants = tenant.NewService(st, kp, rec, log, "https://console.test", tenant.DefaultPolicy)
+	ts := tenant.NewService(st, kp, rec, log, "https://console.test", tenant.DefaultPolicy)
+	pepper := make([]byte, 32)
+	_, _ = rand.Read(pepper)
+	ts.KeyHasher, err = auth.NewHasher(base64.StdEncoding.EncodeToString(pepper))
+	require.NoError(t, err)
+	deps.Tenants = ts
 	h := NewRouter(deps)
 	return consoleEnv{st: st, h: h, mail: rec, logs: &logs, v: specValidator(t), t: t}
 }

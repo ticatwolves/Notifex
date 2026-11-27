@@ -425,6 +425,8 @@ func consoleError(c *gin.Context, err error) {
 		writeError(c, http.StatusForbidden, "forbidden", "your role does not allow this")
 	case errors.Is(err, tenant.ErrLastOwner):
 		writeError(c, http.StatusConflict, "conflict", "a tenant must keep at least one owner")
+	case errors.Is(err, tenant.ErrKeyInactive):
+		writeError(c, http.StatusConflict, "conflict", "this API key is already revoked or rotated")
 	case errors.Is(err, tenant.ErrAlreadyMember):
 		writeError(c, http.StatusConflict, "conflict", "already a member of this tenant")
 	case errors.Is(err, tenant.ErrInvalidToken):
@@ -434,7 +436,7 @@ func consoleError(c *gin.Context, err error) {
 	case errors.Is(err, store.ErrNotFound):
 		writeError(c, http.StatusNotFound, "not_found", "not found")
 	case errors.Is(err, store.ErrConflict):
-		writeError(c, http.StatusConflict, "conflict", "conflict")
+		writeError(c, http.StatusConflict, "conflict", "conflict: the resource already exists or is still in use")
 	case errors.Is(err, auth.ErrUnavailable):
 		c.Header("Retry-After", "1")
 		writeError(c, http.StatusServiceUnavailable, "unavailable", "temporarily unavailable")

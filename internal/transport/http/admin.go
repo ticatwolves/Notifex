@@ -28,6 +28,19 @@ type TenantAdmin interface {
 	ListInvitations(ctx context.Context, a tenant.Actor) ([]store.Invitation, error)
 	RevokeInvitation(ctx context.Context, a tenant.Actor, id uuid.UUID) error
 	Accept(ctx context.Context, u tenant.User, token string) (tenant.Member, error)
+
+	ListApplications(ctx context.Context, a tenant.Actor, p store.Page) ([]store.Application, error)
+	GetApplication(ctx context.Context, a tenant.Actor, id uuid.UUID) (store.Application, error)
+	CreateApplication(ctx context.Context, a tenant.Actor, in store.NewApplication) (store.Application, error)
+	UpdateApplication(ctx context.Context, a tenant.Actor, id uuid.UUID, p store.ApplicationPatch) (store.Application, error)
+	DeleteApplication(ctx context.Context, a tenant.Actor, id uuid.UUID) error
+	ListEnvironments(ctx context.Context, a tenant.Actor, appID uuid.UUID) ([]store.Environment, error)
+	CreateEnvironment(ctx context.Context, a tenant.Actor, appID uuid.UUID, name store.EnvironmentName) (store.Environment, error)
+	DeleteEnvironment(ctx context.Context, a tenant.Actor, appID, envID uuid.UUID) error
+	ListAPIKeys(ctx context.Context, a tenant.Actor, appID uuid.UUID, p store.Page) ([]store.APIKey, error)
+	CreateAPIKey(ctx context.Context, a tenant.Actor, appID uuid.UUID, in tenant.KeyInput) (auth.Issued, error)
+	RevokeAPIKey(ctx context.Context, a tenant.Actor, appID, keyID uuid.UUID) error
+	RotateAPIKey(ctx context.Context, a tenant.Actor, appID, keyID uuid.UUID, grace time.Duration) (tenant.Rotated, error)
 }
 
 const ctxActor = "tenant_actor"
@@ -153,6 +166,8 @@ func registerAdmin(r *gin.Engine, d Deps) {
 		c.Status(http.StatusNoContent)
 	})
 
+	registerApps(one, t)
+
 	one.GET("/invitations", func(c *gin.Context) {
 		invs, err := t.ListInvitations(c.Request.Context(), actor(c))
 		if err != nil {
@@ -269,4 +284,275 @@ func invitationJSON(i store.Invitation) gin.H {
 		"id": ids.Format(ids.Invitation, i.ID), "email": i.Email, "role": string(i.Role),
 		"expires_at": i.ExpiresAt.UTC(), "created_at": i.CreatedAt.UTC().Truncate(time.Microsecond),
 	}
+}
+
+func registerApps(one *gin.RouterGroup, t TenantAdmin) {
+	one.GET("/applications", func(c *gin.Context) {
+		p, ok := pageParams(c, ids.Application)
+		if !ok {
+			return
+		}
+		apps, err := t.ListApplications(c.Request.Context(), actor(c), p)
+		if err != nil {
+			consoleError(c, err)
+			return
+		}
+		out := make([]gin.H, len(apps))
+		for i, a := range apps {
+			out[i] = applicationJSON(a)
+		}
+		var next any
+		if len(apps) == p.Limit {
+			next = ids.Format(ids.Application, apps[len(apps)-1].ID)
+		}
+		c.JSON(http.StatusOK, gin.H{"data": out, "next_cursor": next})
+	})
+	one.POST("/applications", func(c *gin.Context) {
+		var in struct {
+			Name        string `json:"name"`
+			Key         string `json:"key"`
+			Description string `json:"description"`
+		}
+		if !bindJSON(c, &in) {
+			return
+		}
+		app, err := t.CreateApplication(c.Request.Context(), actor(c), store.NewApplication{Name: in.Name, Key: in.Key, Description: in.Description})
+		if err != nil {
+			consoleError(c, err)
+			return
+		}
+		c.JSON(http.StatusCreated, applicationJSON(app))
+	})
+
+	app := one.Group("/applications/:application_id")
+	app.GET("", func(c *gin.Context) {
+		id, ok := pathID(c, "application_id", ids.Application)
+		if !ok {
+			return
+		}
+		a, err := t.GetApplication(c.Request.Context(), actor(c), id)
+		if err != nil {
+			consoleError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, applicationJSON(a))
+	})
+	app.PATCH("", func(c *gin.Context) {
+		id, ok := pathID(c, "application_id", ids.Application)
+		if !ok {
+			return
+		}
+		var in struct {
+			Name        *string `json:"name"`
+			Description *string `json:"description"`
+		}
+		if !bindJSON(c, &in) {
+			return
+		}
+		if in.Name == nil && in.Description == nil {
+			writeError(c, http.StatusBadRequest, "validation_failed", "nothing to update")
+			return
+		}
+		a, err := t.UpdateApplication(c.Request.Context(), actor(c), id, store.ApplicationPatch{Name: in.Name, Description: in.Description})
+		if err != nil {
+			consoleError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, applicationJSON(a))
+	})
+	app.DELETE("", func(c *gin.Context) {
+		id, ok := pathID(c, "application_id", ids.Application)
+		if !ok {
+			return
+		}
+		if err := t.DeleteApplication(c.Request.Context(), actor(c), id); err != nil {
+			consoleError(c, err)
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+
+	app.GET("/environments", func(c *gin.Context) {
+		id, ok := pathID(c, "application_id", ids.Application)
+		if !ok {
+			return
+		}
+		envs, err := t.ListEnvironments(c.Request.Context(), actor(c), id)
+		if err != nil {
+			consoleError(c, err)
+			return
+		}
+		out := make([]gin.H, len(envs))
+		for i, e := range envs {
+			out[i] = environmentJSON(e)
+		}
+		c.JSON(http.StatusOK, gin.H{"data": out})
+	})
+	app.POST("/environments", func(c *gin.Context) {
+		id, ok := pathID(c, "application_id", ids.Application)
+		if !ok {
+			return
+		}
+		var in struct {
+			Name string `json:"name"`
+		}
+		if !bindJSON(c, &in) {
+			return
+		}
+		env, err := t.CreateEnvironment(c.Request.Context(), actor(c), id, store.EnvironmentName(in.Name))
+		if err != nil {
+			consoleError(c, err)
+			return
+		}
+		c.JSON(http.StatusCreated, environmentJSON(env))
+	})
+	app.DELETE("/environments/:environment_id", func(c *gin.Context) {
+		appID, ok := pathID(c, "application_id", ids.Application)
+		if !ok {
+			return
+		}
+		envID, ok := pathID(c, "environment_id", ids.Environment)
+		if !ok {
+			return
+		}
+		if err := t.DeleteEnvironment(c.Request.Context(), actor(c), appID, envID); err != nil {
+			consoleError(c, err)
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+
+	app.GET("/api-keys", func(c *gin.Context) {
+		appID, ok := pathID(c, "application_id", ids.Application)
+		if !ok {
+			return
+		}
+		p, ok := pageParams(c, ids.APIKey)
+		if !ok {
+			return
+		}
+		keys, err := t.ListAPIKeys(c.Request.Context(), actor(c), appID, p)
+		if err != nil {
+			consoleError(c, err)
+			return
+		}
+		out := make([]gin.H, len(keys))
+		for i, k := range keys {
+			out[i] = apiKeyJSON(k)
+		}
+		var next any
+		if len(keys) == p.Limit {
+			next = ids.Format(ids.APIKey, keys[len(keys)-1].ID)
+		}
+		c.JSON(http.StatusOK, gin.H{"data": out, "next_cursor": next})
+	})
+	app.POST("/api-keys", func(c *gin.Context) {
+		appID, ok := pathID(c, "application_id", ids.Application)
+		if !ok {
+			return
+		}
+		var in struct {
+			EnvironmentID string     `json:"environment_id"`
+			Name          string     `json:"name"`
+			Scopes        []string   `json:"scopes"`
+			ExpiresAt     *time.Time `json:"expires_at"`
+		}
+		if !bindJSON(c, &in) {
+			return
+		}
+		envID, err := ids.Parse(ids.Environment, in.EnvironmentID)
+		if err != nil {
+			writeError(c, http.StatusBadRequest, "validation_failed", "environment_id is not a valid id")
+			return
+		}
+		k, err := t.CreateAPIKey(c.Request.Context(), actor(c), appID, tenant.KeyInput{
+			EnvironmentID: envID, Name: in.Name, Scopes: in.Scopes, ExpiresAt: in.ExpiresAt,
+		})
+		if err != nil {
+			consoleError(c, err)
+			return
+		}
+		c.JSON(http.StatusCreated, gin.H{"api_key": apiKeyJSON(k.Key), "key": k.Plaintext})
+	})
+	app.POST("/api-keys/:api_key_id/revoke", func(c *gin.Context) {
+		appID, ok := pathID(c, "application_id", ids.Application)
+		if !ok {
+			return
+		}
+		keyID, ok := pathID(c, "api_key_id", ids.APIKey)
+		if !ok {
+			return
+		}
+		if err := t.RevokeAPIKey(c.Request.Context(), actor(c), appID, keyID); err != nil {
+			consoleError(c, err)
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+	app.POST("/api-keys/:api_key_id/rotate", func(c *gin.Context) {
+		appID, ok := pathID(c, "application_id", ids.Application)
+		if !ok {
+			return
+		}
+		keyID, ok := pathID(c, "api_key_id", ids.APIKey)
+		if !ok {
+			return
+		}
+		grace := tenant.DefaultRotationGrace
+		if c.Request.ContentLength != 0 {
+			var in struct {
+				GraceSeconds *int64 `json:"grace_period_seconds"`
+			}
+			if !bindJSON(c, &in) {
+				return
+			}
+			if in.GraceSeconds != nil {
+				grace = time.Duration(*in.GraceSeconds) * time.Second
+				if *in.GraceSeconds < 0 || grace > tenant.MaxRotationGrace {
+					writeError(c, http.StatusBadRequest, "validation_failed", "grace_period_seconds must be between 0 and 604800")
+					return
+				}
+			}
+		}
+		r, err := t.RotateAPIKey(c.Request.Context(), actor(c), appID, keyID, grace)
+		if err != nil {
+			consoleError(c, err)
+			return
+		}
+		c.JSON(http.StatusCreated, gin.H{"api_key": apiKeyJSON(r.New.Key), "key": r.New.Plaintext, "old_key_revoked_at": r.OldKeyRevokedAt.UTC()})
+	})
+}
+
+func applicationJSON(a store.Application) gin.H {
+	return gin.H{
+		"id": ids.Format(ids.Application, a.ID), "name": a.Name, "key": a.Key, "description": a.Description,
+		"created_at": a.CreatedAt.UTC(), "updated_at": a.UpdatedAt.UTC(),
+	}
+}
+
+func environmentJSON(e store.Environment) gin.H {
+	return gin.H{
+		"id": ids.Format(ids.Environment, e.ID), "application_id": ids.Format(ids.Application, e.ApplicationID),
+		"name": string(e.Name), "created_at": e.CreatedAt.UTC(),
+	}
+}
+
+func apiKeyJSON(k store.APIKey) gin.H {
+	scopes := k.Scopes
+	if scopes == nil {
+		scopes = []string{}
+	}
+	return gin.H{
+		"id": ids.Format(ids.APIKey, k.ID), "environment_id": ids.Format(ids.Environment, k.EnvironmentID),
+		"name": k.Name, "prefix": k.Prefix, "scopes": scopes,
+		"expires_at": utcPtr(k.ExpiresAt), "last_used_at": utcPtr(k.LastUsedAt), "revoked_at": utcPtr(k.RevokedAt),
+		"created_at": k.CreatedAt.UTC(),
+	}
+}
+
+func utcPtr(t *time.Time) any {
+	if t == nil {
+		return nil
+	}
+	return t.UTC()
 }
