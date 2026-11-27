@@ -155,15 +155,21 @@ func TestValidatorRejectsNonConformingResponses(t *testing.T) {
 func TestSpecAndRouterDoNotDrift(t *testing.T) {
 	t.Parallel()
 	var spec struct {
-		Paths map[string]map[string]struct {
-			Status string `yaml:"x-notifex-status"`
-		} `yaml:"paths"`
+		Paths map[string]map[string]yaml.Node `yaml:"paths"`
 	}
 	require.NoError(t, yaml.Unmarshal(api.OpenAPI, &spec))
 
+	httpMethods := map[string]bool{"get": true, "put": true, "post": true, "delete": true, "options": true, "head": true, "patch": true, "trace": true}
 	implemented, all := map[string]bool{}, map[string]string{}
 	for path, ops := range spec.Paths {
-		for method, op := range ops {
+		for method, node := range ops {
+			if !httpMethods[method] {
+				continue // path-level keys such as `parameters`
+			}
+			var op struct {
+				Status string `yaml:"x-notifex-status"`
+			}
+			require.NoError(t, node.Decode(&op))
 			key := strings.ToUpper(method) + " " + path
 			all[key] = op.Status
 			require.Contains(t, []string{"implemented", "draft"}, op.Status, "%s needs x-notifex-status", key)

@@ -108,7 +108,7 @@ Config is 12-factor env vars + SSM/Secrets Manager references in task definition
 - The browser talks only to the Next.js app and, for the public data plane docs/examples, to the documented API.
 - Server components and route handlers call the Go API with the user's session; the Go API remains the only authority for authorization (UI hiding is cosmetic).
 - Generate the typed client from OpenAPI; never hand-write API types.
-- Sessions: HttpOnly, Secure, SameSite cookies, CSRF protection for mutations; short-lived access + refresh handled by the Go auth service.
+- Sessions (ADR-011): opaque server-side session tokens (`nfs_…`), not JWTs. The web app keeps the token in a `__Host-` HttpOnly, Secure, SameSite=Lax cookie and forwards it as a bearer token. The web app enforces CSRF on mutations (Origin check + double-submit).
 - Next.js 16/React 19: async `params`, `cookies()`, `headers()`; no `fetch` of internal URLs from client components; no secrets in `NEXT_PUBLIC_*`.
 - Template preview renders in a sandboxed iframe (`sandbox`, no scripts) with a strict CSP.
 
