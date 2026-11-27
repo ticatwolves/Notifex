@@ -9,9 +9,12 @@ import (
 	"github.com/ticatwolves/notifex/ent/apikey"
 	"github.com/ticatwolves/notifex/ent/application"
 	"github.com/ticatwolves/notifex/ent/auditevent"
+	"github.com/ticatwolves/notifex/ent/auththrottle"
+	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
 	"github.com/ticatwolves/notifex/ent/membership"
 	"github.com/ticatwolves/notifex/ent/schema"
+	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/tenant"
 	"github.com/ticatwolves/notifex/ent/user"
 )
@@ -219,6 +222,45 @@ func init() {
 	auditeventDescID := auditeventMixinFields0[0].Descriptor()
 	// auditevent.DefaultID holds the default value on creation for the id field.
 	auditevent.DefaultID = auditeventDescID.Default.(func() uuid.UUID)
+	auththrottleFields := schema.AuthThrottle{}.Fields()
+	_ = auththrottleFields
+	// auththrottleDescFailures is the schema descriptor for failures field.
+	auththrottleDescFailures := auththrottleFields[1].Descriptor()
+	// auththrottle.DefaultFailures holds the default value on creation for the failures field.
+	auththrottle.DefaultFailures = auththrottleDescFailures.Default.(int)
+	// auththrottle.FailuresValidator is a validator for the "failures" field. It is called by the builders before save.
+	auththrottle.FailuresValidator = auththrottleDescFailures.Validators[0].(func(int) error)
+	// auththrottleDescID is the schema descriptor for id field.
+	auththrottleDescID := auththrottleFields[0].Descriptor()
+	// auththrottle.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	auththrottle.IDValidator = func() func(string) error {
+		validators := auththrottleDescID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id string) error {
+			for _, fn := range fns {
+				if err := fn(id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	emailtokenMixin := schema.EmailToken{}.Mixin()
+	emailtokenMixinFields0 := emailtokenMixin[0].Fields()
+	_ = emailtokenMixinFields0
+	emailtokenFields := schema.EmailToken{}.Fields()
+	_ = emailtokenFields
+	// emailtokenDescTokenHash is the schema descriptor for token_hash field.
+	emailtokenDescTokenHash := emailtokenFields[2].Descriptor()
+	// emailtoken.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	emailtoken.TokenHashValidator = emailtokenDescTokenHash.Validators[0].(func([]byte) error)
+	// emailtokenDescID is the schema descriptor for id field.
+	emailtokenDescID := emailtokenMixinFields0[0].Descriptor()
+	// emailtoken.DefaultID holds the default value on creation for the id field.
+	emailtoken.DefaultID = emailtokenDescID.Default.(func() uuid.UUID)
 	environmentMixin := schema.Environment{}.Mixin()
 	environmentMixinHooks1 := environmentMixin[1].Hooks()
 	environment.Hooks[0] = environmentMixinHooks1[0]
@@ -269,6 +311,25 @@ func init() {
 	membershipDescID := membershipMixinFields0[0].Descriptor()
 	// membership.DefaultID holds the default value on creation for the id field.
 	membership.DefaultID = membershipDescID.Default.(func() uuid.UUID)
+	sessionMixin := schema.Session{}.Mixin()
+	sessionMixinFields0 := sessionMixin[0].Fields()
+	_ = sessionMixinFields0
+	sessionFields := schema.Session{}.Fields()
+	_ = sessionFields
+	// sessionDescTokenHash is the schema descriptor for token_hash field.
+	sessionDescTokenHash := sessionFields[1].Descriptor()
+	// session.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	session.TokenHashValidator = sessionDescTokenHash.Validators[0].(func([]byte) error)
+	// sessionDescUserAgent is the schema descriptor for user_agent field.
+	sessionDescUserAgent := sessionFields[7].Descriptor()
+	// session.DefaultUserAgent holds the default value on creation for the user_agent field.
+	session.DefaultUserAgent = sessionDescUserAgent.Default.(string)
+	// session.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
+	session.UserAgentValidator = sessionDescUserAgent.Validators[0].(func(string) error)
+	// sessionDescID is the schema descriptor for id field.
+	sessionDescID := sessionMixinFields0[0].Descriptor()
+	// session.DefaultID holds the default value on creation for the id field.
+	session.DefaultID = sessionDescID.Default.(func() uuid.UUID)
 	tenantMixin := schema.Tenant{}.Mixin()
 	tenantMixinFields0 := tenantMixin[0].Fields()
 	_ = tenantMixinFields0

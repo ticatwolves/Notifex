@@ -46,5 +46,6 @@ make image      # linux/arm64 core image
 | api | 9090 | public gRPC |
 | every service | 9100 (host 9100/9101/9102) | ops: `/metrics`, `/healthz`, `/readyz`; never exposed via the ALB |
 | elasticmq | 9324 / 9325 | SQS API / stats UI |
+| mailpit | 8025 / 1025 | email UI / SMTP (verification and reset emails land here) |
 | postgres | 54320 (host) → 5432 | host port avoids a native Postgres; override with `POSTGRES_HOST_PORT` |
 | jaeger (`--profile obs`) | 16686 / 4317 | tracing UI / OTLP |

@@ -261,7 +261,7 @@ paths:
       summary: Create a user account
       description: Always returns 202, whether or not the email is registered (no enumeration). Sends a verification email.
       security: []
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -272,13 +272,14 @@ paths:
         "202": { description: Accepted; check email. }
         "400": { $ref: "#/components/responses/BadRequest" }
         "429": { $ref: "#/components/responses/RateLimited" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
   /v1/auth/verify-email:
     post:
       operationId: verifyEmail
       tags: [auth]
       summary: Confirm an email address with the emailed token
       security: []
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -288,6 +289,7 @@ paths:
       responses:
         "204": { description: Verified. }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
   /v1/auth/login:
     post:
       operationId: login
@@ -295,7 +297,7 @@ paths:
       summary: Log in with email and password
       description: Every failure is `401 invalid_credentials`. Repeated failures return `429 account_locked` with Retry-After (progressive backoff, never a hard lock).
       security: []
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -310,24 +312,27 @@ paths:
               schema: { $ref: "#/components/schemas/SessionCreated" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "429": { $ref: "#/components/responses/RateLimited" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
   /v1/auth/logout:
     post:
       operationId: logout
       tags: [auth]
       summary: Revoke the current session
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "204": { description: Logged out. }
         "401": { $ref: "#/components/responses/Unauthenticated" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/auth/reauth:
     post:
       operationId: reauthenticate
       tags: [auth]
       summary: Confirm the password to unlock sensitive actions for 10 minutes
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -338,6 +343,9 @@ paths:
         "204": { description: Session marked recently authenticated. }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "429": { $ref: "#/components/responses/RateLimited" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/auth/password/forgot:
     post:
       operationId: forgotPassword
@@ -345,7 +353,7 @@ paths:
       summary: Email a password reset link
       description: Always 202 (no enumeration).
       security: []
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -355,6 +363,8 @@ paths:
       responses:
         "202": { description: Accepted. }
         "429": { $ref: "#/components/responses/RateLimited" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
   /v1/auth/password/reset:
     post:
       operationId: resetPassword
@@ -362,7 +372,7 @@ paths:
       summary: Set a new password with a reset token
       description: Revokes every session of the user.
       security: []
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -372,6 +382,7 @@ paths:
       responses:
         "204": { description: Password changed; all sessions revoked. }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
   /v1/auth/oauth/{provider}/authorize:
     post:
       operationId: oauthAuthorize
@@ -426,7 +437,7 @@ paths:
       tags: [auth]
       summary: The current user and their tenant memberships
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "200":
@@ -435,13 +446,14 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Me" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/me/sessions:
     get:
       operationId: listMySessions
       tags: [auth]
       summary: List the current user's active sessions
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "200":
@@ -450,13 +462,14 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SessionList" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/me/sessions/{session_id}:
     delete:
       operationId: revokeMySession
       tags: [auth]
       summary: Revoke one of the current user's sessions
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - $ref: "#/components/parameters/SessionID"
@@ -464,6 +477,7 @@ paths:
         "204": { description: Revoked. }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/invitations/accept:
     post:
       operationId: acceptInvitation

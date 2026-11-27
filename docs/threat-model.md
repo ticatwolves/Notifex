@@ -55,7 +55,7 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 
 | Threat | Example | Built | Planned |
 |---|---|---|---|
-| **S**poofing | Forged or guessed API key | 256-bit secret, HMAC with pepper, constant-time compare (`internal/auth/apikey.go`). Prefix-binding test. One 401 for every failure, and a dummy HMAC on unknown prefixes, so neither error text nor timing reveals what failed (`authenticator.go`, `TestAuthenticateRejections`) | Per-IP and per-prefix throttling of failed auth (WAF rate rule, Phase 1). OAuth for console and MCP (Phase 1, doc 12) |
+| **S**poofing | Forged or guessed API key | 256-bit secret, HMAC with pepper, constant-time compare (`internal/auth/apikey.go`). Prefix-binding test. One 401 for every failure, and a dummy HMAC on unknown prefixes, so neither error text nor timing reveals what failed (`authenticator.go`, `TestAuthenticateRejections`). **Per-IP limit on failed API-key attempts** (20/min, 429 + Retry-After), counting the client IP from `X-Forwarded-For` only when it arrives from a trusted proxy (`TestPerIPRateLimits`, `TestTrustedProxyForwardedFor`, mutation-tested) | WAF rate rule as a shared layer across tasks. OAuth for console and MCP (Phase 1 slice 3, doc 12) |
 | **S** | Revoked or expired key still works | Checked on every request (`TestAuthenticateRejections`, the HTTP "revoked key is 401 immediately" test). No auth cache yet, so revocation is instant | If an auth cache is added for performance (Phase 3), bound its TTL so revocation lands in ≤ 30 s (docs/05) |
 | **S** | A dev key used against prod | The key text carries its environment, and it must match the stored environment record (mutation-tested) | Scope and workflow allowlists per key (doc 12, Phase 3) |
 | **T**ampering | Request smuggling, oversized bodies | 1 MiB body cap on REST, also enforced while reading a streamed body; 1 MiB gRPC messages; header and read timeouts (`lifecycle.NewHTTPServer`) | WAF managed rules (doc 10) |
@@ -66,16 +66,22 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 | **D** | DB outage turns every client away for good | Auth returns 503 + `Retry-After`, never 401, so clients retry. Liveness stays 200, so ECS doesn't kill every task on a DB blip (verified live) | — |
 | **E**levation | Key used for control-plane actions | Only `/v1/whoami` exists today | RBAC matrix test for every role × capability; API keys never authorize `/v1/admin` (Phase 1) |
 
-### B2: console → api (Phase 1; nothing built yet)
+### B2: console → api (Phase 1, ADR-011)
 
-| Threat | Mitigation (planned) |
-|---|---|
-| Session hijack or fixation | HttpOnly, Secure, SameSite cookies; rotate on login; short-lived access plus refresh (docs/11) |
-| CSRF | Token or double-submit on every state-changing route |
-| OAuth account takeover | `state` + PKCE; link an identity only to a verified email; no implicit account merge |
-| Credential stuffing | argon2id hashes (schema ready), lockout and backoff, breached-password check |
-| XSS through tenant content | Template preview in a sandboxed iframe with strict CSP (docs/11); React escaping by default |
-| BOLA across tenants | Everything below, in B3 |
+| Threat | Built (Phase 1 slice 2) | Planned |
+|---|---|---|
+| Session theft or replay | Opaque `nfs_` tokens (256 bits), only SHA-256 stored, idle 12 h / absolute 7 d, immediate revocation (logout, revoke, reset revokes all). Tokens never logged (`TestConsoleJourney` greps logs) | Web app: `__Host-` HttpOnly SameSite cookie (Phase 6) |
+| Token confusion | Each token kind accepted by exactly one route group: sessions are rejected on the data plane and API keys on console routes (`TestSessionsNeverAuthorizeTheDataPlane`, error-mapping test) | — |
+| CSRF | API is bearer-only (no cookies), so it can't be targeted by CSRF directly | Web app Origin check + double-submit (Phase 6) |
+| Credential stuffing / brute force | argon2id (46 MiB, concurrency-bounded); per-account progressive backoff in Postgres (race-free, shared across tasks, also for unknown emails); per-IP limits on login, signup, reset and verify; uniform `invalid_credentials` with dummy-hash timing (`TestLoginFailuresAreUniformAndBackOff`, `TestThrottleCountsConcurrentFailuresExactly`) | WAF rate rules; vetted breached-password dataset before GA |
+| Account enumeration | Signup and forgot-password return identical responses for existing and unknown emails; an existing owner gets a "you already have an account" email (`TestConsoleResponsesDoNotRevealAccounts`) | — |
+| Token leakage via links | Emailed tokens travel in the URL fragment (never sent to servers or logged); single use, atomic consume; a new reset invalidates older links | — |
+| Mail bombing | At most 3 reset emails per address per hour, applied silently | Per-IP signup mail cap (Phase 1 slice 4 with invitations) |
+| Email header injection | CR/LF in To/Subject/From rejected before sending (`TestHeaderInjectionRejected`) | — |
+| Mass assignment / unexpected fields | Strict JSON decoding rejects unknown fields (mutation-tested) | — |
+| OAuth account takeover | — | Slice 3: PKCE + state + nonce, verified-email linking rule, Microsoft `tid`+`oid` (ADR-011 §3) |
+| XSS through tenant content | — | Template preview in a sandboxed iframe with strict CSP (docs/11) |
+| BOLA across tenants | — | Slice 4 RBAC + B3 below |
 
 ### B3: services → Postgres / SQS (tenant isolation)
 
@@ -128,7 +134,7 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 
 | # | Risk | L | I | Status / next action |
 |---|---|---|---|---|
-| R1 | **No rate limit on failed API-key auth.** Brute force is infeasible (256-bit secret), but the DB still pays for every well-formed key | M | M | Phase 1: WAF rate rule plus an in-app per-IP limiter on 401s |
+| R1 | ~~No rate limit on failed API-key auth~~ **Mitigated (Phase 1 slice 2):** per-IP limiter on failed API-key attempts (per task); WAF rule still to add as the cross-task layer | L | M | WAF rate rule with the AWS Terraform (Phase 8) |
 | R2 | **Shared-sender abuse once real vendors exist** (spam, phishing, SMS pumping) | H | H | Phases 2–3: verified domains, caps, suspension hooks before Stage 2 (real vendors) |
 | R3 | **SSRF through the webhook channel** | M | H | Phase 3: egress allowlist proxy + resolve-then-connect, with tests from docs/06 |
 | R4 | **CI has never run on GitHub;** squawk has never checked the migrations | M | M | Open a PR from `chore/reset-to-new-design` |

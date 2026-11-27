@@ -14,6 +14,7 @@ import (
 	"github.com/ticatwolves/notifex/internal/auth"
 	"github.com/ticatwolves/notifex/internal/ids"
 	"github.com/ticatwolves/notifex/internal/observability"
+	"github.com/ticatwolves/notifex/internal/ratelimit"
 )
 
 // APIKeyAuthenticator is what the transport needs from internal/auth.
@@ -24,11 +25,18 @@ type APIKeyAuthenticator interface {
 const ctxPrincipal = "principal"
 
 // requireAPIKey authenticates `Authorization: Bearer <api key>`. Every
-// credential failure is the same 401; an undecidable check is a 503.
-func requireAPIKey(a APIKeyAuthenticator) gin.HandlerFunc {
+// credential failure is the same 401; an undecidable check is a 503. Clients
+// that keep failing are rate-limited per IP (threat model R1).
+func requireAPIKey(a APIKeyAuthenticator, fail *ratelimit.Limiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		ip := c.ClientIP()
+		if blocked, retry := fail.Blocked(ip); blocked {
+			rateLimited(c, "rate_limited", retry)
+			return
+		}
 		raw, ok := bearer(c.GetHeader("Authorization"))
 		if !ok {
+			fail.Allow(ip)
 			unauthenticated(c)
 			return
 		}
@@ -39,6 +47,7 @@ func requireAPIKey(a APIKeyAuthenticator) gin.HandlerFunc {
 			writeError(c, http.StatusServiceUnavailable, "unavailable", "authentication temporarily unavailable")
 			return
 		case err != nil:
+			fail.Allow(ip)
 			unauthenticated(c)
 			return
 		}

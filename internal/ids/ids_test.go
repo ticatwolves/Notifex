@@ -18,7 +18,7 @@ func TestRoundTrip(t *testing.T) {
 		cases = append(cases, uuid.Must(uuid.NewV7()))
 	}
 	for _, id := range cases {
-		for _, k := range []Kind{Tenant, Application, Environment, APIKey, Run, Notification} {
+		for _, k := range []Kind{Tenant, Application, Environment, APIKey, Run, Notification, User, Membership, Invitation, Session, AuditEvent} {
 			s := Format(k, id)
 			assert.Regexp(t, idRE, s)
 			got, err := Parse(k, s)

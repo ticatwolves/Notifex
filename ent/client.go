@@ -18,8 +18,11 @@ import (
 	"github.com/ticatwolves/notifex/ent/apikey"
 	"github.com/ticatwolves/notifex/ent/application"
 	"github.com/ticatwolves/notifex/ent/auditevent"
+	"github.com/ticatwolves/notifex/ent/auththrottle"
+	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
 	"github.com/ticatwolves/notifex/ent/membership"
+	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/tenant"
 	"github.com/ticatwolves/notifex/ent/user"
 
@@ -37,10 +40,16 @@ type Client struct {
 	Application *ApplicationClient
 	// AuditEvent is the client for interacting with the AuditEvent builders.
 	AuditEvent *AuditEventClient
+	// AuthThrottle is the client for interacting with the AuthThrottle builders.
+	AuthThrottle *AuthThrottleClient
+	// EmailToken is the client for interacting with the EmailToken builders.
+	EmailToken *EmailTokenClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
+	// Session is the client for interacting with the Session builders.
+	Session *SessionClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
 	// User is the client for interacting with the User builders.
@@ -59,8 +68,11 @@ func (c *Client) init() {
 	c.APIKey = NewAPIKeyClient(c.config)
 	c.Application = NewApplicationClient(c.config)
 	c.AuditEvent = NewAuditEventClient(c.config)
+	c.AuthThrottle = NewAuthThrottleClient(c.config)
+	c.EmailToken = NewEmailTokenClient(c.config)
 	c.Environment = NewEnvironmentClient(c.config)
 	c.Membership = NewMembershipClient(c.config)
+	c.Session = NewSessionClient(c.config)
 	c.Tenant = NewTenantClient(c.config)
 	c.User = NewUserClient(c.config)
 }
@@ -153,15 +165,18 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:         ctx,
-		config:      cfg,
-		APIKey:      NewAPIKeyClient(cfg),
-		Application: NewApplicationClient(cfg),
-		AuditEvent:  NewAuditEventClient(cfg),
-		Environment: NewEnvironmentClient(cfg),
-		Membership:  NewMembershipClient(cfg),
-		Tenant:      NewTenantClient(cfg),
-		User:        NewUserClient(cfg),
+		ctx:          ctx,
+		config:       cfg,
+		APIKey:       NewAPIKeyClient(cfg),
+		Application:  NewApplicationClient(cfg),
+		AuditEvent:   NewAuditEventClient(cfg),
+		AuthThrottle: NewAuthThrottleClient(cfg),
+		EmailToken:   NewEmailTokenClient(cfg),
+		Environment:  NewEnvironmentClient(cfg),
+		Membership:   NewMembershipClient(cfg),
+		Session:      NewSessionClient(cfg),
+		Tenant:       NewTenantClient(cfg),
+		User:         NewUserClient(cfg),
 	}, nil
 }
 
@@ -179,15 +194,18 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:         ctx,
-		config:      cfg,
-		APIKey:      NewAPIKeyClient(cfg),
-		Application: NewApplicationClient(cfg),
-		AuditEvent:  NewAuditEventClient(cfg),
-		Environment: NewEnvironmentClient(cfg),
-		Membership:  NewMembershipClient(cfg),
-		Tenant:      NewTenantClient(cfg),
-		User:        NewUserClient(cfg),
+		ctx:          ctx,
+		config:       cfg,
+		APIKey:       NewAPIKeyClient(cfg),
+		Application:  NewApplicationClient(cfg),
+		AuditEvent:   NewAuditEventClient(cfg),
+		AuthThrottle: NewAuthThrottleClient(cfg),
+		EmailToken:   NewEmailTokenClient(cfg),
+		Environment:  NewEnvironmentClient(cfg),
+		Membership:   NewMembershipClient(cfg),
+		Session:      NewSessionClient(cfg),
+		Tenant:       NewTenantClient(cfg),
+		User:         NewUserClient(cfg),
 	}, nil
 }
 
@@ -217,8 +235,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.Application, c.AuditEvent, c.Environment, c.Membership, c.Tenant,
-		c.User,
+		c.APIKey, c.Application, c.AuditEvent, c.AuthThrottle, c.EmailToken,
+		c.Environment, c.Membership, c.Session, c.Tenant, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -228,8 +246,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.Application, c.AuditEvent, c.Environment, c.Membership, c.Tenant,
-		c.User,
+		c.APIKey, c.Application, c.AuditEvent, c.AuthThrottle, c.EmailToken,
+		c.Environment, c.Membership, c.Session, c.Tenant, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -244,10 +262,16 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Application.mutate(ctx, m)
 	case *AuditEventMutation:
 		return c.AuditEvent.mutate(ctx, m)
+	case *AuthThrottleMutation:
+		return c.AuthThrottle.mutate(ctx, m)
+	case *EmailTokenMutation:
+		return c.EmailToken.mutate(ctx, m)
 	case *EnvironmentMutation:
 		return c.Environment.mutate(ctx, m)
 	case *MembershipMutation:
 		return c.Membership.mutate(ctx, m)
+	case *SessionMutation:
+		return c.Session.mutate(ctx, m)
 	case *TenantMutation:
 		return c.Tenant.mutate(ctx, m)
 	case *UserMutation:
@@ -660,6 +684,272 @@ func (c *AuditEventClient) mutate(ctx context.Context, m *AuditEventMutation) (V
 	}
 }
 
+// AuthThrottleClient is a client for the AuthThrottle schema.
+type AuthThrottleClient struct {
+	config
+}
+
+// NewAuthThrottleClient returns a client for the AuthThrottle from the given config.
+func NewAuthThrottleClient(c config) *AuthThrottleClient {
+	return &AuthThrottleClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `auththrottle.Hooks(f(g(h())))`.
+func (c *AuthThrottleClient) Use(hooks ...Hook) {
+	c.hooks.AuthThrottle = append(c.hooks.AuthThrottle, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `auththrottle.Intercept(f(g(h())))`.
+func (c *AuthThrottleClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AuthThrottle = append(c.inters.AuthThrottle, interceptors...)
+}
+
+// Create returns a builder for creating a AuthThrottle entity.
+func (c *AuthThrottleClient) Create() *AuthThrottleCreate {
+	mutation := newAuthThrottleMutation(c.config, OpCreate)
+	return &AuthThrottleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AuthThrottle entities.
+func (c *AuthThrottleClient) CreateBulk(builders ...*AuthThrottleCreate) *AuthThrottleCreateBulk {
+	return &AuthThrottleCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AuthThrottleClient) MapCreateBulk(slice any, setFunc func(*AuthThrottleCreate, int)) *AuthThrottleCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AuthThrottleCreateBulk{err: fmt.Errorf("calling to AuthThrottleClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AuthThrottleCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AuthThrottleCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AuthThrottle.
+func (c *AuthThrottleClient) Update() *AuthThrottleUpdate {
+	mutation := newAuthThrottleMutation(c.config, OpUpdate)
+	return &AuthThrottleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AuthThrottleClient) UpdateOne(_m *AuthThrottle) *AuthThrottleUpdateOne {
+	mutation := newAuthThrottleMutation(c.config, OpUpdateOne, withAuthThrottle(_m))
+	return &AuthThrottleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AuthThrottleClient) UpdateOneID(id string) *AuthThrottleUpdateOne {
+	mutation := newAuthThrottleMutation(c.config, OpUpdateOne, withAuthThrottleID(id))
+	return &AuthThrottleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AuthThrottle.
+func (c *AuthThrottleClient) Delete() *AuthThrottleDelete {
+	mutation := newAuthThrottleMutation(c.config, OpDelete)
+	return &AuthThrottleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AuthThrottleClient) DeleteOne(_m *AuthThrottle) *AuthThrottleDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AuthThrottleClient) DeleteOneID(id string) *AuthThrottleDeleteOne {
+	builder := c.Delete().Where(auththrottle.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AuthThrottleDeleteOne{builder}
+}
+
+// Query returns a query builder for AuthThrottle.
+func (c *AuthThrottleClient) Query() *AuthThrottleQuery {
+	return &AuthThrottleQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAuthThrottle},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AuthThrottle entity by its id.
+func (c *AuthThrottleClient) Get(ctx context.Context, id string) (*AuthThrottle, error) {
+	return c.Query().Where(auththrottle.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AuthThrottleClient) GetX(ctx context.Context, id string) *AuthThrottle {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AuthThrottleClient) Hooks() []Hook {
+	return c.hooks.AuthThrottle
+}
+
+// Interceptors returns the client interceptors.
+func (c *AuthThrottleClient) Interceptors() []Interceptor {
+	return c.inters.AuthThrottle
+}
+
+func (c *AuthThrottleClient) mutate(ctx context.Context, m *AuthThrottleMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AuthThrottleCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AuthThrottleUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AuthThrottleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AuthThrottleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AuthThrottle mutation op: %q", m.Op())
+	}
+}
+
+// EmailTokenClient is a client for the EmailToken schema.
+type EmailTokenClient struct {
+	config
+}
+
+// NewEmailTokenClient returns a client for the EmailToken from the given config.
+func NewEmailTokenClient(c config) *EmailTokenClient {
+	return &EmailTokenClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `emailtoken.Hooks(f(g(h())))`.
+func (c *EmailTokenClient) Use(hooks ...Hook) {
+	c.hooks.EmailToken = append(c.hooks.EmailToken, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `emailtoken.Intercept(f(g(h())))`.
+func (c *EmailTokenClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EmailToken = append(c.inters.EmailToken, interceptors...)
+}
+
+// Create returns a builder for creating a EmailToken entity.
+func (c *EmailTokenClient) Create() *EmailTokenCreate {
+	mutation := newEmailTokenMutation(c.config, OpCreate)
+	return &EmailTokenCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EmailToken entities.
+func (c *EmailTokenClient) CreateBulk(builders ...*EmailTokenCreate) *EmailTokenCreateBulk {
+	return &EmailTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EmailTokenClient) MapCreateBulk(slice any, setFunc func(*EmailTokenCreate, int)) *EmailTokenCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EmailTokenCreateBulk{err: fmt.Errorf("calling to EmailTokenClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EmailTokenCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EmailTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EmailToken.
+func (c *EmailTokenClient) Update() *EmailTokenUpdate {
+	mutation := newEmailTokenMutation(c.config, OpUpdate)
+	return &EmailTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EmailTokenClient) UpdateOne(_m *EmailToken) *EmailTokenUpdateOne {
+	mutation := newEmailTokenMutation(c.config, OpUpdateOne, withEmailToken(_m))
+	return &EmailTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EmailTokenClient) UpdateOneID(id uuid.UUID) *EmailTokenUpdateOne {
+	mutation := newEmailTokenMutation(c.config, OpUpdateOne, withEmailTokenID(id))
+	return &EmailTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EmailToken.
+func (c *EmailTokenClient) Delete() *EmailTokenDelete {
+	mutation := newEmailTokenMutation(c.config, OpDelete)
+	return &EmailTokenDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EmailTokenClient) DeleteOne(_m *EmailToken) *EmailTokenDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EmailTokenClient) DeleteOneID(id uuid.UUID) *EmailTokenDeleteOne {
+	builder := c.Delete().Where(emailtoken.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EmailTokenDeleteOne{builder}
+}
+
+// Query returns a query builder for EmailToken.
+func (c *EmailTokenClient) Query() *EmailTokenQuery {
+	return &EmailTokenQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEmailToken},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EmailToken entity by its id.
+func (c *EmailTokenClient) Get(ctx context.Context, id uuid.UUID) (*EmailToken, error) {
+	return c.Query().Where(emailtoken.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EmailTokenClient) GetX(ctx context.Context, id uuid.UUID) *EmailToken {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EmailTokenClient) Hooks() []Hook {
+	return c.hooks.EmailToken
+}
+
+// Interceptors returns the client interceptors.
+func (c *EmailTokenClient) Interceptors() []Interceptor {
+	return c.inters.EmailToken
+}
+
+func (c *EmailTokenClient) mutate(ctx context.Context, m *EmailTokenMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EmailTokenCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EmailTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EmailTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EmailTokenDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EmailToken mutation op: %q", m.Op())
+	}
+}
+
 // EnvironmentClient is a client for the Environment schema.
 type EnvironmentClient struct {
 	config
@@ -927,6 +1217,139 @@ func (c *MembershipClient) mutate(ctx context.Context, m *MembershipMutation) (V
 		return (&MembershipDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Membership mutation op: %q", m.Op())
+	}
+}
+
+// SessionClient is a client for the Session schema.
+type SessionClient struct {
+	config
+}
+
+// NewSessionClient returns a client for the Session from the given config.
+func NewSessionClient(c config) *SessionClient {
+	return &SessionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `session.Hooks(f(g(h())))`.
+func (c *SessionClient) Use(hooks ...Hook) {
+	c.hooks.Session = append(c.hooks.Session, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `session.Intercept(f(g(h())))`.
+func (c *SessionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Session = append(c.inters.Session, interceptors...)
+}
+
+// Create returns a builder for creating a Session entity.
+func (c *SessionClient) Create() *SessionCreate {
+	mutation := newSessionMutation(c.config, OpCreate)
+	return &SessionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Session entities.
+func (c *SessionClient) CreateBulk(builders ...*SessionCreate) *SessionCreateBulk {
+	return &SessionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SessionClient) MapCreateBulk(slice any, setFunc func(*SessionCreate, int)) *SessionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SessionCreateBulk{err: fmt.Errorf("calling to SessionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SessionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SessionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Session.
+func (c *SessionClient) Update() *SessionUpdate {
+	mutation := newSessionMutation(c.config, OpUpdate)
+	return &SessionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SessionClient) UpdateOne(_m *Session) *SessionUpdateOne {
+	mutation := newSessionMutation(c.config, OpUpdateOne, withSession(_m))
+	return &SessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SessionClient) UpdateOneID(id uuid.UUID) *SessionUpdateOne {
+	mutation := newSessionMutation(c.config, OpUpdateOne, withSessionID(id))
+	return &SessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Session.
+func (c *SessionClient) Delete() *SessionDelete {
+	mutation := newSessionMutation(c.config, OpDelete)
+	return &SessionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SessionClient) DeleteOne(_m *Session) *SessionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SessionClient) DeleteOneID(id uuid.UUID) *SessionDeleteOne {
+	builder := c.Delete().Where(session.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SessionDeleteOne{builder}
+}
+
+// Query returns a query builder for Session.
+func (c *SessionClient) Query() *SessionQuery {
+	return &SessionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSession},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Session entity by its id.
+func (c *SessionClient) Get(ctx context.Context, id uuid.UUID) (*Session, error) {
+	return c.Query().Where(session.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SessionClient) GetX(ctx context.Context, id uuid.UUID) *Session {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SessionClient) Hooks() []Hook {
+	return c.hooks.Session
+}
+
+// Interceptors returns the client interceptors.
+func (c *SessionClient) Interceptors() []Interceptor {
+	return c.inters.Session
+}
+
+func (c *SessionClient) mutate(ctx context.Context, m *SessionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SessionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SessionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SessionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Session mutation op: %q", m.Op())
 	}
 }
 
@@ -1199,12 +1622,12 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, Application, AuditEvent, Environment, Membership, Tenant,
-		User []ent.Hook
+		APIKey, Application, AuditEvent, AuthThrottle, EmailToken, Environment,
+		Membership, Session, Tenant, User []ent.Hook
 	}
 	inters struct {
-		APIKey, Application, AuditEvent, Environment, Membership, Tenant,
-		User []ent.Interceptor
+		APIKey, Application, AuditEvent, AuthThrottle, EmailToken, Environment,
+		Membership, Session, Tenant, User []ent.Interceptor
 	}
 )
 

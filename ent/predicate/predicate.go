@@ -15,11 +15,20 @@ type Application func(*sql.Selector)
 // AuditEvent is the predicate function for auditevent builders.
 type AuditEvent func(*sql.Selector)
 
+// AuthThrottle is the predicate function for auththrottle builders.
+type AuthThrottle func(*sql.Selector)
+
+// EmailToken is the predicate function for emailtoken builders.
+type EmailToken func(*sql.Selector)
+
 // Environment is the predicate function for environment builders.
 type Environment func(*sql.Selector)
 
 // Membership is the predicate function for membership builders.
 type Membership func(*sql.Selector)
+
+// Session is the predicate function for session builders.
+type Session func(*sql.Selector)
 
 // Tenant is the predicate function for tenant builders.
 type Tenant func(*sql.Selector)

@@ -52,6 +52,15 @@ func (s *Store) APIKeys() store.APIKeyStore { return apiKeys{s.client} }
 // Audit implements store.Store.
 func (s *Store) Audit() store.AuditStore { return audit{s.client} }
 
+// Sessions implements store.Store.
+func (s *Store) Sessions() store.SessionStore { return sessions{s.client} }
+
+// EmailTokens implements store.Store.
+func (s *Store) EmailTokens() store.EmailTokenStore { return emailTokens{s.client} }
+
+// Throttle implements store.Store.
+func (s *Store) Throttle() store.ThrottleStore { return throttle{s.client} }
+
 // WithTx implements store.Store. Nested calls join the outer transaction.
 func (s *Store) WithTx(ctx context.Context, fn func(ctx context.Context, tx store.Store) error) (err error) {
 	if s.inTx {

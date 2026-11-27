@@ -179,8 +179,10 @@ func TestSpecAndRouterDoNotDrift(t *testing.T) {
 		}
 	}
 
+	// Every optional route group enabled, so the router serves everything it can.
 	r := NewRouter(Deps{Service: "api", Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Metrics: prometheus.NewRegistry(), Health: health.NewRegistry(time.Second), APIKeys: unavailableAuth{}})
+		Metrics: prometheus.NewRegistry(), Health: health.NewRegistry(time.Second), APIKeys: unavailableAuth{},
+		Accounts: stubAccounts{}, Sessions: stubSessions{}})
 	param := regexp.MustCompile(`:([a-z_]+)`)
 	served := map[string]bool{}
 	for _, rt := range r.(*gin.Engine).Routes() {
@@ -203,3 +205,9 @@ func TestSpecAndRouterDoNotDrift(t *testing.T) {
 	assert.Empty(t, missing, "served routes missing from the spec or not marked implemented")
 	assert.Empty(t, unserved, "spec marks these implemented but the router does not serve them")
 }
+
+// stubAccounts and stubSessions satisfy the console interfaces for route
+// registration; drift tests never call them.
+type stubAccounts struct{ ConsoleAccounts }
+
+type stubSessions struct{ SessionAuthenticator }

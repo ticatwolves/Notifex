@@ -98,6 +98,52 @@ var (
 			},
 		},
 	}
+	// AuthThrottlesColumns holds the columns for the "auth_throttles" table.
+	AuthThrottlesColumns = []*schema.Column{
+		{Name: "key", Type: field.TypeString, Size: 128},
+		{Name: "failures", Type: field.TypeInt, Default: 0},
+		{Name: "last_failure_at", Type: field.TypeTime},
+		{Name: "blocked_until", Type: field.TypeTime},
+	}
+	// AuthThrottlesTable holds the schema information for the "auth_throttles" table.
+	AuthThrottlesTable = &schema.Table{
+		Name:       "auth_throttles",
+		Columns:    AuthThrottlesColumns,
+		PrimaryKey: []*schema.Column{AuthThrottlesColumns[0]},
+	}
+	// EmailTokensColumns holds the columns for the "email_tokens" table.
+	EmailTokensColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "purpose", Type: field.TypeEnum, Enums: []string{"verify_email", "reset_password"}},
+		{Name: "token_hash", Type: field.TypeBytes},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "used_at", Type: field.TypeTime, Nullable: true},
+	}
+	// EmailTokensTable holds the schema information for the "email_tokens" table.
+	EmailTokensTable = &schema.Table{
+		Name:       "email_tokens",
+		Columns:    EmailTokensColumns,
+		PrimaryKey: []*schema.Column{EmailTokensColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "emailtoken_token_hash",
+				Unique:  true,
+				Columns: []*schema.Column{EmailTokensColumns[3]},
+			},
+			{
+				Name:    "emailtoken_user_id_purpose",
+				Unique:  false,
+				Columns: []*schema.Column{EmailTokensColumns[1], EmailTokensColumns[2]},
+			},
+			{
+				Name:    "emailtoken_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{EmailTokensColumns[5]},
+			},
+		},
+	}
 	// EnvironmentsColumns holds the columns for the "environments" table.
 	EnvironmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -152,6 +198,41 @@ var (
 			},
 		},
 	}
+	// SessionsColumns holds the columns for the "sessions" table.
+	SessionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "token_hash", Type: field.TypeBytes},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "last_seen_at", Type: field.TypeTime},
+		{Name: "absolute_expires_at", Type: field.TypeTime},
+		{Name: "reauthenticated_at", Type: field.TypeTime},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "user_agent", Type: field.TypeString, Size: 256, Default: ""},
+	}
+	// SessionsTable holds the schema information for the "sessions" table.
+	SessionsTable = &schema.Table{
+		Name:       "sessions",
+		Columns:    SessionsColumns,
+		PrimaryKey: []*schema.Column{SessionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "session_token_hash",
+				Unique:  true,
+				Columns: []*schema.Column{SessionsColumns[2]},
+			},
+			{
+				Name:    "session_user_id_revoked_at",
+				Unique:  false,
+				Columns: []*schema.Column{SessionsColumns[1], SessionsColumns[7]},
+			},
+			{
+				Name:    "session_absolute_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{SessionsColumns[5]},
+			},
+		},
+	}
 	// TenantsColumns holds the columns for the "tenants" table.
 	TenantsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -196,8 +277,11 @@ var (
 		APIKeysTable,
 		ApplicationsTable,
 		AuditEventsTable,
+		AuthThrottlesTable,
+		EmailTokensTable,
 		EnvironmentsTable,
 		MembershipsTable,
+		SessionsTable,
 		TenantsTable,
 		UsersTable,
 	}

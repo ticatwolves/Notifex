@@ -20,10 +20,16 @@ type Tx struct {
 	Application *ApplicationClient
 	// AuditEvent is the client for interacting with the AuditEvent builders.
 	AuditEvent *AuditEventClient
+	// AuthThrottle is the client for interacting with the AuthThrottle builders.
+	AuthThrottle *AuthThrottleClient
+	// EmailToken is the client for interacting with the EmailToken builders.
+	EmailToken *EmailTokenClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
+	// Session is the client for interacting with the Session builders.
+	Session *SessionClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
 	// User is the client for interacting with the User builders.
@@ -162,8 +168,11 @@ func (tx *Tx) init() {
 	tx.APIKey = NewAPIKeyClient(tx.config)
 	tx.Application = NewApplicationClient(tx.config)
 	tx.AuditEvent = NewAuditEventClient(tx.config)
+	tx.AuthThrottle = NewAuthThrottleClient(tx.config)
+	tx.EmailToken = NewEmailTokenClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
+	tx.Session = NewSessionClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }

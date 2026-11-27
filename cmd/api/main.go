@@ -6,11 +6,13 @@ import (
 	"context"
 	"errors"
 	"os"
+	"time"
 
 	"github.com/ticatwolves/notifex/internal/app"
 	"github.com/ticatwolves/notifex/internal/auth"
 	"github.com/ticatwolves/notifex/internal/db"
 	"github.com/ticatwolves/notifex/internal/lifecycle"
+	"github.com/ticatwolves/notifex/internal/mail"
 	"github.com/ticatwolves/notifex/internal/store/entstore"
 	grpctransport "github.com/ticatwolves/notifex/internal/transport/grpc"
 	httptransport "github.com/ticatwolves/notifex/internal/transport/http"
@@ -34,12 +36,22 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 	rt.Health.Register("postgres", sqlDB.PingContext)
 	st := entstore.New(sqlDB)
 
+	mailer, err := systemMailer(rt)
+	if err != nil {
+		return nil, err
+	}
+	accounts := auth.NewAccounts(st, auth.NewPasswordHasher(rt.Config.PasswordHashConcurrency), mailer, rt.Logger,
+		rt.Config.ConsoleURL, auth.DefaultSessionPolicy)
+
 	rest := lifecycle.NewHTTPServer("http", rt.Config.HTTPAddr, httptransport.NewRouter(httptransport.Deps{
-		Service: rt.Config.Service,
-		Logger:  rt.Logger,
-		Metrics: rt.Metrics,
-		Health:  rt.Health,
-		APIKeys: auth.NewAPIKeyAuthenticator(st, hasher, rt.Logger, rt.Metrics),
+		Service:        rt.Config.Service,
+		Logger:         rt.Logger,
+		Metrics:        rt.Metrics,
+		Health:         rt.Health,
+		APIKeys:        auth.NewAPIKeyAuthenticator(st, hasher, rt.Logger, rt.Metrics),
+		Accounts:       accounts,
+		Sessions:       auth.NewSessionAuthenticator(st, rt.Logger, auth.DefaultSessionPolicy),
+		TrustedProxies: rt.Config.TrustedProxies,
 	}), rt.Logger)
 	if err := rest.Listen(ctx); err != nil {
 		return nil, err
@@ -51,4 +63,26 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 	}
 
 	return []lifecycle.Component{rest, grpc}, nil
+}
+
+// systemMailer sends Notifex's own email asynchronously. Local runs without
+// SMTP_ADDR record (and drop) mail; deployed environments must configure it.
+func systemMailer(rt *app.Runtime) (mail.Mailer, error) {
+	var next mail.Mailer
+	switch {
+	case rt.Config.SMTPAddr != "":
+		next = mail.SMTP{Addr: rt.Config.SMTPAddr, From: rt.Config.MailFrom}
+	case rt.Config.Deployed():
+		return nil, errors.New("SMTP_ADDR is required outside local")
+	default:
+		rt.Logger.Warn("SMTP_ADDR not set: system email is recorded in memory and not delivered")
+		next = &mail.Recorder{}
+	}
+	q := mail.NewQueue(next, rt.Logger, 1000, 2)
+	rt.OnShutdown(func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		return q.Close(ctx)
+	})
+	return q, nil
 }

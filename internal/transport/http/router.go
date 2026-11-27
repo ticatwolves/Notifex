@@ -25,6 +25,13 @@ type Deps struct {
 	// APIKeys authenticates /v1 data-plane routes. Nil disables them (tests of
 	// the bare router only).
 	APIKeys APIKeyAuthenticator
+	// Accounts and Sessions enable the console routes (/v1/auth, /v1/me).
+	Accounts ConsoleAccounts
+	Sessions SessionAuthenticator
+	// Limits are per-IP limits; zero value means DefaultLimits.
+	Limits Limits
+	// TrustedProxies are CIDRs whose X-Forwarded-For is believed (the ALB).
+	TrustedProxies []string
 }
 
 // NewRouter builds the public REST handler.
@@ -33,7 +40,13 @@ func NewRouter(d Deps) http.Handler {
 	r := gin.New()
 	r.HandleMethodNotAllowed = true
 	r.ContextWithFallback = true // c.Request.Context() values reachable via c
-	_ = r.SetTrustedProxies(nil) // ALB/CloudFront client IP handling is decided in Phase 1
+	// Client IP for rate limits: X-Forwarded-For only from configured proxies.
+	if err := r.SetTrustedProxies(d.TrustedProxies); err != nil {
+		_ = r.SetTrustedProxies(nil) // config validation rejects bad CIDRs; fail safe
+	}
+	if d.Limits.Login == nil {
+		d.Limits = DefaultLimits()
+	}
 
 	m := newHTTPMetrics(d.Metrics)
 	r.Use(
@@ -62,8 +75,10 @@ func NewRouter(d Deps) http.Handler {
 	})
 
 	if d.APIKeys != nil {
-		v1 := r.Group("/v1", requireAPIKey(d.APIKeys))
-		v1.GET("/whoami", whoami)
+		r.GET("/v1/whoami", requireAPIKey(d.APIKeys, d.Limits.APIKeyFail), whoami)
+	}
+	if d.Accounts != nil && d.Sessions != nil {
+		registerConsole(r, d)
 	}
 
 	return r

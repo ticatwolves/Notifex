@@ -26,6 +26,11 @@ const (
 	APIKey       Kind = "key"
 	Run          Kind = "run"
 	Notification Kind = "ntf"
+	User         Kind = "usr"
+	Membership   Kind = "mem"
+	Invitation   Kind = "inv"
+	Session      Kind = "ses"
+	AuditEvent   Kind = "evt"
 )
 
 const encodedLen = 22

@@ -44,7 +44,7 @@ func TestLoadFromEnv(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
-	valid := Config{Env: EnvLocal, LogFormat: "json", ShutdownTimeout: time.Second, TraceSampleRatio: 1}
+	valid := Config{Env: EnvLocal, LogFormat: "json", ShutdownTimeout: time.Second, TraceSampleRatio: 1, PasswordHashConcurrency: 4}
 	tests := []struct {
 		name    string
 		mutate  func(*Config)
@@ -59,6 +59,9 @@ func TestValidate(t *testing.T) {
 		{name: "local pepper in staging", mutate: func(c *Config) { c.Env = EnvStaging; c.APIKeyPepper = LocalDevAPIKeyPepper }, wantErr: "API_KEY_PEPPER"},
 		{name: "local pepper locally ok", mutate: func(c *Config) { c.APIKeyPepper = LocalDevAPIKeyPepper }},
 		{name: "local master key in prod", mutate: func(c *Config) { c.Env = EnvProd; c.LocalMasterKey = LocalDevLocalMasterKey }, wantErr: "NOTIFEX_LOCAL_MASTER_KEY"},
+		{name: "hash concurrency 0", mutate: func(c *Config) { c.PasswordHashConcurrency = 0 }, wantErr: "PASSWORD_HASH_CONCURRENCY"},
+		{name: "bad trusted proxy", mutate: func(c *Config) { c.TrustedProxies = []string{"10.0.0.0"} }, wantErr: "TRUSTED_PROXIES"},
+		{name: "trusted proxy cidr ok", mutate: func(c *Config) { c.TrustedProxies = []string{"10.0.0.0/16"} }},
 		{name: "sqs endpoint local ok", mutate: func(c *Config) { c.SQSEndpoint = "http://elasticmq:9324" }},
 	}
 	for _, tt := range tests {

@@ -45,6 +45,30 @@ func (f AuditEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuditEventMutation", m)
 }
 
+// The AuthThrottleFunc type is an adapter to allow the use of ordinary
+// function as AuthThrottle mutator.
+type AuthThrottleFunc func(context.Context, *ent.AuthThrottleMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AuthThrottleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AuthThrottleMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuthThrottleMutation", m)
+}
+
+// The EmailTokenFunc type is an adapter to allow the use of ordinary
+// function as EmailToken mutator.
+type EmailTokenFunc func(context.Context, *ent.EmailTokenMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EmailTokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EmailTokenMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EmailTokenMutation", m)
+}
+
 // The EnvironmentFunc type is an adapter to allow the use of ordinary
 // function as Environment mutator.
 type EnvironmentFunc func(context.Context, *ent.EnvironmentMutation) (ent.Value, error)
@@ -67,6 +91,18 @@ func (f MembershipFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MembershipMutation", m)
+}
+
+// The SessionFunc type is an adapter to allow the use of ordinary
+// function as Session mutator.
+type SessionFunc func(context.Context, *ent.SessionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SessionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SessionMutation", m)
 }
 
 // The TenantFunc type is an adapter to allow the use of ordinary

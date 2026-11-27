@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/caarlos0/env/v11"
@@ -53,6 +55,17 @@ type Config struct {
 	// LocalMasterKey is the base64 32-byte master key for the local
 	// KeyProvider. Local only; deployed environments use KMS.
 	LocalMasterKey string `env:"NOTIFEX_LOCAL_MASTER_KEY"`
+
+	// ConsoleURL is the web console's base URL, used in emailed links.
+	ConsoleURL string `env:"CONSOLE_BASE_URL" envDefault:"http://localhost:3000"`
+	// SMTPAddr is the system-mail relay (Mailpit locally). Empty disables
+	// sending outside local; in local, mail is then only logged as dropped.
+	SMTPAddr string `env:"SMTP_ADDR"`
+	MailFrom string `env:"MAIL_FROM" envDefault:"Notifex <noreply@notifex.local>"`
+	// PasswordHashConcurrency bounds concurrent argon2id hashes (~46 MiB each).
+	PasswordHashConcurrency int `env:"PASSWORD_HASH_CONCURRENCY" envDefault:"4"`
+	// TrustedProxies are CIDRs whose X-Forwarded-For is believed (the ALB).
+	TrustedProxies []string `env:"TRUSTED_PROXIES" envSeparator:","`
 
 	AWSRegion string `env:"AWS_REGION" envDefault:"ap-south-1"`
 	// SQSEndpoint overrides the SQS endpoint (ElasticMQ locally). Empty in AWS.
@@ -115,6 +128,14 @@ func (c Config) Validate() error {
 	}
 	if c.Deployed() && c.LocalMasterKey != "" {
 		errs = append(errs, errors.New("NOTIFEX_LOCAL_MASTER_KEY must not be set outside local (use KMS)"))
+	}
+	if c.PasswordHashConcurrency < 1 || c.PasswordHashConcurrency > 64 {
+		errs = append(errs, fmt.Errorf("PASSWORD_HASH_CONCURRENCY %d: must be within [1, 64]", c.PasswordHashConcurrency))
+	}
+	for _, cidr := range c.TrustedProxies {
+		if _, _, err := net.ParseCIDR(strings.TrimSpace(cidr)); err != nil {
+			errs = append(errs, fmt.Errorf("TRUSTED_PROXIES %q: not a CIDR", cidr))
+		}
 	}
 	if c.Deployed() && c.SQSEndpoint != "" {
 		errs = append(errs, errors.New("SQS_ENDPOINT must be empty outside local (ElasticMQ is local-only)"))

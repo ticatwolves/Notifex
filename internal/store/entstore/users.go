@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -46,6 +47,33 @@ func (u users) GetByEmail(ctx context.Context, email string) (store.User, error)
 		return store.User{}, fmt.Errorf("users.get_by_email: %w", mapErr(err, opRead))
 	}
 	return toUser(row), nil
+}
+
+func (u users) SetPasswordHash(ctx context.Context, id uuid.UUID, hash string) error {
+	if hash == "" {
+		return invalid("password hash is empty")
+	}
+	if err := u.c.User.UpdateOneID(id).SetPasswordHash(hash).Exec(ctx); err != nil {
+		return fmt.Errorf("users.set_password_hash: %w", mapErr(err, opWrite))
+	}
+	return nil
+}
+
+func (u users) MarkEmailVerified(ctx context.Context, id uuid.UUID, at time.Time) error {
+	n, err := u.c.User.Update().Where(user.ID(id), user.EmailVerifiedAtIsNil()).SetEmailVerifiedAt(at).Save(ctx)
+	if err != nil {
+		return fmt.Errorf("users.mark_email_verified: %w", mapErr(err, opWrite))
+	}
+	if n == 0 {
+		exists, err := u.c.User.Query().Where(user.ID(id)).Exist(ctx)
+		if err != nil {
+			return fmt.Errorf("users.mark_email_verified: %w", mapErr(err, opRead))
+		}
+		if !exists {
+			return fmt.Errorf("users.mark_email_verified: %w", store.ErrNotFound)
+		}
+	}
+	return nil
 }
 
 func toUser(r *ent.User) store.User {

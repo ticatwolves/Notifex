@@ -11,9 +11,12 @@ import (
 	"github.com/ticatwolves/notifex/ent/apikey"
 	"github.com/ticatwolves/notifex/ent/application"
 	"github.com/ticatwolves/notifex/ent/auditevent"
+	"github.com/ticatwolves/notifex/ent/auththrottle"
+	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
 	"github.com/ticatwolves/notifex/ent/membership"
 	"github.com/ticatwolves/notifex/ent/predicate"
+	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/tenant"
 	"github.com/ticatwolves/notifex/ent/user"
 )
@@ -155,6 +158,60 @@ func (f TraverseAuditEvent) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.AuditEventQuery", q)
 }
 
+// The AuthThrottleFunc type is an adapter to allow the use of ordinary function as a Querier.
+type AuthThrottleFunc func(context.Context, *ent.AuthThrottleQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f AuthThrottleFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.AuthThrottleQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.AuthThrottleQuery", q)
+}
+
+// The TraverseAuthThrottle type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseAuthThrottle func(context.Context, *ent.AuthThrottleQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseAuthThrottle) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseAuthThrottle) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.AuthThrottleQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.AuthThrottleQuery", q)
+}
+
+// The EmailTokenFunc type is an adapter to allow the use of ordinary function as a Querier.
+type EmailTokenFunc func(context.Context, *ent.EmailTokenQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f EmailTokenFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.EmailTokenQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.EmailTokenQuery", q)
+}
+
+// The TraverseEmailToken type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseEmailToken func(context.Context, *ent.EmailTokenQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseEmailToken) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseEmailToken) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.EmailTokenQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.EmailTokenQuery", q)
+}
+
 // The EnvironmentFunc type is an adapter to allow the use of ordinary function as a Querier.
 type EnvironmentFunc func(context.Context, *ent.EnvironmentQuery) (ent.Value, error)
 
@@ -207,6 +264,33 @@ func (f TraverseMembership) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.MembershipQuery", q)
+}
+
+// The SessionFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SessionFunc func(context.Context, *ent.SessionQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SessionFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SessionQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SessionQuery", q)
+}
+
+// The TraverseSession type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSession func(context.Context, *ent.SessionQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSession) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSession) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SessionQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SessionQuery", q)
 }
 
 // The TenantFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -272,10 +356,16 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.ApplicationQuery, predicate.Application, application.OrderOption]{typ: ent.TypeApplication, tq: q}, nil
 	case *ent.AuditEventQuery:
 		return &query[*ent.AuditEventQuery, predicate.AuditEvent, auditevent.OrderOption]{typ: ent.TypeAuditEvent, tq: q}, nil
+	case *ent.AuthThrottleQuery:
+		return &query[*ent.AuthThrottleQuery, predicate.AuthThrottle, auththrottle.OrderOption]{typ: ent.TypeAuthThrottle, tq: q}, nil
+	case *ent.EmailTokenQuery:
+		return &query[*ent.EmailTokenQuery, predicate.EmailToken, emailtoken.OrderOption]{typ: ent.TypeEmailToken, tq: q}, nil
 	case *ent.EnvironmentQuery:
 		return &query[*ent.EnvironmentQuery, predicate.Environment, environment.OrderOption]{typ: ent.TypeEnvironment, tq: q}, nil
 	case *ent.MembershipQuery:
 		return &query[*ent.MembershipQuery, predicate.Membership, membership.OrderOption]{typ: ent.TypeMembership, tq: q}, nil
+	case *ent.SessionQuery:
+		return &query[*ent.SessionQuery, predicate.Session, session.OrderOption]{typ: ent.TypeSession, tq: q}, nil
 	case *ent.TenantQuery:
 		return &query[*ent.TenantQuery, predicate.Tenant, tenant.OrderOption]{typ: ent.TypeTenant, tq: q}, nil
 	case *ent.UserQuery:

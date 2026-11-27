@@ -19,6 +19,8 @@ x-core: &core
     LOG_LEVEL: debug
     DATABASE_URL: postgres://notifex:notifex@postgres:5432/notifex?sslmode=disable
     SQS_ENDPOINT: http://elasticmq:9324
+    SMTP_ADDR: mailpit:1025                  # system email -> Mailpit (UI on :8025)
+    CONSOLE_BASE_URL: http://localhost:3000
     AWS_REGION: ap-south-1
     AWS_ACCESS_KEY_ID: local       # ElasticMQ ignores credentials
     AWS_SECRET_ACCESS_KEY: local
@@ -69,6 +71,11 @@ services:
     healthcheck:
       disable: true
     restart: "no"
+
+  # Catches Notifex's own email (verification, reset). UI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e
+    ports: ["8025:8025", "1025:1025"]
 
   api:
     <<: *core

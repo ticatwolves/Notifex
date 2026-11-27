@@ -52,6 +52,9 @@ type Store interface {
 	Environments() EnvironmentStore
 	APIKeys() APIKeyStore
 	Audit() AuditStore
+	Sessions() SessionStore
+	EmailTokens() EmailTokenStore
+	Throttle() ThrottleStore
 	// WithTx runs fn in one transaction. The Store passed to fn is bound to it,
 	// so a mutation and its audit event commit or roll back together. fn's
 	// error rolls back; a panic rolls back and re-panics.
@@ -185,6 +188,9 @@ type UserStore interface {
 	Create(ctx context.Context, in NewUser) (User, error)
 	Get(ctx context.Context, id uuid.UUID) (User, error)
 	GetByEmail(ctx context.Context, email string) (User, error)
+	SetPasswordHash(ctx context.Context, id uuid.UUID, hash string) error
+	// MarkEmailVerified sets email_verified_at if it is not already set.
+	MarkEmailVerified(ctx context.Context, id uuid.UUID, at time.Time) error
 }
 
 // ---- memberships ----
@@ -369,4 +375,91 @@ type AuditStore interface {
 	Append(ctx context.Context, e AuditEvent) (AuditEvent, error)
 	// List returns a tenant's events, newest first.
 	List(ctx context.Context, tid TenantID, p Page) ([]AuditEvent, error)
+}
+
+// ---- console sessions (ADR-011) ----
+
+// Session is a console login. The token itself is never stored.
+type Session struct {
+	ID                uuid.UUID
+	UserID            uuid.UUID
+	CreatedAt         time.Time
+	LastSeenAt        time.Time
+	AbsoluteExpiresAt time.Time
+	ReauthenticatedAt time.Time
+	RevokedAt         *time.Time
+	UserAgent         string
+}
+
+// NewSession is the input to SessionStore.Create.
+type NewSession struct {
+	UserID            uuid.UUID
+	TokenHash         []byte
+	Now               time.Time
+	AbsoluteExpiresAt time.Time
+	UserAgent         string
+}
+
+// SessionStore persists console sessions. Sessions are user-scoped: every
+// method that acts on another user's session takes the owning user id.
+type SessionStore interface {
+	Create(ctx context.Context, in NewSession) (Session, error)
+	// GetByTokenHash returns the session whatever its state; callers check
+	// revocation and expiry.
+	GetByTokenHash(ctx context.Context, hash []byte) (Session, error)
+	// Touch moves last_seen_at to now if it is older than now-minInterval.
+	Touch(ctx context.Context, id uuid.UUID, now time.Time, minInterval time.Duration) error
+	MarkReauthenticated(ctx context.Context, id uuid.UUID, now time.Time) error
+	// Revoke revokes one of userID's sessions (idempotent). ErrNotFound if the
+	// session does not belong to userID.
+	Revoke(ctx context.Context, userID, id uuid.UUID, now time.Time) error
+	// RevokeAllForUser revokes every active session of userID except keep
+	// (uuid.Nil keeps none) and returns how many were revoked.
+	RevokeAllForUser(ctx context.Context, userID, keep uuid.UUID, now time.Time) (int, error)
+	// ListActive returns userID's sessions that are not revoked, not past
+	// absolute expiry and seen within idle.
+	ListActive(ctx context.Context, userID uuid.UUID, now time.Time, idle time.Duration) ([]Session, error)
+}
+
+// EmailTokenPurpose is what an emailed token authorises.
+type EmailTokenPurpose string
+
+// Email token purposes.
+const (
+	TokenVerifyEmail   EmailTokenPurpose = "verify_email"
+	TokenResetPassword EmailTokenPurpose = "reset_password"
+)
+
+// EmailTokenStore persists single-use emailed tokens (hashed).
+type EmailTokenStore interface {
+	Create(ctx context.Context, userID uuid.UUID, purpose EmailTokenPurpose, hash []byte, now, expiresAt time.Time) error
+	// Consume atomically marks the token used and returns its user. A used,
+	// expired, unknown or wrong-purpose token returns ErrNotFound.
+	Consume(ctx context.Context, purpose EmailTokenPurpose, hash []byte, now time.Time) (uuid.UUID, error)
+	// InvalidateForUser marks all of userID's unused tokens of purpose as used.
+	InvalidateForUser(ctx context.Context, userID uuid.UUID, purpose EmailTokenPurpose, now time.Time) error
+}
+
+// ThrottlePolicy configures progressive backoff.
+type ThrottlePolicy struct {
+	FreeFailures int           // failures before any backoff
+	Window       time.Duration // failures older than this start a new count
+	MaxBackoff   time.Duration
+}
+
+// ThrottleState is the result of recording a failure.
+type ThrottleState struct {
+	Failures     int
+	BlockedUntil time.Time
+}
+
+// ThrottleStore tracks failed attempts per opaque key, shared by every API
+// instance so backoff can't be bypassed by spreading attempts across tasks.
+type ThrottleStore interface {
+	// BlockedUntil returns when key may try again (zero if not blocked).
+	BlockedUntil(ctx context.Context, key string, now time.Time) (time.Time, error)
+	// RecordFailure atomically counts a failure and computes the new block:
+	// after FreeFailures, 2^(n-FreeFailures+1) seconds, capped at MaxBackoff.
+	RecordFailure(ctx context.Context, key string, now time.Time, p ThrottlePolicy) (ThrottleState, error)
+	Reset(ctx context.Context, key string) error
 }
