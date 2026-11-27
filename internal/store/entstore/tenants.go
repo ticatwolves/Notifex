@@ -3,6 +3,7 @@ package entstore
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -124,4 +125,24 @@ func toTenant(r *ent.Tenant) store.Tenant {
 		CreatedAt:             r.CreatedAt,
 		UpdatedAt:             r.UpdatedAt,
 	}
+}
+
+func (t tenants) Search(ctx context.Context, q string, status *store.TenantStatus, p store.Page) ([]store.Tenant, error) {
+	p = p.Normalize()
+	query := t.c.Tenant.Query()
+	if q = strings.TrimSpace(q); q != "" {
+		// HasPrefix/ContainsFold escape LIKE wildcards in q.
+		query.Where(tenant.Or(tenant.SlugHasPrefix(strings.ToLower(q)), tenant.NameContainsFold(q)))
+	}
+	if status != nil {
+		query.Where(tenant.StatusEQ(tenant.Status(*status)))
+	}
+	if p.After != uuid.Nil {
+		query.Where(tenant.IDGT(p.After))
+	}
+	rows, err := query.Order(ent.Asc(tenant.FieldID)).Limit(p.Limit).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("tenants.search: %w", mapErr(err, opRead))
+	}
+	return mapSlice(rows, toTenant), nil
 }

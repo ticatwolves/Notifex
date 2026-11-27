@@ -74,6 +74,11 @@ func ForeignKeys() []ForeignKey {
 			OnDelete: "SET NULL",
 		},
 		ForeignKey{
+			Name: "operator_sessions_operator_fk", Table: "operator_sessions",
+			Columns: []string{"operator_id"}, RefTable: "operators", RefColumns: []string{"id"},
+			OnDelete: "CASCADE",
+		},
+		ForeignKey{
 			Name: "audit_events_tenant_fk", Table: "audit_events",
 			Columns: []string{"tenant_id"}, RefTable: "tenants", RefColumns: []string{"id"},
 		},

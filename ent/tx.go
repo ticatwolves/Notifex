@@ -32,6 +32,10 @@ type Tx struct {
 	Membership *MembershipClient
 	// OAuthState is the client for interacting with the OAuthState builders.
 	OAuthState *OAuthStateClient
+	// Operator is the client for interacting with the Operator builders.
+	Operator *OperatorClient
+	// OperatorSession is the client for interacting with the OperatorSession builders.
+	OperatorSession *OperatorSessionClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// Tenant is the client for interacting with the Tenant builders.
@@ -180,6 +184,8 @@ func (tx *Tx) init() {
 	tx.Invitation = NewInvitationClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
 	tx.OAuthState = NewOAuthStateClient(tx.config)
+	tx.Operator = NewOperatorClient(tx.config)
+	tx.OperatorSession = NewOperatorSessionClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
 	tx.User = NewUserClient(tx.config)

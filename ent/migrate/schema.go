@@ -269,6 +269,60 @@ var (
 			},
 		},
 	}
+	// OperatorsColumns holds the columns for the "operators" table.
+	OperatorsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "email", Type: field.TypeString, Unique: true, Size: 320},
+		{Name: "name", Type: field.TypeString, Size: 200, Default: ""},
+		{Name: "password_hash", Type: field.TypeString},
+		{Name: "totp_wrapped_key", Type: field.TypeBytes},
+		{Name: "totp_key_id", Type: field.TypeString, Size: 256},
+		{Name: "totp_ciphertext", Type: field.TypeBytes},
+		{Name: "totp_last_step", Type: field.TypeInt64, Default: 0},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "disabled"}, Default: "active"},
+	}
+	// OperatorsTable holds the schema information for the "operators" table.
+	OperatorsTable = &schema.Table{
+		Name:       "operators",
+		Columns:    OperatorsColumns,
+		PrimaryKey: []*schema.Column{OperatorsColumns[0]},
+	}
+	// OperatorSessionsColumns holds the columns for the "operator_sessions" table.
+	OperatorSessionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "operator_id", Type: field.TypeUUID},
+		{Name: "token_hash", Type: field.TypeBytes},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "last_seen_at", Type: field.TypeTime},
+		{Name: "absolute_expires_at", Type: field.TypeTime},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "user_agent", Type: field.TypeString, Size: 256, Default: ""},
+	}
+	// OperatorSessionsTable holds the schema information for the "operator_sessions" table.
+	OperatorSessionsTable = &schema.Table{
+		Name:       "operator_sessions",
+		Columns:    OperatorSessionsColumns,
+		PrimaryKey: []*schema.Column{OperatorSessionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "operatorsession_token_hash",
+				Unique:  true,
+				Columns: []*schema.Column{OperatorSessionsColumns[2]},
+			},
+			{
+				Name:    "operatorsession_operator_id_revoked_at",
+				Unique:  false,
+				Columns: []*schema.Column{OperatorSessionsColumns[1], OperatorSessionsColumns[6]},
+			},
+			{
+				Name:    "operatorsession_absolute_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{OperatorSessionsColumns[5]},
+			},
+		},
+	}
 	// SessionsColumns holds the columns for the "sessions" table.
 	SessionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -382,6 +436,8 @@ var (
 		InvitationsTable,
 		MembershipsTable,
 		OauthStatesTable,
+		OperatorsTable,
+		OperatorSessionsTable,
 		SessionsTable,
 		TenantsTable,
 		UsersTable,

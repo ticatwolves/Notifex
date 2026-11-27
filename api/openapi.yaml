@@ -1083,7 +1083,7 @@ paths:
       tags: [operator]
       summary: Operator login (password + TOTP)
       security: []
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -1096,6 +1096,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SessionCreated" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "429": { $ref: "#/components/responses/RateLimited" }
   /v1/operator/auth/logout:
@@ -1104,7 +1105,7 @@ paths:
       tags: [operator]
       summary: Revoke the current operator session
       security: [{ operatorSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "204": { description: Logged out. }
@@ -1115,7 +1116,7 @@ paths:
       tags: [operator]
       summary: Search tenants (audited)
       security: [{ operatorSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - { name: q, in: query, description: Slug or name prefix., schema: { type: string, maxLength: 63 } }
@@ -1128,6 +1129,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/OperatorTenantList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
   /v1/operator/tenants/{tenant_id}:
     parameters:
@@ -1137,7 +1139,7 @@ paths:
       tags: [operator]
       summary: Inspect a tenant (audited)
       security: [{ operatorSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "200":
@@ -1152,7 +1154,7 @@ paths:
       tags: [operator]
       summary: Change status, plan, sandbox and limits (audited)
       security: [{ operatorSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -1904,14 +1906,16 @@ components:
     OperatorTenantPatch:
       type: object
       additionalProperties: false
-      minProperties: 1
+      minProperties: 2
+      required: [reason]
+      description: At least one change plus a reason.
       properties:
         status: { type: string, enum: [active, suspended], description: Deletion is owner-only (crypto-shred), not an operator action. }
         plan: { type: string, minLength: 1, maxLength: 64 }
         sandbox: { type: boolean }
         platform_sms_daily_limit: { type: integer, minimum: 0 }
         quotas: { type: object, additionalProperties: { type: integer, minimum: 0 } }
-        reason: { type: string, maxLength: 500, description: Recorded in the audit event. }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Why the change is made; recorded in the audit event. }
     OperatorTenantList:
       type: object
       additionalProperties: false

@@ -21,6 +21,8 @@ import (
 	"github.com/ticatwolves/notifex/ent/invitation"
 	"github.com/ticatwolves/notifex/ent/membership"
 	"github.com/ticatwolves/notifex/ent/oauthstate"
+	"github.com/ticatwolves/notifex/ent/operator"
+	"github.com/ticatwolves/notifex/ent/operatorsession"
 	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/tenant"
 	"github.com/ticatwolves/notifex/ent/user"
@@ -85,19 +87,21 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			apikey.Table:       apikey.ValidColumn,
-			application.Table:  application.ValidColumn,
-			auditevent.Table:   auditevent.ValidColumn,
-			auththrottle.Table: auththrottle.ValidColumn,
-			emailtoken.Table:   emailtoken.ValidColumn,
-			environment.Table:  environment.ValidColumn,
-			invitation.Table:   invitation.ValidColumn,
-			membership.Table:   membership.ValidColumn,
-			oauthstate.Table:   oauthstate.ValidColumn,
-			session.Table:      session.ValidColumn,
-			tenant.Table:       tenant.ValidColumn,
-			user.Table:         user.ValidColumn,
-			useridentity.Table: useridentity.ValidColumn,
+			apikey.Table:          apikey.ValidColumn,
+			application.Table:     application.ValidColumn,
+			auditevent.Table:      auditevent.ValidColumn,
+			auththrottle.Table:    auththrottle.ValidColumn,
+			emailtoken.Table:      emailtoken.ValidColumn,
+			environment.Table:     environment.ValidColumn,
+			invitation.Table:      invitation.ValidColumn,
+			membership.Table:      membership.ValidColumn,
+			oauthstate.Table:      oauthstate.ValidColumn,
+			operator.Table:        operator.ValidColumn,
+			operatorsession.Table: operatorsession.ValidColumn,
+			session.Table:         session.ValidColumn,
+			tenant.Table:          tenant.ValidColumn,
+			user.Table:            user.ValidColumn,
+			useridentity.Table:    useridentity.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

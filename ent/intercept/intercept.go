@@ -17,6 +17,8 @@ import (
 	"github.com/ticatwolves/notifex/ent/invitation"
 	"github.com/ticatwolves/notifex/ent/membership"
 	"github.com/ticatwolves/notifex/ent/oauthstate"
+	"github.com/ticatwolves/notifex/ent/operator"
+	"github.com/ticatwolves/notifex/ent/operatorsession"
 	"github.com/ticatwolves/notifex/ent/predicate"
 	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/tenant"
@@ -323,6 +325,60 @@ func (f TraverseOAuthState) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.OAuthStateQuery", q)
 }
 
+// The OperatorFunc type is an adapter to allow the use of ordinary function as a Querier.
+type OperatorFunc func(context.Context, *ent.OperatorQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f OperatorFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.OperatorQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.OperatorQuery", q)
+}
+
+// The TraverseOperator type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseOperator func(context.Context, *ent.OperatorQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseOperator) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseOperator) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.OperatorQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.OperatorQuery", q)
+}
+
+// The OperatorSessionFunc type is an adapter to allow the use of ordinary function as a Querier.
+type OperatorSessionFunc func(context.Context, *ent.OperatorSessionQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f OperatorSessionFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.OperatorSessionQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.OperatorSessionQuery", q)
+}
+
+// The TraverseOperatorSession type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseOperatorSession func(context.Context, *ent.OperatorSessionQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseOperatorSession) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseOperatorSession) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.OperatorSessionQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.OperatorSessionQuery", q)
+}
+
 // The SessionFunc type is an adapter to allow the use of ordinary function as a Querier.
 type SessionFunc func(context.Context, *ent.SessionQuery) (ent.Value, error)
 
@@ -452,6 +508,10 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.MembershipQuery, predicate.Membership, membership.OrderOption]{typ: ent.TypeMembership, tq: q}, nil
 	case *ent.OAuthStateQuery:
 		return &query[*ent.OAuthStateQuery, predicate.OAuthState, oauthstate.OrderOption]{typ: ent.TypeOAuthState, tq: q}, nil
+	case *ent.OperatorQuery:
+		return &query[*ent.OperatorQuery, predicate.Operator, operator.OrderOption]{typ: ent.TypeOperator, tq: q}, nil
+	case *ent.OperatorSessionQuery:
+		return &query[*ent.OperatorSessionQuery, predicate.OperatorSession, operatorsession.OrderOption]{typ: ent.TypeOperatorSession, tq: q}, nil
 	case *ent.SessionQuery:
 		return &query[*ent.SessionQuery, predicate.Session, session.OrderOption]{typ: ent.TypeSession, tq: q}, nil
 	case *ent.TenantQuery:

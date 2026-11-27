@@ -16,6 +16,7 @@ import (
 	"github.com/ticatwolves/notifex/internal/db"
 	"github.com/ticatwolves/notifex/internal/lifecycle"
 	"github.com/ticatwolves/notifex/internal/mail"
+	"github.com/ticatwolves/notifex/internal/operator"
 	"github.com/ticatwolves/notifex/internal/store/entstore"
 	"github.com/ticatwolves/notifex/internal/tenant"
 	grpctransport "github.com/ticatwolves/notifex/internal/transport/grpc"
@@ -44,7 +45,9 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 	if err != nil {
 		return nil, err
 	}
-	accounts := auth.NewAccounts(st, auth.NewPasswordHasher(rt.Config.PasswordHashConcurrency), mailer, rt.Logger,
+	// One hasher, so console and operator logins share the argon2 memory bound.
+	pw := auth.NewPasswordHasher(rt.Config.PasswordHashConcurrency)
+	accounts := auth.NewAccounts(st, pw, mailer, rt.Logger,
 		rt.Config.ConsoleURL, auth.DefaultSessionPolicy)
 	if err := auth.ValidateRedirectURIs(rt.Config.OAuthRedirectURIs); err != nil {
 		return nil, err
@@ -67,6 +70,7 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 		Sessions:       auth.NewSessionAuthenticator(st, rt.Logger, auth.DefaultSessionPolicy),
 		OAuth:          oauth,
 		Tenants:        tenants,
+		Operators:      operator.NewService(st, keys, pw, rt.Logger, operator.DefaultPolicy),
 		TrustedProxies: rt.Config.TrustedProxies,
 	}), rt.Logger)
 	if err := rest.Listen(ctx); err != nil {

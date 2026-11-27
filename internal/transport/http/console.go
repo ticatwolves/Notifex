@@ -57,14 +57,17 @@ type Limits struct {
 	Login      *ratelimit.Limiter // login, reauth
 	Credential *ratelimit.Limiter // signup, forgot, reset, verify
 	APIKeyFail *ratelimit.Limiter // failed API-key authentications
+	// OperatorLogin is separate from console login (ADR-011 §5).
+	OperatorLogin *ratelimit.Limiter
 }
 
 // DefaultLimits follow ADR-011 §2.
 func DefaultLimits() Limits {
 	return Limits{
-		Login:      ratelimit.New(20, 20, 100_000),
-		Credential: ratelimit.New(10, 10, 100_000),
-		APIKeyFail: ratelimit.New(20, 20, 100_000),
+		Login:         ratelimit.New(20, 20, 100_000),
+		Credential:    ratelimit.New(10, 10, 100_000),
+		APIKeyFail:    ratelimit.New(20, 20, 100_000),
+		OperatorLogin: ratelimit.New(5, 5, 10_000),
 	}
 }
 

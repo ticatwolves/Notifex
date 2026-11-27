@@ -116,10 +116,14 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 
 ### B6: platform operator → tenant data (Phase 1+)
 
-| Threat | Mitigation (planned) |
-|---|---|
-| Insider reading payloads | Separate realm and auth; every access audited (actor type `operator` exists in the schema); payload decryption requires KMS permissions held only by the dispatcher role, never by operators |
-| Silent config changes | Plan, limit and sandbox changes all audited; two-person review for platform SMS cap changes |
+| Threat | Built (Phase 1 slice 6) | Planned |
+|---|---|---|
+| Insider reading payloads | Separate realm: `operators` and `operator_sessions` tables, `nfo_` tokens accepted only on `/v1/operator` (and rejected everywhere else; tested). Operators have no payload, template or credential endpoints at all | Payload decryption requires KMS permissions held only by the dispatcher role, never operators (Phase 8 IAM) |
+| Operator account takeover | Password (argon2id) **and** TOTP on every login; a TOTP code is single use (atomic `totp_last_step` advance; 8 concurrent logins with one code → exactly one session, tested); uniform `401` for every failed factor; per-account backoff plus 5/min per IP; sessions idle 30 min, absolute 8 h; `disable` revokes every session at once | WAF IP allowlist or VPN for `/v1/operator` (Stage 2); WebAuthn |
+| Rogue operator account | No signup endpoint: accounts are created only by `cmd/operator` from a trusted terminal. The TOTP secret is shown once and stored sealed (AES-256-GCM, platform key via `KeyProvider`, context bound to the operator id) | Two-person approval for `operator create` (Stage 2) |
+| Snooping without trace | **Every** operator request is audited with actor type `operator`, reads included, and misses on unknown tenant ids too. A read whose audit write fails returns no data | Audit-log export and alert on unusual operator volume (Phase 7) |
+| Silent config changes | Status, plan, sandbox, `platform_sms_daily_limit` and quota changes require a `reason`; the audit event stores before, after and reason in the same transaction. Operators cannot delete a tenant (owner-only crypto-shred) or change a deleted one | Two-person review for platform SMS cap changes |
+| CLI output leaking the TOTP secret | `cmd/operator` prints it to the operator's terminal only; documented: never run it as an ECS task (CloudWatch would keep it) | — |
 
 ### B7: CI/CD → production
 

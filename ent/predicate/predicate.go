@@ -33,6 +33,12 @@ type Membership func(*sql.Selector)
 // OAuthState is the predicate function for oauthstate builders.
 type OAuthState func(*sql.Selector)
 
+// Operator is the predicate function for operator builders.
+type Operator func(*sql.Selector)
+
+// OperatorSession is the predicate function for operatorsession builders.
+type OperatorSession func(*sql.Selector)
+
 // Session is the predicate function for session builders.
 type Session func(*sql.Selector)
 

@@ -24,6 +24,8 @@ import (
 	"github.com/ticatwolves/notifex/ent/invitation"
 	"github.com/ticatwolves/notifex/ent/membership"
 	"github.com/ticatwolves/notifex/ent/oauthstate"
+	"github.com/ticatwolves/notifex/ent/operator"
+	"github.com/ticatwolves/notifex/ent/operatorsession"
 	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/tenant"
 	"github.com/ticatwolves/notifex/ent/user"
@@ -55,6 +57,10 @@ type Client struct {
 	Membership *MembershipClient
 	// OAuthState is the client for interacting with the OAuthState builders.
 	OAuthState *OAuthStateClient
+	// Operator is the client for interacting with the Operator builders.
+	Operator *OperatorClient
+	// OperatorSession is the client for interacting with the OperatorSession builders.
+	OperatorSession *OperatorSessionClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// Tenant is the client for interacting with the Tenant builders.
@@ -83,6 +89,8 @@ func (c *Client) init() {
 	c.Invitation = NewInvitationClient(c.config)
 	c.Membership = NewMembershipClient(c.config)
 	c.OAuthState = NewOAuthStateClient(c.config)
+	c.Operator = NewOperatorClient(c.config)
+	c.OperatorSession = NewOperatorSessionClient(c.config)
 	c.Session = NewSessionClient(c.config)
 	c.Tenant = NewTenantClient(c.config)
 	c.User = NewUserClient(c.config)
@@ -177,21 +185,23 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:          ctx,
-		config:       cfg,
-		APIKey:       NewAPIKeyClient(cfg),
-		Application:  NewApplicationClient(cfg),
-		AuditEvent:   NewAuditEventClient(cfg),
-		AuthThrottle: NewAuthThrottleClient(cfg),
-		EmailToken:   NewEmailTokenClient(cfg),
-		Environment:  NewEnvironmentClient(cfg),
-		Invitation:   NewInvitationClient(cfg),
-		Membership:   NewMembershipClient(cfg),
-		OAuthState:   NewOAuthStateClient(cfg),
-		Session:      NewSessionClient(cfg),
-		Tenant:       NewTenantClient(cfg),
-		User:         NewUserClient(cfg),
-		UserIdentity: NewUserIdentityClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		APIKey:          NewAPIKeyClient(cfg),
+		Application:     NewApplicationClient(cfg),
+		AuditEvent:      NewAuditEventClient(cfg),
+		AuthThrottle:    NewAuthThrottleClient(cfg),
+		EmailToken:      NewEmailTokenClient(cfg),
+		Environment:     NewEnvironmentClient(cfg),
+		Invitation:      NewInvitationClient(cfg),
+		Membership:      NewMembershipClient(cfg),
+		OAuthState:      NewOAuthStateClient(cfg),
+		Operator:        NewOperatorClient(cfg),
+		OperatorSession: NewOperatorSessionClient(cfg),
+		Session:         NewSessionClient(cfg),
+		Tenant:          NewTenantClient(cfg),
+		User:            NewUserClient(cfg),
+		UserIdentity:    NewUserIdentityClient(cfg),
 	}, nil
 }
 
@@ -209,21 +219,23 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:          ctx,
-		config:       cfg,
-		APIKey:       NewAPIKeyClient(cfg),
-		Application:  NewApplicationClient(cfg),
-		AuditEvent:   NewAuditEventClient(cfg),
-		AuthThrottle: NewAuthThrottleClient(cfg),
-		EmailToken:   NewEmailTokenClient(cfg),
-		Environment:  NewEnvironmentClient(cfg),
-		Invitation:   NewInvitationClient(cfg),
-		Membership:   NewMembershipClient(cfg),
-		OAuthState:   NewOAuthStateClient(cfg),
-		Session:      NewSessionClient(cfg),
-		Tenant:       NewTenantClient(cfg),
-		User:         NewUserClient(cfg),
-		UserIdentity: NewUserIdentityClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		APIKey:          NewAPIKeyClient(cfg),
+		Application:     NewApplicationClient(cfg),
+		AuditEvent:      NewAuditEventClient(cfg),
+		AuthThrottle:    NewAuthThrottleClient(cfg),
+		EmailToken:      NewEmailTokenClient(cfg),
+		Environment:     NewEnvironmentClient(cfg),
+		Invitation:      NewInvitationClient(cfg),
+		Membership:      NewMembershipClient(cfg),
+		OAuthState:      NewOAuthStateClient(cfg),
+		Operator:        NewOperatorClient(cfg),
+		OperatorSession: NewOperatorSessionClient(cfg),
+		Session:         NewSessionClient(cfg),
+		Tenant:          NewTenantClient(cfg),
+		User:            NewUserClient(cfg),
+		UserIdentity:    NewUserIdentityClient(cfg),
 	}, nil
 }
 
@@ -254,8 +266,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.Application, c.AuditEvent, c.AuthThrottle, c.EmailToken,
-		c.Environment, c.Invitation, c.Membership, c.OAuthState, c.Session, c.Tenant,
-		c.User, c.UserIdentity,
+		c.Environment, c.Invitation, c.Membership, c.OAuthState, c.Operator,
+		c.OperatorSession, c.Session, c.Tenant, c.User, c.UserIdentity,
 	} {
 		n.Use(hooks...)
 	}
@@ -266,8 +278,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.Application, c.AuditEvent, c.AuthThrottle, c.EmailToken,
-		c.Environment, c.Invitation, c.Membership, c.OAuthState, c.Session, c.Tenant,
-		c.User, c.UserIdentity,
+		c.Environment, c.Invitation, c.Membership, c.OAuthState, c.Operator,
+		c.OperatorSession, c.Session, c.Tenant, c.User, c.UserIdentity,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -294,6 +306,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Membership.mutate(ctx, m)
 	case *OAuthStateMutation:
 		return c.OAuthState.mutate(ctx, m)
+	case *OperatorMutation:
+		return c.Operator.mutate(ctx, m)
+	case *OperatorSessionMutation:
+		return c.OperatorSession.mutate(ctx, m)
 	case *SessionMutation:
 		return c.Session.mutate(ctx, m)
 	case *TenantMutation:
@@ -1514,6 +1530,272 @@ func (c *OAuthStateClient) mutate(ctx context.Context, m *OAuthStateMutation) (V
 	}
 }
 
+// OperatorClient is a client for the Operator schema.
+type OperatorClient struct {
+	config
+}
+
+// NewOperatorClient returns a client for the Operator from the given config.
+func NewOperatorClient(c config) *OperatorClient {
+	return &OperatorClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `operator.Hooks(f(g(h())))`.
+func (c *OperatorClient) Use(hooks ...Hook) {
+	c.hooks.Operator = append(c.hooks.Operator, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `operator.Intercept(f(g(h())))`.
+func (c *OperatorClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Operator = append(c.inters.Operator, interceptors...)
+}
+
+// Create returns a builder for creating a Operator entity.
+func (c *OperatorClient) Create() *OperatorCreate {
+	mutation := newOperatorMutation(c.config, OpCreate)
+	return &OperatorCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Operator entities.
+func (c *OperatorClient) CreateBulk(builders ...*OperatorCreate) *OperatorCreateBulk {
+	return &OperatorCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OperatorClient) MapCreateBulk(slice any, setFunc func(*OperatorCreate, int)) *OperatorCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OperatorCreateBulk{err: fmt.Errorf("calling to OperatorClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OperatorCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OperatorCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Operator.
+func (c *OperatorClient) Update() *OperatorUpdate {
+	mutation := newOperatorMutation(c.config, OpUpdate)
+	return &OperatorUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OperatorClient) UpdateOne(_m *Operator) *OperatorUpdateOne {
+	mutation := newOperatorMutation(c.config, OpUpdateOne, withOperator(_m))
+	return &OperatorUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OperatorClient) UpdateOneID(id uuid.UUID) *OperatorUpdateOne {
+	mutation := newOperatorMutation(c.config, OpUpdateOne, withOperatorID(id))
+	return &OperatorUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Operator.
+func (c *OperatorClient) Delete() *OperatorDelete {
+	mutation := newOperatorMutation(c.config, OpDelete)
+	return &OperatorDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OperatorClient) DeleteOne(_m *Operator) *OperatorDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OperatorClient) DeleteOneID(id uuid.UUID) *OperatorDeleteOne {
+	builder := c.Delete().Where(operator.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OperatorDeleteOne{builder}
+}
+
+// Query returns a query builder for Operator.
+func (c *OperatorClient) Query() *OperatorQuery {
+	return &OperatorQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOperator},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Operator entity by its id.
+func (c *OperatorClient) Get(ctx context.Context, id uuid.UUID) (*Operator, error) {
+	return c.Query().Where(operator.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OperatorClient) GetX(ctx context.Context, id uuid.UUID) *Operator {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OperatorClient) Hooks() []Hook {
+	return c.hooks.Operator
+}
+
+// Interceptors returns the client interceptors.
+func (c *OperatorClient) Interceptors() []Interceptor {
+	return c.inters.Operator
+}
+
+func (c *OperatorClient) mutate(ctx context.Context, m *OperatorMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OperatorCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OperatorUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OperatorUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OperatorDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Operator mutation op: %q", m.Op())
+	}
+}
+
+// OperatorSessionClient is a client for the OperatorSession schema.
+type OperatorSessionClient struct {
+	config
+}
+
+// NewOperatorSessionClient returns a client for the OperatorSession from the given config.
+func NewOperatorSessionClient(c config) *OperatorSessionClient {
+	return &OperatorSessionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `operatorsession.Hooks(f(g(h())))`.
+func (c *OperatorSessionClient) Use(hooks ...Hook) {
+	c.hooks.OperatorSession = append(c.hooks.OperatorSession, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `operatorsession.Intercept(f(g(h())))`.
+func (c *OperatorSessionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OperatorSession = append(c.inters.OperatorSession, interceptors...)
+}
+
+// Create returns a builder for creating a OperatorSession entity.
+func (c *OperatorSessionClient) Create() *OperatorSessionCreate {
+	mutation := newOperatorSessionMutation(c.config, OpCreate)
+	return &OperatorSessionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OperatorSession entities.
+func (c *OperatorSessionClient) CreateBulk(builders ...*OperatorSessionCreate) *OperatorSessionCreateBulk {
+	return &OperatorSessionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OperatorSessionClient) MapCreateBulk(slice any, setFunc func(*OperatorSessionCreate, int)) *OperatorSessionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OperatorSessionCreateBulk{err: fmt.Errorf("calling to OperatorSessionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OperatorSessionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OperatorSessionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OperatorSession.
+func (c *OperatorSessionClient) Update() *OperatorSessionUpdate {
+	mutation := newOperatorSessionMutation(c.config, OpUpdate)
+	return &OperatorSessionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OperatorSessionClient) UpdateOne(_m *OperatorSession) *OperatorSessionUpdateOne {
+	mutation := newOperatorSessionMutation(c.config, OpUpdateOne, withOperatorSession(_m))
+	return &OperatorSessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OperatorSessionClient) UpdateOneID(id uuid.UUID) *OperatorSessionUpdateOne {
+	mutation := newOperatorSessionMutation(c.config, OpUpdateOne, withOperatorSessionID(id))
+	return &OperatorSessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OperatorSession.
+func (c *OperatorSessionClient) Delete() *OperatorSessionDelete {
+	mutation := newOperatorSessionMutation(c.config, OpDelete)
+	return &OperatorSessionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OperatorSessionClient) DeleteOne(_m *OperatorSession) *OperatorSessionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OperatorSessionClient) DeleteOneID(id uuid.UUID) *OperatorSessionDeleteOne {
+	builder := c.Delete().Where(operatorsession.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OperatorSessionDeleteOne{builder}
+}
+
+// Query returns a query builder for OperatorSession.
+func (c *OperatorSessionClient) Query() *OperatorSessionQuery {
+	return &OperatorSessionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOperatorSession},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OperatorSession entity by its id.
+func (c *OperatorSessionClient) Get(ctx context.Context, id uuid.UUID) (*OperatorSession, error) {
+	return c.Query().Where(operatorsession.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OperatorSessionClient) GetX(ctx context.Context, id uuid.UUID) *OperatorSession {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OperatorSessionClient) Hooks() []Hook {
+	return c.hooks.OperatorSession
+}
+
+// Interceptors returns the client interceptors.
+func (c *OperatorSessionClient) Interceptors() []Interceptor {
+	return c.inters.OperatorSession
+}
+
+func (c *OperatorSessionClient) mutate(ctx context.Context, m *OperatorSessionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OperatorSessionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OperatorSessionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OperatorSessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OperatorSessionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OperatorSession mutation op: %q", m.Op())
+	}
+}
+
 // SessionClient is a client for the Session schema.
 type SessionClient struct {
 	config
@@ -2050,13 +2332,13 @@ func (c *UserIdentityClient) mutate(ctx context.Context, m *UserIdentityMutation
 type (
 	hooks struct {
 		APIKey, Application, AuditEvent, AuthThrottle, EmailToken, Environment,
-		Invitation, Membership, OAuthState, Session, Tenant, User,
-		UserIdentity []ent.Hook
+		Invitation, Membership, OAuthState, Operator, OperatorSession, Session, Tenant,
+		User, UserIdentity []ent.Hook
 	}
 	inters struct {
 		APIKey, Application, AuditEvent, AuthThrottle, EmailToken, Environment,
-		Invitation, Membership, OAuthState, Session, Tenant, User,
-		UserIdentity []ent.Interceptor
+		Invitation, Membership, OAuthState, Operator, OperatorSession, Session, Tenant,
+		User, UserIdentity []ent.Interceptor
 	}
 )
 
