@@ -5,12 +5,12 @@ package enttest
 import (
 	"context"
 
-	"github.com/sbshobhit/notifex/ent"
+	"github.com/ticatwolves/notifex/ent"
 	// required by schema hooks.
-	_ "github.com/sbshobhit/notifex/ent/runtime"
+	_ "github.com/ticatwolves/notifex/ent/runtime"
 
 	"entgo.io/ent/dialect/sql/schema"
-	"github.com/sbshobhit/notifex/ent/migrate"
+	"github.com/ticatwolves/notifex/ent/migrate"
 )
 
 type (

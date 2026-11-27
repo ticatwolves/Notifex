@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sbshobhit/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/store"
 )
 
 // Actor identifies who performed an action.

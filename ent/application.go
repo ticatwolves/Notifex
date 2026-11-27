@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/sbshobhit/notifex/ent/application"
+	"github.com/ticatwolves/notifex/ent/application"
 )
 
 // Application is the model entity for the Application schema.

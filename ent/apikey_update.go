@@ -12,8 +12,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
-	"github.com/sbshobhit/notifex/ent/apikey"
-	"github.com/sbshobhit/notifex/ent/predicate"
+	"github.com/ticatwolves/notifex/ent/apikey"
+	"github.com/ticatwolves/notifex/ent/predicate"
 )
 
 // APIKeyUpdate is the builder for updating APIKey entities.

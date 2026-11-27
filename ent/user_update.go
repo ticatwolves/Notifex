@@ -11,8 +11,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/sbshobhit/notifex/ent/predicate"
-	"github.com/sbshobhit/notifex/ent/user"
+	"github.com/ticatwolves/notifex/ent/predicate"
+	"github.com/ticatwolves/notifex/ent/user"
 )
 
 // UserUpdate is the builder for updating User entities.

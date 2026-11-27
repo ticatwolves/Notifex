@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/sbshobhit/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/store"
 )
 
 // TestTenantIsolation runs every tenant-scoped store method as tenant B

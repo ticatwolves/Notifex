@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
-	"github.com/sbshobhit/notifex/internal/config"
+	"github.com/ticatwolves/notifex/internal/config"
 )
 
 func testLogger(buf *bytes.Buffer) *slog.Logger {

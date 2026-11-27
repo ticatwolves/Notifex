@@ -15,14 +15,14 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/sbshobhit/notifex/internal/config"
-	"github.com/sbshobhit/notifex/internal/health"
-	"github.com/sbshobhit/notifex/internal/lifecycle"
-	"github.com/sbshobhit/notifex/internal/observability"
-	httptransport "github.com/sbshobhit/notifex/internal/transport/http"
+	"github.com/ticatwolves/notifex/internal/config"
+	"github.com/ticatwolves/notifex/internal/health"
+	"github.com/ticatwolves/notifex/internal/lifecycle"
+	"github.com/ticatwolves/notifex/internal/observability"
+	httptransport "github.com/ticatwolves/notifex/internal/transport/http"
 )
 
-// Version is set at build time with -ldflags "-X github.com/sbshobhit/notifex/internal/app.Version=…".
+// Version is set at build time with -ldflags "-X github.com/ticatwolves/notifex/internal/app.Version=…".
 var Version = ""
 
 // Runtime is what a service's build function gets to wire its components.

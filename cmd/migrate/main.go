@@ -15,10 +15,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/sbshobhit/notifex/internal/app"
-	"github.com/sbshobhit/notifex/internal/config"
-	"github.com/sbshobhit/notifex/internal/db"
-	"github.com/sbshobhit/notifex/internal/observability"
+	"github.com/ticatwolves/notifex/internal/app"
+	"github.com/ticatwolves/notifex/internal/config"
+	"github.com/ticatwolves/notifex/internal/db"
+	"github.com/ticatwolves/notifex/internal/observability"
 )
 
 func main() { os.Exit(run()) }

@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/sbshobhit/notifex/internal/db"
-	"github.com/sbshobhit/notifex/internal/db/partition"
-	"github.com/sbshobhit/notifex/internal/store/storetest"
+	"github.com/ticatwolves/notifex/internal/db"
+	"github.com/ticatwolves/notifex/internal/db/partition"
+	"github.com/ticatwolves/notifex/internal/store/storetest"
 )
 
 func date(s string) time.Time {

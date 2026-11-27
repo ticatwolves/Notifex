@@ -6,10 +6,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sbshobhit/notifex/ent"
-	"github.com/sbshobhit/notifex/ent/membership"
-	"github.com/sbshobhit/notifex/internal/store"
-	"github.com/sbshobhit/notifex/internal/store/tenantscope"
+	"github.com/ticatwolves/notifex/ent"
+	"github.com/ticatwolves/notifex/ent/membership"
+	"github.com/ticatwolves/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/store/tenantscope"
 )
 
 type memberships struct{ c *ent.Client }

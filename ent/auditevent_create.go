@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/sbshobhit/notifex/ent/auditevent"
+	"github.com/ticatwolves/notifex/ent/auditevent"
 )
 
 // AuditEventCreate is the builder for creating a AuditEvent entity.

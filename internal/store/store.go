@@ -16,7 +16,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sbshobhit/notifex/internal/crypto"
+	"github.com/ticatwolves/notifex/internal/crypto"
 )
 
 // Errors returned by Store implementations. Match with errors.Is.

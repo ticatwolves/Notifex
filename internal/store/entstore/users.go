@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sbshobhit/notifex/ent"
-	"github.com/sbshobhit/notifex/ent/user"
-	"github.com/sbshobhit/notifex/internal/store"
+	"github.com/ticatwolves/notifex/ent"
+	"github.com/ticatwolves/notifex/ent/user"
+	"github.com/ticatwolves/notifex/internal/store"
 )
 
 type users struct{ c *ent.Client }

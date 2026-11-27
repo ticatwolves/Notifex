@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/sbshobhit/notifex/internal/observability"
+	"github.com/ticatwolves/notifex/internal/observability"
 )
 
 const (

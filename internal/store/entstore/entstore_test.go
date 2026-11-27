@@ -9,9 +9,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/sbshobhit/notifex/internal/crypto"
-	"github.com/sbshobhit/notifex/internal/store"
-	"github.com/sbshobhit/notifex/internal/store/storetest"
+	"github.com/ticatwolves/notifex/internal/crypto"
+	"github.com/ticatwolves/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/store/storetest"
 )
 
 // fixture is a store plus a key provider for provisioning tenants.

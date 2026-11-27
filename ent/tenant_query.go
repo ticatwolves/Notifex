@@ -12,8 +12,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/sbshobhit/notifex/ent/predicate"
-	"github.com/sbshobhit/notifex/ent/tenant"
+	"github.com/ticatwolves/notifex/ent/predicate"
+	"github.com/ticatwolves/notifex/ent/tenant"
 )
 
 // TenantQuery is the builder for querying Tenant entities.

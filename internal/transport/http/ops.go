@@ -7,7 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/sbshobhit/notifex/internal/health"
+	"github.com/ticatwolves/notifex/internal/health"
 )
 
 // NewOpsHandler serves /metrics, /healthz and /readyz on the internal ops port

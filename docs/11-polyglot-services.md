@@ -20,7 +20,7 @@ Rule of thumb: **if an outage of it would stop notifications from being accepted
 ## Repo layout (monorepo, ADR-009)
 ```
 notifex/
-├── go.mod                  # single Go module: github.com/sbshobhit/notifex
+├── go.mod                  # single Go module: github.com/ticatwolves/notifex
 ├── cmd/{api,dispatcher,scheduler,migrate,healthcheck}/
 ├── internal/               # Go core libraries (layout in CLAUDE.md)
 ├── api/                    # proto/ (+ buf.yaml), openapi.yaml, gen/ (generated)

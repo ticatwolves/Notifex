@@ -19,8 +19,8 @@ import (
 	"entgo.io/ent/schema/mixin"
 	"github.com/google/uuid"
 
-	"github.com/sbshobhit/notifex/ent/intercept"
-	"github.com/sbshobhit/notifex/internal/store/tenantscope"
+	"github.com/ticatwolves/notifex/ent/intercept"
+	"github.com/ticatwolves/notifex/internal/store/tenantscope"
 )
 
 // NewID returns a new UUIDv7.

@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/sbshobhit/notifex/internal/health"
+	"github.com/ticatwolves/notifex/internal/health"
 )
 
 // Component is a long-running part of a service (HTTP server, gRPC server,

@@ -11,7 +11,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 
-	"github.com/sbshobhit/notifex/internal/config"
+	"github.com/ticatwolves/notifex/internal/config"
 )
 
 // SetupTracing installs the global TracerProvider and W3C propagators

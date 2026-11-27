@@ -5,9 +5,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sbshobhit/notifex/internal/audit"
-	"github.com/sbshobhit/notifex/internal/crypto"
-	"github.com/sbshobhit/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/audit"
+	"github.com/ticatwolves/notifex/internal/crypto"
+	"github.com/ticatwolves/notifex/internal/store"
 )
 
 // ProvisionInput describes a new tenant.

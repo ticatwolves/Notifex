@@ -12,10 +12,10 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/sbshobhit/notifex/ent"
-	_ "github.com/sbshobhit/notifex/ent/runtime" // registers schema hooks, interceptors and defaults
-	"github.com/sbshobhit/notifex/internal/store"
-	"github.com/sbshobhit/notifex/internal/store/tenantscope"
+	"github.com/ticatwolves/notifex/ent"
+	_ "github.com/ticatwolves/notifex/ent/runtime" // registers schema hooks, interceptors and defaults
+	"github.com/ticatwolves/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/store/tenantscope"
 )
 
 // Store implements store.Store.

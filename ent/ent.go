@@ -12,13 +12,13 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/sbshobhit/notifex/ent/apikey"
-	"github.com/sbshobhit/notifex/ent/application"
-	"github.com/sbshobhit/notifex/ent/auditevent"
-	"github.com/sbshobhit/notifex/ent/environment"
-	"github.com/sbshobhit/notifex/ent/membership"
-	"github.com/sbshobhit/notifex/ent/tenant"
-	"github.com/sbshobhit/notifex/ent/user"
+	"github.com/ticatwolves/notifex/ent/apikey"
+	"github.com/ticatwolves/notifex/ent/application"
+	"github.com/ticatwolves/notifex/ent/auditevent"
+	"github.com/ticatwolves/notifex/ent/environment"
+	"github.com/ticatwolves/notifex/ent/membership"
+	"github.com/ticatwolves/notifex/ent/tenant"
+	"github.com/ticatwolves/notifex/ent/user"
 )
 
 // ent aliases to avoid import conflicts in user's code.

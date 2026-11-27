@@ -11,11 +11,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sbshobhit/notifex/internal/audit"
-	"github.com/sbshobhit/notifex/internal/auth"
-	"github.com/sbshobhit/notifex/internal/crypto"
-	"github.com/sbshobhit/notifex/internal/store"
-	"github.com/sbshobhit/notifex/internal/tenant"
+	"github.com/ticatwolves/notifex/internal/audit"
+	"github.com/ticatwolves/notifex/internal/auth"
+	"github.com/ticatwolves/notifex/internal/crypto"
+	"github.com/ticatwolves/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/tenant"
 )
 
 // Options configures Run.

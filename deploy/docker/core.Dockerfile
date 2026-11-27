@@ -19,7 +19,7 @@ COPY migrations ./migrations
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
     for svc in api dispatcher scheduler migrate healthcheck; do \
       CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
-        -ldflags="-s -w -X github.com/sbshobhit/notifex/internal/app.Version=${VERSION}" \
+        -ldflags="-s -w -X github.com/ticatwolves/notifex/internal/app.Version=${VERSION}" \
         -o /out/$svc ./cmd/$svc || exit 1; \
     done
 

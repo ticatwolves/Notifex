@@ -13,7 +13,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5" // registers pgx5://
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 
-	"github.com/sbshobhit/notifex/migrations"
+	"github.com/ticatwolves/notifex/migrations"
 )
 
 // MigrationsTable is golang-migrate's bookkeeping table.

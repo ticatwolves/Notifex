@@ -6,9 +6,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sbshobhit/notifex/ent"
-	"github.com/sbshobhit/notifex/ent/application"
-	"github.com/sbshobhit/notifex/internal/store"
+	"github.com/ticatwolves/notifex/ent"
+	"github.com/ticatwolves/notifex/ent/application"
+	"github.com/ticatwolves/notifex/internal/store"
 )
 
 type applications struct{ c *ent.Client }

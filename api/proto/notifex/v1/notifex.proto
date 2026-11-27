@@ -13,7 +13,7 @@ package notifex.v1;
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/sbshobhit/notifex/api/gen/notifex/v1;notifexv1";
+option go_package = "github.com/ticatwolves/notifex/api/gen/notifex/v1;notifexv1";
 
 // NotifexService is the data-plane API: trigger workflows and observe runs.
 service NotifexService {

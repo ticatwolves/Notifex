@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/sbshobhit/notifex/ent/application"
+	"github.com/ticatwolves/notifex/ent/application"
 )
 
 // ApplicationCreate is the builder for creating a Application entity.

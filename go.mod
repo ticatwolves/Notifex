@@ -1,4 +1,4 @@
-module github.com/sbshobhit/notifex
+module github.com/ticatwolves/notifex
 
 go 1.27
 

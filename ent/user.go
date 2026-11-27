@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/sbshobhit/notifex/ent/user"
+	"github.com/ticatwolves/notifex/ent/user"
 )
 
 // User is the model entity for the User schema.

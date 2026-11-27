@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sbshobhit/notifex/ent"
+	"github.com/ticatwolves/notifex/ent"
 )
 
 // The APIKeyFunc type is an adapter to allow the use of ordinary

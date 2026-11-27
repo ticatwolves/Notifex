@@ -11,8 +11,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/sbshobhit/notifex/internal/auth"
-	"github.com/sbshobhit/notifex/internal/observability"
+	"github.com/ticatwolves/notifex/internal/auth"
+	"github.com/ticatwolves/notifex/internal/observability"
 )
 
 // APIKeyAuthenticator is what the transport needs from internal/auth.

@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/sbshobhit/notifex/ent/apikey"
+	"github.com/ticatwolves/notifex/ent/apikey"
 )
 
 // APIKey is the model entity for the APIKey schema.

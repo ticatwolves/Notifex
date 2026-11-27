@@ -19,15 +19,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/sbshobhit/notifex/internal/auth"
-	"github.com/sbshobhit/notifex/internal/config"
-	"github.com/sbshobhit/notifex/internal/crypto"
-	"github.com/sbshobhit/notifex/internal/devseed"
-	"github.com/sbshobhit/notifex/internal/health"
-	"github.com/sbshobhit/notifex/internal/observability"
-	"github.com/sbshobhit/notifex/internal/store"
-	"github.com/sbshobhit/notifex/internal/store/entstore"
-	"github.com/sbshobhit/notifex/internal/store/storetest"
+	"github.com/ticatwolves/notifex/internal/auth"
+	"github.com/ticatwolves/notifex/internal/config"
+	"github.com/ticatwolves/notifex/internal/crypto"
+	"github.com/ticatwolves/notifex/internal/devseed"
+	"github.com/ticatwolves/notifex/internal/health"
+	"github.com/ticatwolves/notifex/internal/observability"
+	"github.com/ticatwolves/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/store/entstore"
+	"github.com/ticatwolves/notifex/internal/store/storetest"
 )
 
 func TestWhoAmIEndToEnd(t *testing.T) {

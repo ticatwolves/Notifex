@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sbshobhit/notifex/internal/audit"
-	"github.com/sbshobhit/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/audit"
+	"github.com/ticatwolves/notifex/internal/store"
 )
 
 // IssueInput describes a new API key.

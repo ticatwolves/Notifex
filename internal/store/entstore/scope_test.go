@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/sbshobhit/notifex/ent/application"
-	"github.com/sbshobhit/notifex/internal/store"
-	"github.com/sbshobhit/notifex/internal/store/storetest"
-	"github.com/sbshobhit/notifex/internal/store/tenantscope"
+	"github.com/ticatwolves/notifex/ent/application"
+	"github.com/ticatwolves/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/store/storetest"
+	"github.com/ticatwolves/notifex/internal/store/tenantscope"
 )
 
 // These tests bypass the store methods and use the ent client directly, as a

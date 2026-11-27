@@ -7,7 +7,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/sbshobhit/notifex/ent/predicate"
+	"github.com/ticatwolves/notifex/ent/predicate"
 )
 
 // ID filters vertices based on their ID field.

@@ -32,8 +32,8 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 
-	"github.com/sbshobhit/notifex/ent/migrate"
-	"github.com/sbshobhit/notifex/ent/schema"
+	"github.com/ticatwolves/notifex/ent/migrate"
+	"github.com/ticatwolves/notifex/ent/schema"
 )
 
 // Keep in sync with docker-compose.yml and internal/store/storetest.

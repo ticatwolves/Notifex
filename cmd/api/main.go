@@ -7,13 +7,13 @@ import (
 	"errors"
 	"os"
 
-	"github.com/sbshobhit/notifex/internal/app"
-	"github.com/sbshobhit/notifex/internal/auth"
-	"github.com/sbshobhit/notifex/internal/db"
-	"github.com/sbshobhit/notifex/internal/lifecycle"
-	"github.com/sbshobhit/notifex/internal/store/entstore"
-	grpctransport "github.com/sbshobhit/notifex/internal/transport/grpc"
-	httptransport "github.com/sbshobhit/notifex/internal/transport/http"
+	"github.com/ticatwolves/notifex/internal/app"
+	"github.com/ticatwolves/notifex/internal/auth"
+	"github.com/ticatwolves/notifex/internal/db"
+	"github.com/ticatwolves/notifex/internal/lifecycle"
+	"github.com/ticatwolves/notifex/internal/store/entstore"
+	grpctransport "github.com/ticatwolves/notifex/internal/transport/grpc"
+	httptransport "github.com/ticatwolves/notifex/internal/transport/http"
 )
 
 func main() { os.Exit(app.Main("api", build)) }

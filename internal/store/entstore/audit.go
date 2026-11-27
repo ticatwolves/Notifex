@@ -6,9 +6,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sbshobhit/notifex/ent"
-	"github.com/sbshobhit/notifex/ent/auditevent"
-	"github.com/sbshobhit/notifex/internal/store"
+	"github.com/ticatwolves/notifex/ent"
+	"github.com/ticatwolves/notifex/ent/auditevent"
+	"github.com/ticatwolves/notifex/internal/store"
 )
 
 type audit struct{ c *ent.Client }

@@ -7,8 +7,8 @@ import (
 	"context"
 	"os"
 
-	"github.com/sbshobhit/notifex/internal/app"
-	"github.com/sbshobhit/notifex/internal/lifecycle"
+	"github.com/ticatwolves/notifex/internal/app"
+	"github.com/ticatwolves/notifex/internal/lifecycle"
 )
 
 func main() { os.Exit(app.Main("dispatcher", build)) }

@@ -44,7 +44,7 @@ linters:
         - \(\*github\.com/gin-gonic/gin\.Context\)
         - \(log/slog\.Handler\)\.Handle
       ignore-package-globs:
-        - github.com/sbshobhit/notifex/*
+        - github.com/ticatwolves/notifex/*
   exclusions:
     generated: strict
     rules:
@@ -60,4 +60,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/sbshobhit/notifex
+        - github.com/ticatwolves/notifex

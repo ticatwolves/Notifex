@@ -9,7 +9,7 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/sbshobhit/notifex/internal/config"
+	"github.com/ticatwolves/notifex/internal/config"
 )
 
 // Correlation keys used across the codebase. Logs, spans and metrics must use

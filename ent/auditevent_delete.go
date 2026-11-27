@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/sbshobhit/notifex/ent/auditevent"
-	"github.com/sbshobhit/notifex/ent/predicate"
+	"github.com/ticatwolves/notifex/ent/auditevent"
+	"github.com/ticatwolves/notifex/ent/predicate"
 )
 
 // AuditEventDelete is the builder for deleting a AuditEvent entity.

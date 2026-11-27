@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/sbshobhit/notifex/ent/auditevent"
+	"github.com/ticatwolves/notifex/ent/auditevent"
 )
 
 // AuditEvent is the model entity for the AuditEvent schema.

@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/sbshobhit/notifex/ent/apikey"
+	"github.com/ticatwolves/notifex/ent/apikey"
 )
 
 // APIKeyCreate is the builder for creating a APIKey entity.

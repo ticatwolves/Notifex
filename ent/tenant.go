@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/sbshobhit/notifex/ent/tenant"
+	"github.com/ticatwolves/notifex/ent/tenant"
 )
 
 // Tenant is the model entity for the Tenant schema.

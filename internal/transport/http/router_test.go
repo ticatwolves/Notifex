@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/sbshobhit/notifex/internal/health"
+	"github.com/ticatwolves/notifex/internal/health"
 )
 
 type fixture struct {

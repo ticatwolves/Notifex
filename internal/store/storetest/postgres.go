@@ -20,7 +20,7 @@ import (
 
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 
-	"github.com/sbshobhit/notifex/internal/db"
+	"github.com/ticatwolves/notifex/internal/db"
 )
 
 // Image matches docker-compose.yml and ent/migrate/main.go.

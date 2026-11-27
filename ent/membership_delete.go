@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/sbshobhit/notifex/ent/membership"
-	"github.com/sbshobhit/notifex/ent/predicate"
+	"github.com/ticatwolves/notifex/ent/membership"
+	"github.com/ticatwolves/notifex/ent/predicate"
 )
 
 // MembershipDelete is the builder for deleting a Membership entity.

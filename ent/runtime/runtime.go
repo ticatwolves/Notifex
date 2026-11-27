@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sbshobhit/notifex/ent/apikey"
-	"github.com/sbshobhit/notifex/ent/application"
-	"github.com/sbshobhit/notifex/ent/auditevent"
-	"github.com/sbshobhit/notifex/ent/environment"
-	"github.com/sbshobhit/notifex/ent/membership"
-	"github.com/sbshobhit/notifex/ent/schema"
-	"github.com/sbshobhit/notifex/ent/tenant"
-	"github.com/sbshobhit/notifex/ent/user"
+	"github.com/ticatwolves/notifex/ent/apikey"
+	"github.com/ticatwolves/notifex/ent/application"
+	"github.com/ticatwolves/notifex/ent/auditevent"
+	"github.com/ticatwolves/notifex/ent/environment"
+	"github.com/ticatwolves/notifex/ent/membership"
+	"github.com/ticatwolves/notifex/ent/schema"
+	"github.com/ticatwolves/notifex/ent/tenant"
+	"github.com/ticatwolves/notifex/ent/user"
 )
 
 // The init function reads all schema descriptors with runtime code

@@ -17,13 +17,13 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sbshobhit/notifex/internal/audit"
-	"github.com/sbshobhit/notifex/internal/auth"
-	"github.com/sbshobhit/notifex/internal/crypto"
-	"github.com/sbshobhit/notifex/internal/devseed"
-	"github.com/sbshobhit/notifex/internal/store"
-	"github.com/sbshobhit/notifex/internal/store/entstore"
-	"github.com/sbshobhit/notifex/internal/store/storetest"
+	"github.com/ticatwolves/notifex/internal/audit"
+	"github.com/ticatwolves/notifex/internal/auth"
+	"github.com/ticatwolves/notifex/internal/crypto"
+	"github.com/ticatwolves/notifex/internal/devseed"
+	"github.com/ticatwolves/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/store/entstore"
+	"github.com/ticatwolves/notifex/internal/store/storetest"
 )
 
 type env struct {

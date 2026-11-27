@@ -6,10 +6,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/sbshobhit/notifex/ent"
-	"github.com/sbshobhit/notifex/ent/tenant"
-	"github.com/sbshobhit/notifex/internal/crypto"
-	"github.com/sbshobhit/notifex/internal/store"
+	"github.com/ticatwolves/notifex/ent"
+	"github.com/ticatwolves/notifex/ent/tenant"
+	"github.com/ticatwolves/notifex/internal/crypto"
+	"github.com/ticatwolves/notifex/internal/store"
 )
 
 type tenants struct{ c *ent.Client }

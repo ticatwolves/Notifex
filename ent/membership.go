@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/sbshobhit/notifex/ent/membership"
+	"github.com/ticatwolves/notifex/ent/membership"
 )
 
 // Membership is the model entity for the Membership schema.

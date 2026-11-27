@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/sbshobhit/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/store"
 )
 
 var (

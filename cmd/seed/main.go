@@ -13,15 +13,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/sbshobhit/notifex/internal/app"
-	"github.com/sbshobhit/notifex/internal/auth"
-	"github.com/sbshobhit/notifex/internal/config"
-	"github.com/sbshobhit/notifex/internal/crypto"
-	"github.com/sbshobhit/notifex/internal/db"
-	"github.com/sbshobhit/notifex/internal/devseed"
-	"github.com/sbshobhit/notifex/internal/observability"
-	"github.com/sbshobhit/notifex/internal/store"
-	"github.com/sbshobhit/notifex/internal/store/entstore"
+	"github.com/ticatwolves/notifex/internal/app"
+	"github.com/ticatwolves/notifex/internal/auth"
+	"github.com/ticatwolves/notifex/internal/config"
+	"github.com/ticatwolves/notifex/internal/crypto"
+	"github.com/ticatwolves/notifex/internal/db"
+	"github.com/ticatwolves/notifex/internal/devseed"
+	"github.com/ticatwolves/notifex/internal/observability"
+	"github.com/ticatwolves/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/store/entstore"
 )
 
 func main() { os.Exit(run()) }

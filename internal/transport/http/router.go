@@ -10,7 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
-	"github.com/sbshobhit/notifex/internal/health"
+	"github.com/ticatwolves/notifex/internal/health"
 )
 
 // MaxRequestBody caps every request body on the public API.

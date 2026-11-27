@@ -42,7 +42,7 @@ logs: ## Tail local stack logs
 .PHONY: build
 build: ## Build all binaries into ./bin
 	@for svc in $(SERVICES); do \
-	  CGO_ENABLED=0 go build -trimpath -ldflags="-X github.com/sbshobhit/notifex/internal/app.Version=$(VERSION)" \
+	  CGO_ENABLED=0 go build -trimpath -ldflags="-X github.com/ticatwolves/notifex/internal/app.Version=$(VERSION)" \
 	    -o $(BIN)/$$svc ./cmd/$$svc || exit 1; \
 	done
 
