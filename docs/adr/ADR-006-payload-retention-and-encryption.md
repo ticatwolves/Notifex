@@ -23,6 +23,15 @@ Aggregated metrics/rollups (per workflow/channel/day, no identifiers below tenan
 - **Tenant deletion = crypto-shred:** destroy the tenant DEK and every payload ciphertext, including copies in backups, becomes unreadable.
 - Logs, traces and metrics never contain payload or raw recipients.
 
+### Implementation notes (2026-11-27, Phase 0 slice 2: `internal/crypto`)
+These refine the encryption design above without changing the decision:
+- **Per-cell key derivation.** Each value is encrypted with AES-256-GCM under `HKDF-SHA256(DEK, info = "notifex/field/v1" | tenant_id | row_id | column)`, not under the DEK directly. Random 96-bit GCM nonces are only safe for about 2^32 messages per key. A busy tenant writing about 4 encrypted columns per notification at 10M notifications/day would reach that on a single DEK in about 100 days. A per-cell key encrypts only a handful of values. The cost is about 1.2 µs per 1 KiB field (benchmarked).
+- **The AAD includes the column name** (`tenant_id | row_id | column`), so `payload` and `recipient` ciphertexts can't be swapped within a row. The header bytes are authenticated too.
+- **Ciphertext format v1:** `0x01 | dek_version | nonce(12) | ciphertext+tag`. `dek_version` is always 1 until DEK rotation exists; rotation needs no format change.
+- **Wrapped DEKs are bound to their tenant** through the KMS encryption context `{purpose: tenant-dek, tenant_id}`. A wrapped DEK copied onto another tenant row will not unwrap, and every unwrap is attributable in CloudTrail.
+- **Cache:** unwrapped DEKs sit in a bounded LRU (default 10k tenants, 5-minute TTL) with singleflight on misses. Evicted keys are zeroed, best effort. **Crypto-shred is immediate on the instance that runs it, and takes effect within one TTL on other instances.** Tenant deletion must also stop processing for that tenant (status `deleted`) so nothing is newly encrypted during that window.
+- An encrypted empty value decrypts to an empty value, never nil, so it stays distinct from a purged (NULL) column.
+
 ## Purge mechanics
 - `notifications` and `notification_events` partitioned **daily** on `created_at`.
 - **Payload retention clock starts at the notification's terminal state** (sent/delivered/failed/cancelled/expired), so retries and deferrals never lose their payload mid-flight. Max retry/deferral window is 48 h, after which the notification becomes `expired`.
