@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"encoding/base32"
 	"testing"
 	"time"
 
@@ -40,8 +41,10 @@ func TestMatchStepAcceptsSkewOnly(t *testing.T) {
 }
 
 func TestOTPAuthURI(t *testing.T) {
-	u := otpauthURI([]byte("12345678901234567890"), "ops@notifex.dev")
+	secret := []byte("12345678901234567890") // RFC 6238 test key
+	u := otpauthURI(secret, "ops@notifex.dev")
 	assert.Contains(t, u, "otpauth://totp/Notifex%20Operator:ops@notifex.dev?")
-	assert.Contains(t, u, "secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
+	// Unpadded base32 of the key (computed, so no key-shaped literal in the repo).
+	assert.Contains(t, u, "secret="+base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(secret))
 	assert.Contains(t, u, "digits=6")
 }
