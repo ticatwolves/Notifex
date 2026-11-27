@@ -1,0 +1,21 @@
+# squawk: PostgreSQL migration safety lint (make migrate-lint, CI). ADR-010.
+pg_version = "18.0"
+
+# cmd/migrate sends each migration file as one multi-statement query, which
+# Postgres runs as a single implicit transaction: a failing file leaves no
+# partial schema (internal/db TestMigrationFileIsAtomic). Telling squawk this
+# lets it recognise indexes on tables created in the same file, which need no
+# CONCURRENTLY; require-concurrent-index-creation stays on for everything else.
+assume_in_transaction = true
+
+excluded_rules = [
+  # Set on the migration connection by cmd/migrate (lock_timeout 5s,
+  # statement_timeout 15m), so every migration file gets them without
+  # per-file SETs (TestMigrationsRunWithTimeouts). squawk's docs allow
+  # ignoring these when the connection is already configured.
+  "require-lock-timeout",
+  "require-statement-timeout",
+  # Files are atomic (above), so IF NOT EXISTS guards add no safety and would
+  # hide drift between a partly applied file and schema_migrations.
+  "prefer-robust-stmts",
+]

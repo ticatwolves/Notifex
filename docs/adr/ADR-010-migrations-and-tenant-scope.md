@@ -34,3 +34,10 @@ A foreign-key violation on create maps to `ErrNotFound`, so another tenant's ids
 - **The Atlas CLI with `ent://` for diff and lint.** It needs the CLI binary and a Go toolchain wherever it runs. The library route needs neither. squawk covers lint.
 - **Hand-written composite foreign keys in a SQL migration.** The next generated diff would see them as drift and drop them. Rejected in favor of adding them to the desired schema in the generator.
 - **Logging instead of failing on a missing scope in production.** It fails open at exactly the moment it matters. Rejected.
+
+## Amendment (2026-11-27): migration runtime guarantees
+The first CI run of squawk flagged the initial migration (non-concurrent indexes, no `IF NOT EXISTS`, no lock or statement timeouts). The response is to make the guarantees explicit in the runner, not per file:
+- **Timeouts on the migration connection:** `cmd/migrate` connects with `lock_timeout = 5s` and `statement_timeout = 15m`. DDL on a busy table gives up instead of queueing behind a long transaction, which would block the accept path behind it. A test proves both settings are active and that a locked table makes the migration fail fast.
+- **Atomic files:** each migration file runs as one implicit transaction, so a failure leaves no partial schema (tested).
+- **`.squawk.toml`:** sets `assume_in_transaction = true` and excludes `require-lock-timeout`, `require-statement-timeout` and `prefer-robust-stmts`, each with the reason and the test behind it. `require-concurrent-index-creation` stays enabled. An index on an existing table must use `CREATE INDEX CONCURRENTLY` as the **only statement** in its migration file (Postgres rejects it inside a multi-statement transaction block), and that file starts with `-- squawk-disable-assume-in-transaction`.
+
