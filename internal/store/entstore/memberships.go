@@ -103,3 +103,45 @@ func mapSlice[T, U any](in []T, f func(T) U) []U {
 	}
 	return out
 }
+
+// LockOwners uses explicit tenant_id in raw SQL (no ent interceptor runs).
+func (m memberships) LockOwners(ctx context.Context, tid store.TenantID) ([]uuid.UUID, error) {
+	rows, err := m.c.QueryContext(ctx,
+		`SELECT user_id FROM memberships WHERE tenant_id = $1 AND role = 'owner' ORDER BY id FOR UPDATE`, tid.UUID())
+	if err != nil {
+		return nil, fmt.Errorf("memberships.lock_owners: %w", mapErr(err, opRead))
+	}
+	defer func() { _ = rows.Close() }()
+	var out []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("memberships.lock_owners: %w", err)
+		}
+		out = append(out, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("memberships.lock_owners: %w", err)
+	}
+	return out, nil
+}
+
+func (m memberships) CountOwnedBy(ctx context.Context, userID uuid.UUID) (int, error) {
+	rows, err := m.c.QueryContext(ctx, `
+		SELECT count(*) FROM memberships m JOIN tenants t ON t.id = m.tenant_id
+		WHERE m.user_id = $1 AND m.role = 'owner' AND t.status <> 'deleted'`, userID)
+	if err != nil {
+		return 0, fmt.Errorf("memberships.count_owned_by: %w", mapErr(err, opRead))
+	}
+	defer func() { _ = rows.Close() }()
+	var n int
+	if rows.Next() {
+		if err := rows.Scan(&n); err != nil {
+			return 0, fmt.Errorf("memberships.count_owned_by: %w", err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("memberships.count_owned_by: %w", err)
+	}
+	return n, nil
+}

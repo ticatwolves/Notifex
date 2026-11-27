@@ -57,6 +57,7 @@ type Store interface {
 	Throttle() ThrottleStore
 	Identities() IdentityStore
 	OAuthStates() OAuthStateStore
+	Invitations() InvitationStore
 	// WithTx runs fn in one transaction. The Store passed to fn is bound to it,
 	// so a mutation and its audit event commit or roll back together. fn's
 	// error rolls back; a panic rolls back and re-panics.
@@ -194,6 +195,9 @@ type UserStore interface {
 	Get(ctx context.Context, id uuid.UUID) (User, error)
 	GetByEmail(ctx context.Context, email string) (User, error)
 	SetPasswordHash(ctx context.Context, id uuid.UUID, hash string) error
+	// Lock takes a row lock on the user until the transaction ends
+	// (serialises per-user limits such as the tenant cap). Use inside WithTx.
+	Lock(ctx context.Context, id uuid.UUID) error
 	// MarkEmailVerified sets email_verified_at if it is not already set.
 	MarkEmailVerified(ctx context.Context, id uuid.UUID, at time.Time) error
 }
@@ -232,6 +236,13 @@ type MembershipStore interface {
 	// ListForUser returns the user's memberships across tenants (tenant
 	// switcher). Scoped by user, not tenant.
 	ListForUser(ctx context.Context, userID uuid.UUID) ([]Membership, error)
+	// LockOwners locks the tenant's owner memberships until the transaction
+	// ends and returns their user ids. Every change that could remove an
+	// owner takes this lock first, so the last owner can't be removed by
+	// two concurrent requests. Use inside WithTx.
+	LockOwners(ctx context.Context, tid TenantID) ([]uuid.UUID, error)
+	// CountOwnedBy counts tenants (not deleted) where userID is an owner.
+	CountOwnedBy(ctx context.Context, userID uuid.UUID) (int, error)
 }
 
 // ---- applications ----
@@ -344,6 +355,8 @@ type APIKeyStore interface {
 	// Revoke is idempotent: revoking a revoked key keeps the first timestamp.
 	Revoke(ctx context.Context, tid TenantID, id uuid.UUID, at time.Time) error
 	TouchLastUsed(ctx context.Context, tid TenantID, id uuid.UUID, at time.Time) error
+	// RevokeAllForTenant revokes every active key of the tenant.
+	RevokeAllForTenant(ctx context.Context, tid TenantID, at time.Time) (int, error)
 }
 
 // ---- audit ----
@@ -541,4 +554,45 @@ type OAuthStateStore interface {
 	// Consume atomically marks the state used and returns it. Unknown, used,
 	// expired or other-provider states return ErrNotFound.
 	Consume(ctx context.Context, stateHash []byte, p OAuthProvider, now time.Time) (OAuthState, error)
+}
+
+// ---- invitations (ADR-011 §4) ----
+
+// Invitation invites an email to a tenant with a role.
+type Invitation struct {
+	ID         uuid.UUID
+	TenantID   TenantID
+	Email      string
+	Role       Role
+	InvitedBy  *uuid.UUID
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+	AcceptedAt *time.Time
+	RevokedAt  *time.Time
+}
+
+// NewInvitation is the input to InvitationStore.Create.
+type NewInvitation struct {
+	Email     string
+	Role      Role
+	TokenHash []byte
+	InvitedBy uuid.UUID
+	Now       time.Time
+	ExpiresAt time.Time
+}
+
+// InvitationStore persists invitations. At most one live (not accepted, not
+// revoked) invitation exists per email per tenant.
+type InvitationStore interface {
+	Create(ctx context.Context, tid TenantID, in NewInvitation) (Invitation, error)
+	// ListPending returns live, unexpired invitations, newest first.
+	ListPending(ctx context.Context, tid TenantID, now time.Time) ([]Invitation, error)
+	// Revoke revokes a live invitation (ErrNotFound otherwise).
+	Revoke(ctx context.Context, tid TenantID, id uuid.UUID, now time.Time) error
+	// RevokeLiveForEmail revokes the live invitation for email, if any.
+	RevokeLiveForEmail(ctx context.Context, tid TenantID, email string, now time.Time) (int, error)
+	// Consume atomically marks a live, unexpired invitation accepted by
+	// userID and returns it. The token identifies the tenant, so this is not
+	// tenant-scoped. Unknown, used, revoked or expired tokens: ErrNotFound.
+	Consume(ctx context.Context, tokenHash []byte, userID uuid.UUID, now time.Time) (Invitation, error)
 }

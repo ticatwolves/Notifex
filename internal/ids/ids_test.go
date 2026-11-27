@@ -13,7 +13,7 @@ import (
 var idRE = regexp.MustCompile(`^[a-z]{3}_[0-9A-Za-z]{22}$`)
 
 func TestRoundTrip(t *testing.T) {
-	cases := []uuid.UUID{uuid.Nil, uuid.Max, uuid.Must(uuid.NewV7()), uuid.New()}
+	cases := []uuid.UUID{uuid.Max, uuid.Must(uuid.NewV7()), uuid.New()}
 	for range 200 {
 		cases = append(cases, uuid.Must(uuid.NewV7()))
 	}
@@ -38,6 +38,7 @@ func TestParseRejects(t *testing.T) {
 		"bad char":       good[:len(good)-1] + "-",
 		"overflow 2^128": "run_" + strings.Repeat("z", 22),
 		"raw uuid":       "run_" + uuid.NewString(),
+		"nil uuid":       Format(Run, uuid.Nil),
 		"empty":          "",
 	}
 	for name, s := range tests {

@@ -14,6 +14,7 @@ import (
 	"github.com/ticatwolves/notifex/ent/auththrottle"
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
+	"github.com/ticatwolves/notifex/ent/invitation"
 	"github.com/ticatwolves/notifex/ent/membership"
 	"github.com/ticatwolves/notifex/ent/oauthstate"
 	"github.com/ticatwolves/notifex/ent/predicate"
@@ -241,6 +242,33 @@ func (f TraverseEnvironment) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.EnvironmentQuery", q)
 }
 
+// The InvitationFunc type is an adapter to allow the use of ordinary function as a Querier.
+type InvitationFunc func(context.Context, *ent.InvitationQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f InvitationFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.InvitationQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.InvitationQuery", q)
+}
+
+// The TraverseInvitation type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseInvitation func(context.Context, *ent.InvitationQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseInvitation) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseInvitation) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.InvitationQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.InvitationQuery", q)
+}
+
 // The MembershipFunc type is an adapter to allow the use of ordinary function as a Querier.
 type MembershipFunc func(context.Context, *ent.MembershipQuery) (ent.Value, error)
 
@@ -418,6 +446,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.EmailTokenQuery, predicate.EmailToken, emailtoken.OrderOption]{typ: ent.TypeEmailToken, tq: q}, nil
 	case *ent.EnvironmentQuery:
 		return &query[*ent.EnvironmentQuery, predicate.Environment, environment.OrderOption]{typ: ent.TypeEnvironment, tq: q}, nil
+	case *ent.InvitationQuery:
+		return &query[*ent.InvitationQuery, predicate.Invitation, invitation.OrderOption]{typ: ent.TypeInvitation, tq: q}, nil
 	case *ent.MembershipQuery:
 		return &query[*ent.MembershipQuery, predicate.Membership, membership.OrderOption]{typ: ent.TypeMembership, tq: q}, nil
 	case *ent.OAuthStateQuery:

@@ -22,6 +22,7 @@ import (
 	"github.com/ticatwolves/notifex/internal/observability"
 	"github.com/ticatwolves/notifex/internal/ratelimit"
 	"github.com/ticatwolves/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/tenant"
 )
 
 // ConsoleAccounts is what the console routes need from internal/auth.
@@ -412,6 +413,24 @@ func consoleError(c *gin.Context, err error) {
 		writeError(c, http.StatusBadRequest, "validation_failed", strings.TrimPrefix(err.Error(), "auth: "))
 	case errors.Is(err, auth.ErrInvalidEmail):
 		writeError(c, http.StatusBadRequest, "validation_failed", "email address is not valid")
+	case errors.Is(err, tenant.ErrReauthRequired):
+		writeError(c, http.StatusForbidden, "reauth_required", "confirm your password to continue")
+	case errors.Is(err, tenant.ErrEmailNotVerified):
+		writeError(c, http.StatusForbidden, "email_not_verified", "verify your email address first")
+	case errors.Is(err, tenant.ErrTenantLimit):
+		writeError(c, http.StatusForbidden, "tenant_limit_reached", "you already own the maximum number of tenants")
+	case errors.Is(err, tenant.ErrInviteEmail):
+		writeError(c, http.StatusForbidden, "forbidden", "this invitation was sent to a different email address")
+	case errors.Is(err, tenant.ErrForbidden):
+		writeError(c, http.StatusForbidden, "forbidden", "your role does not allow this")
+	case errors.Is(err, tenant.ErrLastOwner):
+		writeError(c, http.StatusConflict, "conflict", "a tenant must keep at least one owner")
+	case errors.Is(err, tenant.ErrAlreadyMember):
+		writeError(c, http.StatusConflict, "conflict", "already a member of this tenant")
+	case errors.Is(err, tenant.ErrInvalidToken):
+		writeError(c, http.StatusBadRequest, "invalid_token", "the invitation is invalid, expired or already used")
+	case errors.Is(err, store.ErrInvalid):
+		writeError(c, http.StatusBadRequest, "validation_failed", "invalid input")
 	case errors.Is(err, store.ErrNotFound):
 		writeError(c, http.StatusNotFound, "not_found", "not found")
 	case errors.Is(err, store.ErrConflict):

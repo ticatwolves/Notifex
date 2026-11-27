@@ -59,6 +59,11 @@ func Parse(k Kind, s string) (uuid.UUID, error) {
 	}
 	var id uuid.UUID
 	n.FillBytes(id[:])
+	if id == uuid.Nil {
+		// Never a real id; letting it through would reach the store as an
+		// unscoped tenant and fail as a 500 instead of a 404.
+		return uuid.Nil, ErrInvalid
+	}
 	return id, nil
 }
 

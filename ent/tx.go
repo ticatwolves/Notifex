@@ -26,6 +26,8 @@ type Tx struct {
 	EmailToken *EmailTokenClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
+	// Invitation is the client for interacting with the Invitation builders.
+	Invitation *InvitationClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
 	// OAuthState is the client for interacting with the OAuthState builders.
@@ -175,6 +177,7 @@ func (tx *Tx) init() {
 	tx.AuthThrottle = NewAuthThrottleClient(tx.config)
 	tx.EmailToken = NewEmailTokenClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
+	tx.Invitation = NewInvitationClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
 	tx.OAuthState = NewOAuthStateClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)

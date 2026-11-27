@@ -84,3 +84,21 @@ func toUser(r *ent.User) store.User {
 		CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 	}
 }
+
+func (u users) Lock(ctx context.Context, id uuid.UUID) error {
+	rows, err := u.c.QueryContext(ctx, `SELECT id FROM users WHERE id = $1 FOR UPDATE`, id)
+	if err != nil {
+		return fmt.Errorf("users.lock: %w", mapErr(err, opRead))
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("users.lock: %w", err)
+		}
+		return fmt.Errorf("users.lock: %w", store.ErrNotFound)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("users.lock: %w", err)
+	}
+	return nil
+}

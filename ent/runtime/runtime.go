@@ -12,6 +12,7 @@ import (
 	"github.com/ticatwolves/notifex/ent/auththrottle"
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
+	"github.com/ticatwolves/notifex/ent/invitation"
 	"github.com/ticatwolves/notifex/ent/membership"
 	"github.com/ticatwolves/notifex/ent/oauthstate"
 	"github.com/ticatwolves/notifex/ent/schema"
@@ -288,6 +289,41 @@ func init() {
 	environmentDescID := environmentMixinFields0[0].Descriptor()
 	// environment.DefaultID holds the default value on creation for the id field.
 	environment.DefaultID = environmentDescID.Default.(func() uuid.UUID)
+	invitationMixin := schema.Invitation{}.Mixin()
+	invitationMixinHooks1 := invitationMixin[1].Hooks()
+	invitation.Hooks[0] = invitationMixinHooks1[0]
+	invitationMixinInters1 := invitationMixin[1].Interceptors()
+	invitation.Interceptors[0] = invitationMixinInters1[0]
+	invitationMixinFields0 := invitationMixin[0].Fields()
+	_ = invitationMixinFields0
+	invitationFields := schema.Invitation{}.Fields()
+	_ = invitationFields
+	// invitationDescEmail is the schema descriptor for email field.
+	invitationDescEmail := invitationFields[0].Descriptor()
+	// invitation.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	invitation.EmailValidator = func() func(string) error {
+		validators := invitationDescEmail.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(email string) error {
+			for _, fn := range fns {
+				if err := fn(email); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// invitationDescTokenHash is the schema descriptor for token_hash field.
+	invitationDescTokenHash := invitationFields[2].Descriptor()
+	// invitation.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	invitation.TokenHashValidator = invitationDescTokenHash.Validators[0].(func([]byte) error)
+	// invitationDescID is the schema descriptor for id field.
+	invitationDescID := invitationMixinFields0[0].Descriptor()
+	// invitation.DefaultID holds the default value on creation for the id field.
+	invitation.DefaultID = invitationDescID.Default.(func() uuid.UUID)
 	membershipMixin := schema.Membership{}.Mixin()
 	membershipMixinHooks1 := membershipMixin[1].Hooks()
 	membership.Hooks[0] = membershipMixinHooks1[0]

@@ -171,6 +171,46 @@ var (
 			},
 		},
 	}
+	// InvitationsColumns holds the columns for the "invitations" table.
+	InvitationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "email", Type: field.TypeString, Size: 320},
+		{Name: "role", Type: field.TypeEnum, Enums: []string{"owner", "admin", "developer", "viewer"}},
+		{Name: "token_hash", Type: field.TypeBytes},
+		{Name: "invited_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "accepted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "accepted_by", Type: field.TypeUUID, Nullable: true},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+	}
+	// InvitationsTable holds the schema information for the "invitations" table.
+	InvitationsTable = &schema.Table{
+		Name:       "invitations",
+		Columns:    InvitationsColumns,
+		PrimaryKey: []*schema.Column{InvitationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "invitation_token_hash",
+				Unique:  true,
+				Columns: []*schema.Column{InvitationsColumns[4]},
+			},
+			{
+				Name:    "invitation_tenant_id_email",
+				Unique:  true,
+				Columns: []*schema.Column{InvitationsColumns[1], InvitationsColumns[2]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "accepted_at IS NULL AND revoked_at IS NULL",
+				},
+			},
+			{
+				Name:    "invitation_tenant_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{InvitationsColumns[1], InvitationsColumns[6]},
+			},
+		},
+	}
 	// MembershipsColumns holds the columns for the "memberships" table.
 	MembershipsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -339,6 +379,7 @@ var (
 		AuthThrottlesTable,
 		EmailTokensTable,
 		EnvironmentsTable,
+		InvitationsTable,
 		MembershipsTable,
 		OauthStatesTable,
 		SessionsTable,

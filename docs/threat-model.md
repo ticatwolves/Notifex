@@ -81,7 +81,7 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 | Mass assignment / unexpected fields | Strict JSON decoding rejects unknown fields (mutation-tested) | — |
 | OAuth account takeover | PKCE S256 + single-use, provider-bound `state` (10 min) + `nonce`; exact-match redirect allowlist; ID token signature, issuer, audience, expiry and nonce verified; Microsoft keyed on `tid:oid` with per-tenant issuer check, email trusted only with `xms_edov` (nOAuth); GitHub primary *verified* email only; unverified provider emails never looked up; auto-link only when both sides are verified; linking requires the session that started it (linking CSRF). Each rule covered by a failing-on-mutation test against a fake IdP (`oauth_test.go`) | Real-provider smoke test in staging |
 | XSS through tenant content | — | Template preview in a sandboxed iframe with strict CSP (docs/11) |
-| BOLA across tenants | — | Slice 4 RBAC + B3 below |
+| BOLA across tenants | Path-scoped `/v1/admin/tenants/{id}`: anything but a live membership is `404`, including malformed and nil ids (`TestTenantAdminBOLA` sweeps every tenant endpoint as a member of another tenant). Capabilities enforced in the service layer from a literal role × capability matrix test. Last-owner and tenant-cap invariants hold under concurrency (row locks, mutation-tested). Invitations are email-bound, single use and expiring, and a wrong-account accept doesn't consume the link | BOLA sweep extended to every endpoint as later slices add them (slice 7) |
 
 ### B3: services → Postgres / SQS (tenant isolation)
 

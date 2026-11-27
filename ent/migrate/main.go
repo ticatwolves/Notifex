@@ -154,6 +154,8 @@ func addForeignKeys(next entschema.Differ) entschema.Differ {
 				f.SetOnDelete(atlas.Restrict)
 			case "CASCADE":
 				f.SetOnDelete(atlas.Cascade)
+			case "SET NULL":
+				f.SetOnDelete(atlas.SetNull)
 			default:
 				return nil, fmt.Errorf("fk %s: unsupported on delete %q", fk.Name, fk.OnDelete)
 			}

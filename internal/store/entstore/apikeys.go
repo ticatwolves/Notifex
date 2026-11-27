@@ -110,3 +110,14 @@ func toAPIKey(r *ent.APIKey) store.APIKey {
 		CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 	}
 }
+
+func (k apiKeys) RevokeAllForTenant(ctx context.Context, tid store.TenantID, at time.Time) (int, error) {
+	n, err := k.c.APIKey.Update().
+		Where(apikey.TenantID(tid.UUID()), apikey.RevokedAtIsNil()).
+		SetRevokedAt(at).
+		Save(scoped(ctx, tid))
+	if err != nil {
+		return 0, fmt.Errorf("api_keys.revoke_all_for_tenant: %w", mapErr(err, opWrite))
+	}
+	return n, nil
+}

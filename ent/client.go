@@ -21,6 +21,7 @@ import (
 	"github.com/ticatwolves/notifex/ent/auththrottle"
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
+	"github.com/ticatwolves/notifex/ent/invitation"
 	"github.com/ticatwolves/notifex/ent/membership"
 	"github.com/ticatwolves/notifex/ent/oauthstate"
 	"github.com/ticatwolves/notifex/ent/session"
@@ -48,6 +49,8 @@ type Client struct {
 	EmailToken *EmailTokenClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
+	// Invitation is the client for interacting with the Invitation builders.
+	Invitation *InvitationClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
 	// OAuthState is the client for interacting with the OAuthState builders.
@@ -77,6 +80,7 @@ func (c *Client) init() {
 	c.AuthThrottle = NewAuthThrottleClient(c.config)
 	c.EmailToken = NewEmailTokenClient(c.config)
 	c.Environment = NewEnvironmentClient(c.config)
+	c.Invitation = NewInvitationClient(c.config)
 	c.Membership = NewMembershipClient(c.config)
 	c.OAuthState = NewOAuthStateClient(c.config)
 	c.Session = NewSessionClient(c.config)
@@ -181,6 +185,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AuthThrottle: NewAuthThrottleClient(cfg),
 		EmailToken:   NewEmailTokenClient(cfg),
 		Environment:  NewEnvironmentClient(cfg),
+		Invitation:   NewInvitationClient(cfg),
 		Membership:   NewMembershipClient(cfg),
 		OAuthState:   NewOAuthStateClient(cfg),
 		Session:      NewSessionClient(cfg),
@@ -212,6 +217,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AuthThrottle: NewAuthThrottleClient(cfg),
 		EmailToken:   NewEmailTokenClient(cfg),
 		Environment:  NewEnvironmentClient(cfg),
+		Invitation:   NewInvitationClient(cfg),
 		Membership:   NewMembershipClient(cfg),
 		OAuthState:   NewOAuthStateClient(cfg),
 		Session:      NewSessionClient(cfg),
@@ -248,8 +254,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.Application, c.AuditEvent, c.AuthThrottle, c.EmailToken,
-		c.Environment, c.Membership, c.OAuthState, c.Session, c.Tenant, c.User,
-		c.UserIdentity,
+		c.Environment, c.Invitation, c.Membership, c.OAuthState, c.Session, c.Tenant,
+		c.User, c.UserIdentity,
 	} {
 		n.Use(hooks...)
 	}
@@ -260,8 +266,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.Application, c.AuditEvent, c.AuthThrottle, c.EmailToken,
-		c.Environment, c.Membership, c.OAuthState, c.Session, c.Tenant, c.User,
-		c.UserIdentity,
+		c.Environment, c.Invitation, c.Membership, c.OAuthState, c.Session, c.Tenant,
+		c.User, c.UserIdentity,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -282,6 +288,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EmailToken.mutate(ctx, m)
 	case *EnvironmentMutation:
 		return c.Environment.mutate(ctx, m)
+	case *InvitationMutation:
+		return c.Invitation.mutate(ctx, m)
 	case *MembershipMutation:
 		return c.Membership.mutate(ctx, m)
 	case *OAuthStateMutation:
@@ -1103,6 +1111,141 @@ func (c *EnvironmentClient) mutate(ctx context.Context, m *EnvironmentMutation) 
 	}
 }
 
+// InvitationClient is a client for the Invitation schema.
+type InvitationClient struct {
+	config
+}
+
+// NewInvitationClient returns a client for the Invitation from the given config.
+func NewInvitationClient(c config) *InvitationClient {
+	return &InvitationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `invitation.Hooks(f(g(h())))`.
+func (c *InvitationClient) Use(hooks ...Hook) {
+	c.hooks.Invitation = append(c.hooks.Invitation, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `invitation.Intercept(f(g(h())))`.
+func (c *InvitationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Invitation = append(c.inters.Invitation, interceptors...)
+}
+
+// Create returns a builder for creating a Invitation entity.
+func (c *InvitationClient) Create() *InvitationCreate {
+	mutation := newInvitationMutation(c.config, OpCreate)
+	return &InvitationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Invitation entities.
+func (c *InvitationClient) CreateBulk(builders ...*InvitationCreate) *InvitationCreateBulk {
+	return &InvitationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *InvitationClient) MapCreateBulk(slice any, setFunc func(*InvitationCreate, int)) *InvitationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &InvitationCreateBulk{err: fmt.Errorf("calling to InvitationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*InvitationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &InvitationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Invitation.
+func (c *InvitationClient) Update() *InvitationUpdate {
+	mutation := newInvitationMutation(c.config, OpUpdate)
+	return &InvitationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *InvitationClient) UpdateOne(_m *Invitation) *InvitationUpdateOne {
+	mutation := newInvitationMutation(c.config, OpUpdateOne, withInvitation(_m))
+	return &InvitationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *InvitationClient) UpdateOneID(id uuid.UUID) *InvitationUpdateOne {
+	mutation := newInvitationMutation(c.config, OpUpdateOne, withInvitationID(id))
+	return &InvitationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Invitation.
+func (c *InvitationClient) Delete() *InvitationDelete {
+	mutation := newInvitationMutation(c.config, OpDelete)
+	return &InvitationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *InvitationClient) DeleteOne(_m *Invitation) *InvitationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *InvitationClient) DeleteOneID(id uuid.UUID) *InvitationDeleteOne {
+	builder := c.Delete().Where(invitation.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &InvitationDeleteOne{builder}
+}
+
+// Query returns a query builder for Invitation.
+func (c *InvitationClient) Query() *InvitationQuery {
+	return &InvitationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeInvitation},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Invitation entity by its id.
+func (c *InvitationClient) Get(ctx context.Context, id uuid.UUID) (*Invitation, error) {
+	return c.Query().Where(invitation.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *InvitationClient) GetX(ctx context.Context, id uuid.UUID) *Invitation {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *InvitationClient) Hooks() []Hook {
+	hooks := c.hooks.Invitation
+	return append(hooks[:len(hooks):len(hooks)], invitation.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *InvitationClient) Interceptors() []Interceptor {
+	inters := c.inters.Invitation
+	return append(inters[:len(inters):len(inters)], invitation.Interceptors[:]...)
+}
+
+func (c *InvitationClient) mutate(ctx context.Context, m *InvitationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&InvitationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&InvitationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&InvitationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&InvitationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Invitation mutation op: %q", m.Op())
+	}
+}
+
 // MembershipClient is a client for the Membership schema.
 type MembershipClient struct {
 	config
@@ -1907,11 +2050,13 @@ func (c *UserIdentityClient) mutate(ctx context.Context, m *UserIdentityMutation
 type (
 	hooks struct {
 		APIKey, Application, AuditEvent, AuthThrottle, EmailToken, Environment,
-		Membership, OAuthState, Session, Tenant, User, UserIdentity []ent.Hook
+		Invitation, Membership, OAuthState, Session, Tenant, User,
+		UserIdentity []ent.Hook
 	}
 	inters struct {
 		APIKey, Application, AuditEvent, AuthThrottle, EmailToken, Environment,
-		Membership, OAuthState, Session, Tenant, User, UserIdentity []ent.Interceptor
+		Invitation, Membership, OAuthState, Session, Tenant, User,
+		UserIdentity []ent.Interceptor
 	}
 )
 
