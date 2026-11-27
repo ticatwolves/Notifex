@@ -1,0 +1,63 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - bodyclose
+    - errorlint      # %w wrapping and errors.Is/As
+    - gosec
+    - misspell
+    - noctx          # outbound HTTP must carry a context
+    - nolintlint
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - unconvert
+    - wrapcheck
+  settings:
+    gosec:
+      excludes:
+        - G104 # covered by errcheck
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: context-as-argument
+        - name: error-return
+        - name: error-strings
+        - name: receiver-naming
+        - name: var-naming
+    wrapcheck:
+      # Only demand wrapping when errors cross package boundaries into our code
+      # from third-party libraries; stdlib/net errors at server edges are fine.
+      ignore-sig-regexps:
+        - \.Errorf\(
+        - errors\.New\(
+        - errors\.Join\(
+        - \(context\.Context\)\.Err\(
+        - google\.golang\.org/grpc/status\.Error
+        - \(\*net/http\.Server\)\.(Serve|Shutdown)
+        - \(\*google\.golang\.org/grpc\.Server\)\.Serve
+        - \(\*github\.com/gin-gonic/gin\.Context\)
+        - \(log/slog\.Handler\)\.Handle
+      ignore-package-globs:
+        - github.com/ticatwolves/notifex/*
+  exclusions:
+    generated: strict
+    rules:
+      - path: _test\.go
+        linters: [gosec, wrapcheck, noctx, bodyclose]
+      - path: cmd/healthcheck/
+        linters: [wrapcheck]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/ticatwolves/notifex

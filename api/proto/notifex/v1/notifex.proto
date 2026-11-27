@@ -1,0 +1,212 @@
+// Notifex public gRPC API (docs/03 §gRPC).
+//
+// DRAFT: this contract is linted from Phase 0 but not implemented or generated
+// until Phase 4. `buf breaking` is enforced from the first release that serves
+// it. Field semantics match the REST API; error reasons use the same strings as
+// REST error codes (validation_failed, idempotency_conflict, …).
+//
+// Auth: API key in the `authorization` metadata ("Bearer <key>").
+syntax = "proto3";
+
+package notifex.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/ticatwolves/notifex/api/gen/notifex/v1;notifexv1";
+
+// NotifexService is the data-plane API: trigger workflows and observe runs.
+service NotifexService {
+  // Trigger runs one workflow for a set of recipients. Per-action rejections
+  // are reported per notification; the call fails only if nothing is accepted.
+  rpc Trigger(TriggerRequest) returns (TriggerResponse);
+  // TriggerBatch runs several independent triggers; each succeeds or fails alone.
+  rpc TriggerBatch(TriggerBatchRequest) returns (TriggerBatchResponse);
+  // GetRun returns a run and its notifications' current status.
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  // GetNotification returns one notification with its status timeline.
+  rpc GetNotification(GetNotificationRequest) returns (GetNotificationResponse);
+  // StreamNotificationEvents streams timeline events for a run or notification.
+  rpc StreamNotificationEvents(StreamNotificationEventsRequest) returns (stream StreamNotificationEventsResponse);
+}
+
+// Channel is a delivery channel kind.
+enum Channel {
+  CHANNEL_UNSPECIFIED = 0;
+  CHANNEL_EMAIL = 1;
+  CHANNEL_SMS = 2;
+  CHANNEL_PUSH = 3;
+  CHANNEL_SLACK = 4;
+  CHANNEL_OUTLOOK = 5;
+  CHANNEL_WHATSAPP = 6;
+  CHANNEL_WEBHOOK = 7;
+}
+
+// RunStatus is the lifecycle of a run.
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+  RUN_STATUS_ACCEPTED = 1;
+  RUN_STATUS_PROCESSING = 2;
+  RUN_STATUS_COMPLETED = 3;
+  RUN_STATUS_PARTIALLY_FAILED = 4;
+  RUN_STATUS_FAILED = 5;
+  RUN_STATUS_CANCELED = 6;
+}
+
+// NotificationStatus is the lifecycle of one notification.
+enum NotificationStatus {
+  NOTIFICATION_STATUS_UNSPECIFIED = 0;
+  NOTIFICATION_STATUS_QUEUED = 1;
+  NOTIFICATION_STATUS_DEFERRED = 2;
+  NOTIFICATION_STATUS_SENDING = 3;
+  NOTIFICATION_STATUS_RETRYING = 4;
+  NOTIFICATION_STATUS_SENT = 5;
+  NOTIFICATION_STATUS_DELIVERED = 6;
+  NOTIFICATION_STATUS_SENT_UNCONFIRMED = 7;
+  NOTIFICATION_STATUS_FAILED = 8;
+  NOTIFICATION_STATUS_SUPPRESSED = 9;
+  NOTIFICATION_STATUS_CANCELED = 10;
+  NOTIFICATION_STATUS_EXPIRED = 11;
+}
+
+// Recipient details are passed inline with each trigger; Notifex keeps no
+// subscriber model. Raw values are encrypted at rest and purged after the
+// tenant's payload retention.
+message Recipient {
+  // Caller-chosen reference echoed back as recipient_ref.
+  string id = 1;
+  string email = 2;
+  string phone = 3;
+  repeated string push_tokens = 4;
+  string slack_user = 5;
+  string whatsapp = 6;
+  string locale = 7;
+  // IANA time zone, e.g. "Asia/Kolkata"; used by quiet hours.
+  string timezone = 8;
+}
+
+// TriggerRequest mirrors POST /v1/trigger.
+message TriggerRequest {
+  // Workflow key (stable slug).
+  string workflow = 1;
+  repeated Recipient recipients = 2;
+  google.protobuf.Struct payload = 3;
+  google.protobuf.Struct context = 4;
+  // Optional narrowing of the workflow's channels; can never add channels.
+  repeated Channel channels = 5;
+  // Optional; must be at most now + 7 days.
+  google.protobuf.Timestamp schedule_at = 6;
+  // Same semantics as the REST Idempotency-Key header.
+  string idempotency_key = 7;
+}
+
+// TriggerResponse mirrors the REST 202 body.
+message TriggerResponse {
+  string run_id = 1;
+  RunStatus status = 2;
+  repeated NotificationRef notifications = 3;
+}
+
+// NotificationRef is a notification's id and accept-time outcome.
+message NotificationRef {
+  string id = 1;
+  Channel channel = 2;
+  string recipient_ref = 3;
+  NotificationStatus status = 4;
+  // Set when the notification was rejected at accept time.
+  Error error = 5;
+}
+
+// Error carries a REST-compatible error code.
+message Error {
+  // Same strings as REST error codes, e.g. "platform_sms_daily_limit".
+  string code = 1;
+  string message = 2;
+  google.protobuf.Timestamp retry_after = 3;
+}
+
+// TriggerBatchRequest holds independent triggers.
+message TriggerBatchRequest {
+  repeated TriggerRequest triggers = 1;
+}
+
+// TriggerBatchResponse has one result per trigger, in request order.
+message TriggerBatchResponse {
+  repeated TriggerBatchResult results = 1;
+}
+
+// TriggerBatchResult is either an accepted run or an error.
+message TriggerBatchResult {
+  oneof outcome {
+    TriggerResponse accepted = 1;
+    Error error = 2;
+  }
+}
+
+// GetRunRequest identifies a run.
+message GetRunRequest {
+  string run_id = 1;
+}
+
+// GetRunResponse wraps a run.
+message GetRunResponse {
+  Run run = 1;
+}
+
+// Run is one accepted trigger.
+message Run {
+  string id = 1;
+  string workflow = 2;
+  RunStatus status = 3;
+  string source = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp schedule_at = 6;
+  repeated NotificationRef notifications = 7;
+}
+
+// GetNotificationRequest identifies a notification.
+message GetNotificationRequest {
+  string notification_id = 1;
+}
+
+// GetNotificationResponse wraps a notification.
+message GetNotificationResponse {
+  Notification notification = 1;
+}
+
+// Notification is one (action x recipient) delivery with its timeline.
+message Notification {
+  string id = 1;
+  string run_id = 2;
+  Channel channel = 3;
+  NotificationStatus status = 4;
+  // Masked, e.g. "a***@e***.com".
+  string recipient_masked = 5;
+  int32 attempt = 6;
+  Error last_error = 7;
+  // True once the payload has been purged (replay no longer possible).
+  bool payload_expired = 8;
+  repeated NotificationEvent events = 9;
+}
+
+// NotificationEvent is one timeline entry.
+message NotificationEvent {
+  string notification_id = 1;
+  string type = 2;
+  google.protobuf.Timestamp at = 3;
+  // Redacted detail; never contains payload or raw recipients.
+  google.protobuf.Struct detail = 4;
+}
+
+// StreamNotificationEventsRequest selects what to stream.
+message StreamNotificationEventsRequest {
+  oneof target {
+    string run_id = 1;
+    string notification_id = 2;
+  }
+}
+
+// StreamNotificationEventsResponse carries one event.
+message StreamNotificationEventsResponse {
+  NotificationEvent event = 1;
+}

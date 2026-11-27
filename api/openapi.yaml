@@ -1,0 +1,1805 @@
+openapi: 3.1.0
+info:
+  title: Notifex API
+  version: 0.1.0-draft
+  summary: Notifications as a service. Trigger workflows and observe every notification.
+  description: |
+    Source of truth for the Notifex REST API (docs/03). Operations marked
+    `x-notifex-status: implemented` are served and contract-tested
+    (internal/transport/http/contract_test.go). Operations marked `draft` are
+    designed but not yet built; they may change until their phase ships.
+
+    **Identifiers** are opaque strings of the form `<kind>_<22 base62 chars>`
+    (`ten_`, `app_`, `env_`, `key_`, `run_`, `ntf_`). Treat them as opaque.
+
+    **Errors** always use the `Error` envelope. Codes are stable strings;
+    messages are for humans and may change.
+
+    **Authentication** uses three bearer token kinds, each accepted by exactly
+    one route group (ADR-011): API keys `nfx_…` for the data plane (`/v1/whoami`,
+    `/v1/trigger`, runs, notifications); console sessions `nfs_…` for `/v1/auth`,
+    `/v1/me` and `/v1/admin`; operator sessions `nfo_…` for `/v1/operator`.
+    Every credential problem is the same `401 unauthenticated`; `503 unavailable`
+    means the check could not be completed and is safe to retry.
+
+    **Roles** (tenant): owner, admin, developer, viewer, per the docs/03 matrix.
+    A caller with no membership in the path's tenant gets `404`; an insufficient
+    role gets `403 forbidden`.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.notifex.dev
+    description: Production (ap-south-1)
+  - url: http://localhost:8080
+    description: Local (make dev)
+security:
+  - apiKey: []
+tags:
+  - name: ops
+    description: Liveness and readiness.
+  - name: identity
+    description: Caller identity.
+  - name: trigger
+    description: Trigger workflows.
+  - name: runs
+    description: Observe runs and notifications.
+  - name: auth
+    description: Console accounts and sessions (ADR-011).
+  - name: tenants
+    description: Tenants (console session).
+  - name: members
+    description: Members, roles and invitations.
+  - name: applications
+    description: Applications and environments.
+  - name: api-keys
+    description: API key lifecycle.
+  - name: audit
+    description: Audit trail.
+  - name: operator
+    description: Platform operator realm (separate accounts, TOTP, fully audited).
+
+paths:
+  /healthz:
+    get:
+      operationId: getHealthz
+      tags: [ops]
+      summary: Liveness
+      description: Process is up. Never checks dependencies.
+      security: []
+      x-notifex-status: implemented
+      responses:
+        "200":
+          description: Alive.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Status" }
+  /readyz:
+    get:
+      operationId: getReadyz
+      tags: [ops]
+      summary: Readiness
+      description: Dependencies are usable. Detail is only available on the internal ops port.
+      security: []
+      x-notifex-status: implemented
+      responses:
+        "200":
+          description: Ready.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Status" }
+        "503":
+          description: Not ready (dependency down or draining).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Status" }
+
+  /v1/whoami:
+    get:
+      operationId: getWhoami
+      tags: [identity]
+      summary: Identify the calling API key
+      description: Connectivity and credential check for SDKs and CLIs.
+      x-notifex-status: implemented
+      responses:
+        "200":
+          description: The caller's tenant, application, environment and key.
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/RequestID" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WhoAmI" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /v1/trigger:
+    post:
+      operationId: trigger
+      tags: [trigger]
+      summary: Trigger a workflow
+      description: |
+        Accepts the trigger and returns `202` with one notification per
+        (action × recipient). Per-action rejections (credential unavailable,
+        daily SMS limit, channel not allowed) are reported per notification;
+        the request fails as a whole only if no notification can be accepted.
+        Retrying with the same `Idempotency-Key` and body returns the original
+        run; a different body returns `409 idempotency_conflict`.
+      x-notifex-status: draft
+      x-notifex-phase: 3
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TriggerRequest" }
+      responses:
+        "202":
+          description: Accepted.
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/RequestID" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TriggerResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /v1/runs:
+    get:
+      operationId: listRuns
+      tags: [runs]
+      summary: List runs
+      description: Runs for the calling application environment, newest first, keyset-paginated.
+      x-notifex-status: draft
+      x-notifex-phase: 5
+      parameters:
+        - { name: workflow, in: query, schema: { type: string, maxLength: 63 } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/RunStatus" } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/After"
+      responses:
+        "200":
+          description: A page of runs, newest first.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RunList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/runs/{run_id}:
+    get:
+      operationId: getRun
+      tags: [runs]
+      summary: Get a run
+      x-notifex-status: draft
+      x-notifex-phase: 3
+      parameters:
+        - $ref: "#/components/parameters/RunID"
+      responses:
+        "200":
+          description: The run and its notifications' current status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Run" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/runs/{run_id}/cancel:
+    post:
+      operationId: cancelRun
+      tags: [runs]
+      summary: Cancel a run's pending notifications
+      x-notifex-status: draft
+      x-notifex-phase: 5
+      parameters:
+        - $ref: "#/components/parameters/RunID"
+      responses:
+        "200":
+          description: Pending notifications canceled; already-sent ones are unaffected.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Run" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /v1/notifications/{notification_id}:
+    get:
+      operationId: getNotification
+      tags: [runs]
+      summary: Get a notification and its timeline
+      x-notifex-status: draft
+      x-notifex-phase: 5
+      parameters:
+        - $ref: "#/components/parameters/NotificationID"
+      responses:
+        "200":
+          description: The notification with its status timeline.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Notification" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/notifications/{notification_id}/replay:
+    post:
+      operationId: replayNotification
+      tags: [runs]
+      summary: Re-dispatch a failed notification from its original snapshot
+      x-notifex-status: draft
+      x-notifex-phase: 5
+      parameters:
+        - $ref: "#/components/parameters/NotificationID"
+      responses:
+        "202":
+          description: Replay accepted as a new attempt chain.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Notification" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`payload_expired`: the payload was purged after the tenant's retention period."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  # ---------------------------------------------------------------- Phase 1: console auth (ADR-011)
+  /v1/auth/signup:
+    post:
+      operationId: signup
+      tags: [auth]
+      summary: Create a user account
+      description: Always returns 202, whether or not the email is registered (no enumeration). Sends a verification email.
+      security: []
+      x-notifex-status: implemented
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SignupRequest" }
+      responses:
+        "202": { description: Accepted; check email. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+  /v1/auth/verify-email:
+    post:
+      operationId: verifyEmail
+      tags: [auth]
+      summary: Confirm an email address with the emailed token
+      security: []
+      x-notifex-status: implemented
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TokenRequest" }
+      responses:
+        "204": { description: Verified. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+  /v1/auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in with email and password
+      description: Every failure is `401 invalid_credentials`. Repeated failures return `429 account_locked` with Retry-After (progressive backoff, never a hard lock).
+      security: []
+      x-notifex-status: implemented
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Session created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionCreated" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+  /v1/auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Revoke the current session
+      security: [{ consoleSession: [] }]
+      x-notifex-status: implemented
+      x-notifex-phase: 1
+      responses:
+        "204": { description: Logged out. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/auth/reauth:
+    post:
+      operationId: reauthenticate
+      tags: [auth]
+      summary: Confirm the password to unlock sensitive actions for 10 minutes
+      security: [{ consoleSession: [] }]
+      x-notifex-status: implemented
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReauthRequest" }
+      responses:
+        "204": { description: Session marked recently authenticated. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/auth/password/forgot:
+    post:
+      operationId: forgotPassword
+      tags: [auth]
+      summary: Email a password reset link
+      description: Always 202 (no enumeration).
+      security: []
+      x-notifex-status: implemented
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailRequest" }
+      responses:
+        "202": { description: Accepted. }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+  /v1/auth/password/reset:
+    post:
+      operationId: resetPassword
+      tags: [auth]
+      summary: Set a new password with a reset token
+      description: Revokes every session of the user.
+      security: []
+      x-notifex-status: implemented
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordResetRequest" }
+      responses:
+        "204": { description: Password changed; all sessions revoked. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+  /v1/auth/oauth/{provider}/authorize:
+    post:
+      operationId: oauthAuthorize
+      tags: [auth]
+      summary: Start an OAuth login
+      description: Returns the provider URL. State, PKCE verifier and nonce are kept server-side (10 min, single use) and bound to the allowlisted redirect_uri.
+      security: []
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      parameters:
+        - $ref: "#/components/parameters/OAuthProvider"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OAuthAuthorizeRequest" }
+      responses:
+        "200":
+          description: Redirect the browser to authorization_url.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OAuthAuthorizeResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /v1/auth/oauth/{provider}/callback:
+    post:
+      operationId: oauthCallback
+      tags: [auth]
+      summary: Complete an OAuth login
+      description: "`409 link_required` when the email belongs to an account that must log in first to link (ADR-011 §3)."
+      security: []
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      parameters:
+        - $ref: "#/components/parameters/OAuthProvider"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OAuthCallbackRequest" }
+      responses:
+        "200":
+          description: Session created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionCreated" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: The current user and their tenant memberships
+      security: [{ consoleSession: [] }]
+      x-notifex-status: implemented
+      x-notifex-phase: 1
+      responses:
+        "200":
+          description: Current user.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/me/sessions:
+    get:
+      operationId: listMySessions
+      tags: [auth]
+      summary: List the current user's active sessions
+      security: [{ consoleSession: [] }]
+      x-notifex-status: implemented
+      x-notifex-phase: 1
+      responses:
+        "200":
+          description: Active sessions.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/me/sessions/{session_id}:
+    delete:
+      operationId: revokeMySession
+      tags: [auth]
+      summary: Revoke one of the current user's sessions
+      security: [{ consoleSession: [] }]
+      x-notifex-status: implemented
+      x-notifex-phase: 1
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      responses:
+        "204": { description: Revoked. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/invitations/accept:
+    post:
+      operationId: acceptInvitation
+      tags: [members]
+      summary: Accept an invitation
+      description: The session's user email must match the invited email; accepting verifies it.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TokenRequest" }
+      responses:
+        "200":
+          description: Membership created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Member" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  # ---------------------------------------------------------------- Phase 1: tenant control plane
+  /v1/admin/tenants:
+    post:
+      operationId: createTenant
+      tags: [tenants]
+      summary: Create a tenant; the caller becomes its owner
+      description: Requires a verified email. At most 5 tenants per user. New tenants are sandboxed.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantCreate" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tenant" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/admin/tenants/{tenant_id}:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+    get:
+      operationId: getTenant
+      tags: [tenants]
+      summary: Get a tenant (any member)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      responses:
+        "200":
+          description: The tenant.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tenant" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateTenant
+      tags: [tenants]
+      summary: Rename a tenant (admin, owner)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantPatch" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tenant" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      operationId: deleteTenant
+      tags: [tenants]
+      summary: Delete a tenant and crypto-shred its data (owner, recent re-auth)
+      description: Irreversible. Sets status deleted, destroys the tenant DEK, revokes all API keys. `403 reauth_required` without a re-authentication in the last 10 minutes.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      responses:
+        "202": { description: Deleted; encrypted data is unreadable. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/admin/tenants/{tenant_id}/members:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+    get:
+      operationId: listMembers
+      tags: [members]
+      summary: List members (any member)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/After"
+      responses:
+        "200":
+          description: A page of members.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MemberList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/admin/tenants/{tenant_id}/members/{user_id}:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/UserIDPath"
+    patch:
+      operationId: updateMember
+      tags: [members]
+      summary: Change a member's role
+      description: Admins cannot change owners or grant above their own role; promoting to owner requires an owner with recent re-auth; the last owner cannot be demoted.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MemberPatch" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Member" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      operationId: removeMember
+      tags: [members]
+      summary: Remove a member (or leave, for yourself)
+      description: The last owner cannot be removed. Access ends on the member's next request.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      responses:
+        "204": { description: Removed. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/admin/tenants/{tenant_id}/invitations:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+    get:
+      operationId: listInvitations
+      tags: [members]
+      summary: List pending invitations (admin, owner)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      responses:
+        "200":
+          description: Pending invitations.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvitationList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createInvitation
+      tags: [members]
+      summary: Invite someone by email (admin, owner)
+      description: Nobody can invite above their own role; only owners invite owners. Emails a single-use token valid for 7 days.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InvitationCreate" }
+      responses:
+        "201":
+          description: Invitation sent.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invitation" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/admin/tenants/{tenant_id}/invitations/{invitation_id}:
+    delete:
+      operationId: revokeInvitation
+      tags: [members]
+      summary: Revoke a pending invitation (admin, owner)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      parameters:
+        - $ref: "#/components/parameters/TenantIDPath"
+        - $ref: "#/components/parameters/InvitationIDPath"
+      responses:
+        "204": { description: Revoked. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/admin/tenants/{tenant_id}/applications:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+    get:
+      operationId: listApplications
+      tags: [applications]
+      summary: List applications (any member)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/After"
+      responses:
+        "200":
+          description: A page of applications.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createApplication
+      tags: [applications]
+      summary: Create an application (developer, admin, owner)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApplicationCreate" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Application" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/ApplicationIDPath"
+    get:
+      operationId: getApplication
+      tags: [applications]
+      summary: Get an application (any member)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      responses:
+        "200":
+          description: The application.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Application" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateApplication
+      tags: [applications]
+      summary: Update an application (developer, admin, owner)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApplicationPatch" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Application" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      operationId: deleteApplication
+      tags: [applications]
+      summary: Delete an application (admin, owner)
+      description: "`409 conflict` while environments or API keys still reference it."
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/environments:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/ApplicationIDPath"
+    get:
+      operationId: listEnvironments
+      tags: [applications]
+      summary: List environments (any member)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      responses:
+        "200":
+          description: Environments of the application.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvironmentList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createEnvironment
+      tags: [applications]
+      summary: Add an environment (developer, admin, owner)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EnvironmentCreate" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Environment" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/environments/{environment_id}:
+    delete:
+      operationId: deleteEnvironment
+      tags: [applications]
+      summary: Delete an environment (admin, owner)
+      description: "`409 conflict` while API keys still reference it."
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      parameters:
+        - $ref: "#/components/parameters/TenantIDPath"
+        - $ref: "#/components/parameters/ApplicationIDPath"
+        - $ref: "#/components/parameters/EnvironmentIDPath"
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/api-keys:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/ApplicationIDPath"
+    get:
+      operationId: listAPIKeys
+      tags: [api-keys]
+      summary: List API keys (developer, admin, owner); secrets are never returned
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/After"
+      responses:
+        "200":
+          description: A page of keys.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/APIKeyList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createAPIKey
+      tags: [api-keys]
+      summary: Create an API key; the secret is returned once
+      description: Developers may create keys for non-prod environments only; admins and owners for any.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/APIKeyCreate" }
+      responses:
+        "201":
+          description: Created. Store `key` now; it is never shown again.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/APIKeyCreated" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/api-keys/{api_key_id}/revoke:
+    post:
+      operationId: revokeAPIKey
+      tags: [api-keys]
+      summary: Revoke an API key immediately (idempotent)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      parameters:
+        - $ref: "#/components/parameters/TenantIDPath"
+        - $ref: "#/components/parameters/ApplicationIDPath"
+        - $ref: "#/components/parameters/APIKeyIDPath"
+      responses:
+        "204": { description: Revoked. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/api-keys/{api_key_id}/rotate:
+    post:
+      operationId: rotateAPIKey
+      tags: [api-keys]
+      summary: Issue a replacement key and revoke the old one after a grace period
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      parameters:
+        - $ref: "#/components/parameters/TenantIDPath"
+        - $ref: "#/components/parameters/ApplicationIDPath"
+        - $ref: "#/components/parameters/APIKeyIDPath"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/APIKeyRotate" }
+      responses:
+        "201":
+          description: Replacement created; the old key stops working at `old_key_revoked_at`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/APIKeyRotated" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/admin/tenants/{tenant_id}/audit-events:
+    get:
+      operationId: listAuditEvents
+      tags: [audit]
+      summary: List the tenant's audit trail, newest first (admin, owner)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      parameters:
+        - $ref: "#/components/parameters/TenantIDPath"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/After"
+      responses:
+        "200":
+          description: A page of events.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditEventList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ---------------------------------------------------------------- Phase 1: operator realm (ADR-011 §5)
+  /v1/operator/auth/login:
+    post:
+      operationId: operatorLogin
+      tags: [operator]
+      summary: Operator login (password + TOTP)
+      security: []
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OperatorLoginRequest" }
+      responses:
+        "200":
+          description: Operator session created (idle 30 min, absolute 8 h).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionCreated" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /v1/operator/auth/logout:
+    post:
+      operationId: operatorLogout
+      tags: [operator]
+      summary: Revoke the current operator session
+      security: [{ operatorSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      responses:
+        "204": { description: Logged out. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /v1/operator/tenants:
+    get:
+      operationId: operatorListTenants
+      tags: [operator]
+      summary: Search tenants (audited)
+      security: [{ operatorSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      parameters:
+        - { name: q, in: query, description: Slug or name prefix., schema: { type: string, maxLength: 63 } }
+        - { name: status, in: query, description: Filter by status., schema: { $ref: "#/components/schemas/TenantStatus" } }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/After"
+      responses:
+        "200":
+          description: A page of tenants with limits.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OperatorTenantList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /v1/operator/tenants/{tenant_id}:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+    get:
+      operationId: operatorGetTenant
+      tags: [operator]
+      summary: Inspect a tenant (audited)
+      security: [{ operatorSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      responses:
+        "200":
+          description: The tenant with limits.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OperatorTenant" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: operatorUpdateTenant
+      tags: [operator]
+      summary: Change status, plan, sandbox and limits (audited)
+      security: [{ operatorSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OperatorTenantPatch" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OperatorTenant" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: "nfx_<env>_<prefix>_<secret><checksum>"
+      description: API key for one application environment (docs/03 §API keys).
+    consoleSession:
+      type: http
+      scheme: bearer
+      bearerFormat: "nfs_<43 base62>"
+      description: Console session token (ADR-011 §1). The web app holds it in an HttpOnly cookie and forwards it.
+    operatorSession:
+      type: http
+      scheme: bearer
+      bearerFormat: "nfo_<43 base62>"
+      description: Platform operator session (ADR-011 §5).
+
+  headers:
+    RequestID:
+      description: Request id; echo it when contacting support.
+      schema: { type: string, maxLength: 64 }
+    RetryAfter:
+      description: Seconds to wait before retrying.
+      schema: { type: integer, minimum: 0 }
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Unique per logical trigger (UUID recommended); reuse it on retries.
+      schema: { type: string, minLength: 8, maxLength: 128 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    After:
+      name: after
+      in: query
+      description: Cursor from the previous page's `next_cursor`.
+      schema: { type: string, maxLength: 128 }
+    RunID:
+      name: run_id
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/RunID" }
+    NotificationID:
+      name: notification_id
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/NotificationID" }
+    TenantIDPath:
+      name: tenant_id
+      in: path
+      required: true
+      description: Tenant id.
+      schema: { $ref: "#/components/schemas/TenantID" }
+    UserIDPath:
+      name: user_id
+      in: path
+      required: true
+      description: User id.
+      schema: { $ref: "#/components/schemas/UserID" }
+    InvitationIDPath:
+      name: invitation_id
+      in: path
+      required: true
+      description: Invitation id.
+      schema: { $ref: "#/components/schemas/InvitationID" }
+    ApplicationIDPath:
+      name: application_id
+      in: path
+      required: true
+      description: Application id.
+      schema: { $ref: "#/components/schemas/ApplicationID" }
+    EnvironmentIDPath:
+      name: environment_id
+      in: path
+      required: true
+      description: Environment id.
+      schema: { $ref: "#/components/schemas/EnvironmentID" }
+    APIKeyIDPath:
+      name: api_key_id
+      in: path
+      required: true
+      description: API key id.
+      schema: { $ref: "#/components/schemas/APIKeyID" }
+    SessionID:
+      name: session_id
+      in: path
+      required: true
+      description: Session id (not the token).
+      schema: { $ref: "#/components/schemas/SessionID" }
+    OAuthProvider:
+      name: provider
+      in: path
+      required: true
+      description: OAuth provider.
+      schema: { type: string, enum: [google, microsoft, github] }
+
+  responses:
+    BadRequest:
+      description: "`validation_failed`, `invalid_token` (expired or used email/reset/invitation token), or `schedule_horizon_exceeded`."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthenticated:
+      description: "`unauthenticated` (missing or invalid credentials, one response for every cause) or `invalid_credentials` (failed login)."
+      headers:
+        WWW-Authenticate:
+          description: Always `Bearer realm="notifex"`.
+          schema: { type: string }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: "`forbidden` (role too low), `reauth_required` (sensitive action needs a re-authentication in the last 10 minutes), `email_not_verified`, `tenant_limit_reached`, or `channel_not_allowed`."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: "`not_found` or `workflow_not_found`. Resources of other tenants are indistinguishable from missing ones."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: "`idempotency_conflict` (same Idempotency-Key, different body), `conflict` (duplicate slug/key/email, last owner, still referenced), or `link_required` (OAuth email belongs to an account that must log in to link)."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    PayloadTooLarge:
+      description: "`payload_too_large`: body over 1 MiB."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: "`rate_limited`, `account_locked` (login backoff), `quota_exceeded`, or `platform_sms_daily_limit` (when no notification could be accepted)."
+      headers:
+        Retry-After: { $ref: "#/components/headers/RetryAfter" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unavailable:
+      description: "`unavailable`: temporarily unable to serve; retry with backoff (and the same Idempotency-Key)."
+      headers:
+        Retry-After: { $ref: "#/components/headers/RetryAfter" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    TenantID: { type: string, pattern: "^ten_[0-9A-Za-z]{22}$", examples: ["ten_0FXq3c7yH1nBkZ2pR9sLmA"] }
+    ApplicationID: { type: string, pattern: "^app_[0-9A-Za-z]{22}$" }
+    EnvironmentID: { type: string, pattern: "^env_[0-9A-Za-z]{22}$" }
+    APIKeyID: { type: string, pattern: "^key_[0-9A-Za-z]{22}$" }
+    RunID: { type: string, pattern: "^run_[0-9A-Za-z]{22}$" }
+    NotificationID: { type: string, pattern: "^ntf_[0-9A-Za-z]{22}$" }
+    UserID: { type: string, pattern: "^usr_[0-9A-Za-z]{22}$" }
+    MembershipID: { type: string, pattern: "^mem_[0-9A-Za-z]{22}$" }
+    InvitationID: { type: string, pattern: "^inv_[0-9A-Za-z]{22}$" }
+    SessionID: { type: string, pattern: "^ses_[0-9A-Za-z]{22}$" }
+    AuditEventID: { type: string, pattern: "^evt_[0-9A-Za-z]{22}$" }
+
+    Status:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, unavailable] }
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error: { $ref: "#/components/schemas/ErrorDetail" }
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: { $ref: "#/components/schemas/ErrorCode" }
+        message: { type: string }
+        request_id: { type: string, maxLength: 64 }
+        retry_after:
+          type: string
+          format: date-time
+          description: For per-notification limits, when the limit resets.
+    ErrorCode:
+      type: string
+      description: Stable machine-readable error code (docs/03 §Error codes).
+      enum:
+        - validation_failed
+        - schedule_horizon_exceeded
+        - unauthenticated
+        - invalid_credentials
+        - invalid_token
+        - account_locked
+        - forbidden
+        - reauth_required
+        - email_not_verified
+        - tenant_limit_reached
+        - link_required
+        - conflict
+        - channel_not_allowed
+        - not_found
+        - workflow_not_found
+        - method_not_allowed
+        - idempotency_conflict
+        - payload_expired
+        - payload_too_large
+        - rate_limited
+        - quota_exceeded
+        - credential_unavailable
+        - platform_sms_daily_limit
+        - internal
+        - unavailable
+
+    EnvironmentName: { type: string, enum: [dev, staging, prod] }
+
+    WhoAmI:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, application_id, environment_id, environment, api_key_id, api_key_prefix, scopes]
+      properties:
+        tenant_id: { $ref: "#/components/schemas/TenantID" }
+        application_id: { $ref: "#/components/schemas/ApplicationID" }
+        environment_id: { $ref: "#/components/schemas/EnvironmentID" }
+        environment: { $ref: "#/components/schemas/EnvironmentName" }
+        api_key_id: { $ref: "#/components/schemas/APIKeyID" }
+        api_key_prefix: { type: string, pattern: "^[a-z0-9]{12}$" }
+        scopes: { type: array, items: { type: string } }
+
+    Channel:
+      type: string
+      enum: [email, sms, push, slack, outlook, whatsapp, webhook]
+    RunStatus:
+      type: string
+      enum: [accepted, processing, completed, partially_failed, failed, canceled]
+    NotificationStatus:
+      type: string
+      enum: [queued, deferred, sending, retrying, sent, delivered, sent_unconfirmed, failed, suppressed, canceled, expired]
+
+    Recipient:
+      type: object
+      additionalProperties: false
+      description: Recipient details are passed inline; Notifex keeps no subscriber model. Raw values are encrypted and purged after the tenant's retention period.
+      properties:
+        id: { type: string, maxLength: 128, description: Caller reference, echoed as recipient_ref. }
+        email: { type: string, format: email, maxLength: 320 }
+        phone: { type: string, pattern: "^\\+[1-9][0-9]{6,14}$", description: E.164 }
+        push_tokens: { type: array, maxItems: 20, items: { type: string, maxLength: 4096 } }
+        slack_user: { type: string, maxLength: 64 }
+        whatsapp: { type: string, pattern: "^\\+[1-9][0-9]{6,14}$" }
+        locale: { type: string, maxLength: 35 }
+        timezone: { type: string, maxLength: 64, description: IANA zone, used by quiet hours. }
+
+    TriggerRequest:
+      type: object
+      additionalProperties: false
+      required: [workflow, recipients]
+      properties:
+        workflow: { type: string, minLength: 1, maxLength: 63, description: Workflow key. }
+        recipients:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items: { $ref: "#/components/schemas/Recipient" }
+        payload: { type: object, description: Validated against the workflow's payload schema, if any. }
+        context: { type: object, description: Caller metadata (not rendered). }
+        channels:
+          type: array
+          description: Narrows the workflow's channels; can never add channels.
+          items: { $ref: "#/components/schemas/Channel" }
+          uniqueItems: true
+        schedule_at:
+          type: string
+          format: date-time
+          description: At most now + 7 days (ADR-006).
+
+    NotificationRef:
+      type: object
+      additionalProperties: false
+      required: [id, channel, status]
+      properties:
+        id: { $ref: "#/components/schemas/NotificationID" }
+        channel: { $ref: "#/components/schemas/Channel" }
+        recipient_ref: { type: string }
+        status: { $ref: "#/components/schemas/NotificationStatus" }
+        error: { $ref: "#/components/schemas/ErrorDetail" }
+
+    TriggerResponse:
+      type: object
+      additionalProperties: false
+      required: [run_id, status, notifications]
+      properties:
+        run_id: { $ref: "#/components/schemas/RunID" }
+        status: { $ref: "#/components/schemas/RunStatus" }
+        notifications:
+          type: array
+          items: { $ref: "#/components/schemas/NotificationRef" }
+
+    Run:
+      type: object
+      additionalProperties: false
+      required: [id, workflow, status, source, created_at, notifications]
+      properties:
+        id: { $ref: "#/components/schemas/RunID" }
+        workflow: { type: string }
+        status: { $ref: "#/components/schemas/RunStatus" }
+        source: { type: string, description: "rest | grpc | connect | mcp | terraform | cli | webhook | sdk:<lang>" }
+        created_at: { type: string, format: date-time }
+        schedule_at: { type: [string, "null"], format: date-time }
+        notifications:
+          type: array
+          items: { $ref: "#/components/schemas/NotificationRef" }
+    RunList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Run" }
+        next_cursor: { type: [string, "null"] }
+
+    Notification:
+      type: object
+      additionalProperties: false
+      required: [id, run_id, channel, status, recipient_masked, attempt, payload_expired, events]
+      properties:
+        id: { $ref: "#/components/schemas/NotificationID" }
+        run_id: { $ref: "#/components/schemas/RunID" }
+        channel: { $ref: "#/components/schemas/Channel" }
+        status: { $ref: "#/components/schemas/NotificationStatus" }
+        recipient_masked: { type: string, examples: ["a***@e***.com"] }
+        attempt: { type: integer, minimum: 0 }
+        last_error: { $ref: "#/components/schemas/ErrorDetail" }
+        payload_expired:
+          type: boolean
+          description: True once the payload was purged; replay is no longer possible.
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/NotificationEvent" }
+    NotificationEvent:
+      type: object
+      additionalProperties: false
+      required: [type, at]
+      properties:
+        type: { type: string }
+        at: { type: string, format: date-time }
+        detail: { type: object, description: Redacted; never contains payload or raw recipients. }
+
+    # ---------------------------------------------------------- Phase 1 schemas
+    Email: { type: string, format: email, maxLength: 320 }
+    Password:
+      type: string
+      format: password
+      writeOnly: true
+      minLength: 12
+      maxLength: 128
+      description: 12–128 characters; common passwords are rejected.
+    SecretToken:
+      type: string
+      minLength: 20
+      maxLength: 128
+      writeOnly: true
+      description: Single-use token from an email link.
+    Role: { type: string, enum: [owner, admin, developer, viewer] }
+    TenantStatus: { type: string, enum: [active, suspended, deleted] }
+    NextCursor: { type: [string, "null"], description: Pass as `after` for the next page; null on the last page. }
+
+    SignupRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { $ref: "#/components/schemas/Email" }
+        password: { $ref: "#/components/schemas/Password" }
+        name: { type: string, maxLength: 200 }
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { $ref: "#/components/schemas/Email" }
+        password: { type: string, format: password, writeOnly: true, maxLength: 128 }
+    ReauthRequest:
+      type: object
+      additionalProperties: false
+      required: [password]
+      properties:
+        password: { type: string, format: password, writeOnly: true, maxLength: 128 }
+    EmailRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email: { $ref: "#/components/schemas/Email" }
+    TokenRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token: { $ref: "#/components/schemas/SecretToken" }
+    PasswordResetRequest:
+      type: object
+      additionalProperties: false
+      required: [token, password]
+      properties:
+        token: { $ref: "#/components/schemas/SecretToken" }
+        password: { $ref: "#/components/schemas/Password" }
+    OAuthAuthorizeRequest:
+      type: object
+      additionalProperties: false
+      required: [redirect_uri]
+      properties:
+        redirect_uri: { type: string, format: uri, description: Must be on the configured allowlist. }
+    OAuthAuthorizeResponse:
+      type: object
+      additionalProperties: false
+      required: [authorization_url, state]
+      properties:
+        authorization_url: { type: string, format: uri }
+        state: { type: string, description: Echoed back to /callback. }
+    OAuthCallbackRequest:
+      type: object
+      additionalProperties: false
+      required: [code, state]
+      properties:
+        code: { type: string, maxLength: 2048, writeOnly: true }
+        state: { type: string, maxLength: 128 }
+    OperatorLoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password, totp]
+      properties:
+        email: { $ref: "#/components/schemas/Email" }
+        password: { type: string, format: password, writeOnly: true, maxLength: 128 }
+        totp: { type: string, pattern: "^[0-9]{6}$", writeOnly: true }
+
+    SessionCreated:
+      type: object
+      additionalProperties: false
+      required: [token, session_id, expires_at]
+      properties:
+        token: { type: string, description: "Bearer token (nfs_… or nfo_…). Shown once; store it in an HttpOnly cookie." }
+        session_id: { $ref: "#/components/schemas/SessionID" }
+        expires_at: { type: string, format: date-time, description: Absolute expiry; idle expiry applies earlier. }
+    Session:
+      type: object
+      additionalProperties: false
+      required: [id, created_at, last_seen_at, current]
+      properties:
+        id: { $ref: "#/components/schemas/SessionID" }
+        created_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time }
+        user_agent: { type: string, maxLength: 256 }
+        current: { type: boolean, description: True for the session making this request. }
+    SessionList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Session" } }
+
+    User:
+      type: object
+      additionalProperties: false
+      required: [id, email, name, email_verified]
+      properties:
+        id: { $ref: "#/components/schemas/UserID" }
+        email: { $ref: "#/components/schemas/Email" }
+        name: { type: string }
+        email_verified: { type: boolean }
+    Me:
+      type: object
+      additionalProperties: false
+      required: [user, memberships]
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        memberships:
+          type: array
+          items: { $ref: "#/components/schemas/MyMembership" }
+    MyMembership:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, tenant_name, tenant_slug, role]
+      properties:
+        tenant_id: { $ref: "#/components/schemas/TenantID" }
+        tenant_name: { type: string }
+        tenant_slug: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+
+    Tenant:
+      type: object
+      additionalProperties: false
+      required: [id, name, slug, status, plan, sandbox, created_at]
+      properties:
+        id: { $ref: "#/components/schemas/TenantID" }
+        name: { type: string }
+        slug: { type: string }
+        status: { $ref: "#/components/schemas/TenantStatus" }
+        plan: { type: string }
+        sandbox: { type: boolean, description: New tenants are sandboxed until an operator lifts it. }
+        created_at: { type: string, format: date-time }
+    TenantCreate:
+      type: object
+      additionalProperties: false
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        slug: { type: string, pattern: "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$" }
+    TenantPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+
+    Member:
+      type: object
+      additionalProperties: false
+      required: [id, user, role, created_at]
+      properties:
+        id: { $ref: "#/components/schemas/MembershipID" }
+        user: { $ref: "#/components/schemas/User" }
+        role: { $ref: "#/components/schemas/Role" }
+        created_at: { type: string, format: date-time }
+    MemberPatch:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+    MemberList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Member" } }
+        next_cursor: { $ref: "#/components/schemas/NextCursor" }
+    Invitation:
+      type: object
+      additionalProperties: false
+      required: [id, email, role, expires_at, created_at]
+      properties:
+        id: { $ref: "#/components/schemas/InvitationID" }
+        email: { $ref: "#/components/schemas/Email" }
+        role: { $ref: "#/components/schemas/Role" }
+        expires_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+    InvitationCreate:
+      type: object
+      additionalProperties: false
+      required: [email, role]
+      properties:
+        email: { $ref: "#/components/schemas/Email" }
+        role: { $ref: "#/components/schemas/Role" }
+    InvitationList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Invitation" } }
+
+    Application:
+      type: object
+      additionalProperties: false
+      required: [id, name, key, description, created_at, updated_at]
+      properties:
+        id: { $ref: "#/components/schemas/ApplicationID" }
+        name: { type: string }
+        key: { type: string, description: Stable slug, unique per tenant. }
+        description: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ApplicationCreate:
+      type: object
+      additionalProperties: false
+      required: [name, key]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        key: { type: string, pattern: "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$" }
+        description: { type: string, maxLength: 2000 }
+    ApplicationPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+    ApplicationList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Application" } }
+        next_cursor: { $ref: "#/components/schemas/NextCursor" }
+    Environment:
+      type: object
+      additionalProperties: false
+      required: [id, application_id, name, created_at]
+      properties:
+        id: { $ref: "#/components/schemas/EnvironmentID" }
+        application_id: { $ref: "#/components/schemas/ApplicationID" }
+        name: { $ref: "#/components/schemas/EnvironmentName" }
+        created_at: { type: string, format: date-time }
+    EnvironmentCreate:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { $ref: "#/components/schemas/EnvironmentName" }
+    EnvironmentList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Environment" } }
+
+    APIKey:
+      type: object
+      additionalProperties: false
+      required: [id, environment_id, name, prefix, scopes, created_at]
+      properties:
+        id: { $ref: "#/components/schemas/APIKeyID" }
+        environment_id: { $ref: "#/components/schemas/EnvironmentID" }
+        name: { type: string }
+        prefix: { type: string, pattern: "^[a-z0-9]{12}$", description: Public part of the key, for identification. }
+        scopes: { type: array, items: { type: string } }
+        expires_at: { type: [string, "null"], format: date-time }
+        last_used_at: { type: [string, "null"], format: date-time, description: Updated at most once a minute. }
+        revoked_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+    APIKeyCreate:
+      type: object
+      additionalProperties: false
+      required: [environment_id, name]
+      properties:
+        environment_id: { $ref: "#/components/schemas/EnvironmentID" }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        scopes: { type: array, items: { type: string, maxLength: 64 }, maxItems: 32 }
+        expires_at: { type: string, format: date-time }
+    APIKeyCreated:
+      type: object
+      additionalProperties: false
+      required: [api_key, key]
+      properties:
+        api_key: { $ref: "#/components/schemas/APIKey" }
+        key: { type: string, readOnly: true, description: The full key. Returned once; only a hash is stored. }
+    APIKeyRotate:
+      type: object
+      additionalProperties: false
+      properties:
+        grace_period_seconds:
+          type: integer
+          minimum: 0
+          maximum: 604800
+          default: 86400
+          description: How long the old key keeps working (max 7 days).
+    APIKeyRotated:
+      type: object
+      additionalProperties: false
+      required: [api_key, key, old_key_revoked_at]
+      properties:
+        api_key: { $ref: "#/components/schemas/APIKey" }
+        key: { type: string, readOnly: true, description: The new full key. Returned once. }
+        old_key_revoked_at: { type: string, format: date-time }
+    APIKeyList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/APIKey" } }
+        next_cursor: { $ref: "#/components/schemas/NextCursor" }
+
+    AuditEvent:
+      type: object
+      additionalProperties: false
+      required: [id, actor_type, actor_id, action, entity_type, entity_id, created_at]
+      properties:
+        id: { $ref: "#/components/schemas/AuditEventID" }
+        actor_type: { type: string, enum: [user, api_key, operator, system] }
+        actor_id: { type: string }
+        action: { type: string, examples: ["api_key.create"] }
+        entity_type: { type: string }
+        entity_id: { type: string }
+        before: { type: [object, "null"], description: Redacted. }
+        after: { type: [object, "null"], description: Redacted. }
+        request_id: { type: string }
+        created_at: { type: string, format: date-time }
+    AuditEventList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/AuditEvent" } }
+        next_cursor: { $ref: "#/components/schemas/NextCursor" }
+
+    OperatorTenant:
+      type: object
+      additionalProperties: false
+      required: [id, name, slug, status, plan, sandbox, platform_sms_daily_limit, quotas, dek_shredded, created_at]
+      properties:
+        id: { $ref: "#/components/schemas/TenantID" }
+        name: { type: string }
+        slug: { type: string }
+        status: { $ref: "#/components/schemas/TenantStatus" }
+        plan: { type: string }
+        sandbox: { type: boolean }
+        platform_sms_daily_limit: { type: integer, minimum: 0 }
+        quotas: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        dek_shredded: { type: boolean }
+        created_at: { type: string, format: date-time }
+    OperatorTenantPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        status: { type: string, enum: [active, suspended], description: Deletion is owner-only (crypto-shred), not an operator action. }
+        plan: { type: string, minLength: 1, maxLength: 64 }
+        sandbox: { type: boolean }
+        platform_sms_daily_limit: { type: integer, minimum: 0 }
+        quotas: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        reason: { type: string, maxLength: 500, description: Recorded in the audit event. }
+    OperatorTenantList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/OperatorTenant" } }
+        next_cursor: { $ref: "#/components/schemas/NextCursor" }

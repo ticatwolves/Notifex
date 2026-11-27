@@ -1,0 +1,6 @@
+# vacuum (Spectral-compatible) ruleset for api/openapi.yaml.
+# CI fails on errors; warnings are tracked and paid down as operations ship.
+extends: [[vacuum:oas, recommended]]
+rules:
+  # The API uses snake_case JSON (docs/03, matches the database and SDKs).
+  camel-case-properties: off
