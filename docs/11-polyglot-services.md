@@ -17,26 +17,26 @@ Rule of thumb: **if an outage of it would stop notifications from being accepted
 - **Events:** if Python needs to react to events, consume from the outbox/queue topic once SQS exists; before then, poll rollup tables.
 - **Versioning:** additive changes only inside `v1`; deprecation window for removals.
 
-## Repo layout (monorepo)
+## Repo layout (monorepo, ADR-009)
 ```
 notifex/
-├── api/                    # openapi.yaml, proto/, buf.yaml, generated/ (gitignored or committed per team choice)
-├── services/
-│   ├── core/               # Go module: cmd/{api,dispatcher,scheduler,migrate}, internal/...
-│   └── insights/           # Python (uv/pyproject): src/notifex_insights, tests/, jobs/
-├── apps/
-│   └── web/                # Next.js app (App Router)
-├── sdk/{go,node,python}/
-├── terraform-provider-notifex/
+├── go.mod                  # single Go module: github.com/sbshobhit/notifex
+├── cmd/{api,dispatcher,scheduler,migrate,healthcheck}/
+├── internal/               # Go core libraries (layout in CLAUDE.md)
+├── api/                    # proto/ (+ buf.yaml), openapi.yaml, gen/ (generated)
+├── web/                    # Next.js app (App Router)
+├── insights/               # Python (uv/pyproject): src/notifex_insights, tests/, jobs/
+├── sdk/{go,node,python}/   # sdk/go is its own Go module
+├── terraform-provider-notifex/   # its own Go module
 ├── tools/                  # python: contract tests, e2e (pytest/playwright), load analysis, seed
 ├── k6/
 ├── deploy/{docker,terraform}/
 └── docs/
 ```
-(If the existing scaffold uses `cmd/`, `internal/`, `web/` at the root, keep it until Phase 0 and move into this shape in one reviewed refactor commit, or keep it as is and add `insights/` and `tools/`. Decide once, record in an ADR.)
+Decided in ADR-009: root layout per CLAUDE.md, not a nested `services/core` module.
 
 ## Docker images (ARM64, small, non-root)
-**Go core** (one image, several entrypoints):
+**Go core** (one image, several entrypoints). The implemented version is `deploy/docker/core.Dockerfile`: base images pinned by digest, plus a `healthcheck` binary for container health checks, since distroless has no curl.
 ```dockerfile
 FROM --platform=$BUILDPLATFORM golang:1.24 AS build
 ARG TARGETOS TARGETARCH

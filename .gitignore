@@ -34,3 +34,6 @@ go.work.sum
 # Local env files (never commit secrets)
 .env*
 !.env.example
+
+# Local tool and build output
+/bin/

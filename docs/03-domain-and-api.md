@@ -118,12 +118,13 @@ Response `202`:
 service NotifexService {
   rpc Trigger(TriggerRequest) returns (TriggerResponse);
   rpc TriggerBatch(TriggerBatchRequest) returns (TriggerBatchResponse);
-  rpc GetRun(GetRunRequest) returns (Run);
-  rpc GetNotification(GetNotificationRequest) returns (Notification);
-  rpc StreamNotificationEvents(StreamRequest) returns (stream NotificationEvent);
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  rpc GetNotification(GetNotificationRequest) returns (GetNotificationResponse);
+  rpc StreamNotificationEvents(StreamNotificationEventsRequest) returns (stream StreamNotificationEventsResponse);
 }
 ```
 - Auth via `authorization` metadata (API key). Idempotency key in request field. Error codes map to `google.rpc.ErrorInfo.reason` with the same strings as REST.
+- Draft contract: `api/proto/notifex/v1/notifex.proto`. Every RPC has its own `<Rpc>Request`/`<Rpc>Response` (buf STANDARD lint), so fields can be added later without breaking changes.
 - Use `buf` for lint/breaking-change checks. Same service layer as REST; transports stay thin.
 
 ## Queue envelope (internal contract, ADR-004)

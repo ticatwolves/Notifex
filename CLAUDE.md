@@ -22,7 +22,7 @@ Think "New Relic for notifications": a standalone, singleton, horizontally scala
 8. `docs/12-access-protocols-and-integrations.md` — protocols, MCP server for AI tools, Terraform actions, credentials and guardrails
 9. `docs/adr/` — decisions. **ADR-004 to ADR-008 override anything older that disagrees with them.**
    - ADR-001 AWS ECS Fargate · ADR-002 Go core / Python insights · ADR-003 Next.js separate deployable
-   - ADR-004 SQS dispatch queue + outbox · ADR-005 platform-managed + BYO credentials (platform SMS via SNS) · ADR-006 retention + encryption · ADR-007 pricing per delivered notification · ADR-008 region and AZs
+   - ADR-004 SQS dispatch queue + outbox · ADR-005 platform-managed + BYO credentials (platform SMS via SNS) · ADR-006 retention + encryption · ADR-007 pricing per delivered notification · ADR-008 region and AZs · ADR-009 repo layout
 
 If code contradicts these docs, stop and flag it. Do not silently pick one.
 
@@ -74,7 +74,7 @@ If code contradicts these docs, stop and flag it. Do not silently pick one.
 - Never skip migrations review: all schema changes ship as reviewed migration files.
 - Never commit `.env*` files; use `.env.example` with placeholders.
 
-## Repo layout (target)
+## Repo layout (target, ADR-009)
 
 ```
 notifex/
@@ -85,6 +85,8 @@ notifex/
 │   ├── api/                  # REST + gRPC server (accept path, outbox fast-path publish)
 │   ├── dispatcher/           # SQS consumers, one pool per channel
 │   ├── mcp/                  # MCP server (stateless Streamable HTTP + stdio via CLI)
+│   ├── migrate/              # applies versioned SQL migrations (one-off ECS task before deploy)
+│   ├── healthcheck/          # tiny HTTP probe for container health checks (distroless image)
 │   └── scheduler/            # outbox relay, scheduled_dispatch, purge/retention, partitions, rollups (leader-elected)
 ├── internal/
 │   ├── auth/                 # sessions, OAuth, API keys, RBAC
