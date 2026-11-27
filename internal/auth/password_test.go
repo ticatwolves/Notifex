@@ -106,3 +106,29 @@ func TestValidatePassword(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateRedirectURIs(t *testing.T) {
+	tests := map[string]struct {
+		uris []string
+		ok   bool
+	}{
+		"https":                {[]string{"https://console.notifex.dev/oauth/callback"}, true},
+		"localhost http":       {[]string{"http://localhost:3000/oauth/callback", "http://127.0.0.1:3000/cb"}, true},
+		"none":                 {nil, true},
+		"plain http elsewhere": {[]string{"http://console.notifex.dev/cb"}, false},
+		"relative":             {[]string{"/oauth/callback"}, false},
+		"fragment":             {[]string{"https://console.notifex.dev/cb#x"}, false},
+		"javascript scheme":    {[]string{"javascript:alert(1)"}, false},
+		"one bad among good":   {[]string{"https://a.dev/cb", "ftp://a.dev/cb"}, false},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := ValidateRedirectURIs(tt.uris)
+			if tt.ok {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}

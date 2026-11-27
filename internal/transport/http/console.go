@@ -38,6 +38,14 @@ type ConsoleAccounts interface {
 	RevokeSession(ctx context.Context, p auth.SessionPrincipal, id uuid.UUID) error
 }
 
+// ConsoleOAuth is what the OAuth routes need from internal/auth.
+type ConsoleOAuth interface {
+	Authorize(ctx context.Context, provider, redirectURI string, linkFor *auth.SessionPrincipal) (authURL, state string, err error)
+	Callback(ctx context.Context, provider, code, state string, session *auth.SessionPrincipal, userAgent string) (auth.CallbackResult, error)
+	ListIdentities(ctx context.Context, p auth.SessionPrincipal) ([]store.Identity, error)
+	Unlink(ctx context.Context, p auth.SessionPrincipal, provider string) error
+}
+
 // SessionAuthenticator resolves console session tokens.
 type SessionAuthenticator interface {
 	Authenticate(ctx context.Context, token string) (auth.SessionPrincipal, error)
@@ -159,7 +167,64 @@ func registerConsole(r *gin.Engine, d Deps) {
 		c.Status(http.StatusNoContent)
 	})
 
+	if o := d.OAuth; o != nil {
+		authg.POST("/oauth/:provider/authorize", perIP(lim.Credential), optionalSession(d.Sessions), func(c *gin.Context) {
+			var in struct {
+				RedirectURI string `json:"redirect_uri"`
+			}
+			if !bindJSON(c, &in) {
+				return
+			}
+			u, state, err := o.Authorize(c.Request.Context(), c.Param("provider"), in.RedirectURI, optionalPrincipal(c))
+			if err != nil {
+				consoleError(c, err)
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"authorization_url": u, "state": state})
+		})
+		authg.POST("/oauth/:provider/callback", perIP(lim.Credential), optionalSession(d.Sessions), func(c *gin.Context) {
+			var in struct {
+				Code  string `json:"code"`
+				State string `json:"state"`
+			}
+			if !bindJSON(c, &in) {
+				return
+			}
+			res, err := o.Callback(c.Request.Context(), c.Param("provider"), in.Code, in.State, optionalPrincipal(c), c.Request.UserAgent())
+			if err != nil {
+				consoleError(c, err)
+				return
+			}
+			if res.Linked {
+				c.Status(http.StatusNoContent)
+				return
+			}
+			c.JSON(http.StatusOK, sessionCreatedJSON(*res.Session))
+		})
+	}
+
 	me := r.Group("/v1/me", sess)
+	if o := d.OAuth; o != nil {
+		me.GET("/identities", func(c *gin.Context) {
+			ids, err := o.ListIdentities(c.Request.Context(), sessionPrincipal(c))
+			if err != nil {
+				consoleError(c, err)
+				return
+			}
+			out := make([]identityJSON, len(ids))
+			for i, x := range ids {
+				out[i] = identityJSON{Provider: string(x.Provider), Email: x.Email, CreatedAt: x.CreatedAt, LastUsedAt: x.LastUsedAt}
+			}
+			c.JSON(http.StatusOK, gin.H{"data": out})
+		})
+		me.DELETE("/identities/:provider", func(c *gin.Context) {
+			if err := o.Unlink(c.Request.Context(), sessionPrincipal(c), c.Param("provider")); err != nil {
+				consoleError(c, err)
+				return
+			}
+			c.Status(http.StatusNoContent)
+		})
+	}
 	me.GET("", func(c *gin.Context) {
 		m, err := a.GetMe(c.Request.Context(), sessionPrincipal(c))
 		if err != nil {
@@ -223,6 +288,36 @@ func requireSession(sa SessionAuthenticator) gin.HandlerFunc {
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	}
+}
+
+// optionalSession authenticates a session if one is presented. A presented
+// but invalid session is a 401, never "anonymous": a link attempt with an
+// expired session must not silently turn into a login.
+func optionalSession(sa SessionAuthenticator) gin.HandlerFunc {
+	required := requireSession(sa)
+	return func(c *gin.Context) {
+		if c.GetHeader("Authorization") == "" {
+			c.Next()
+			return
+		}
+		required(c)
+	}
+}
+
+func optionalPrincipal(c *gin.Context) *auth.SessionPrincipal {
+	v, ok := c.Get(ctxSession)
+	if !ok {
+		return nil
+	}
+	p := v.(auth.SessionPrincipal)
+	return &p
+}
+
+type identityJSON struct {
+	Provider   string    `json:"provider"`
+	Email      string    `json:"email"`
+	CreatedAt  time.Time `json:"created_at"`
+	LastUsedAt time.Time `json:"last_used_at"`
 }
 
 func sessionPrincipal(c *gin.Context) auth.SessionPrincipal {
@@ -299,6 +394,18 @@ func consoleError(c *gin.Context, err error) {
 	case errors.Is(err, auth.ErrInvalidCredentials):
 		c.Header("WWW-Authenticate", `Bearer realm="notifex"`)
 		writeError(c, http.StatusUnauthorized, "invalid_credentials", "email or password is incorrect")
+	case errors.Is(err, auth.ErrProviderNotEnabled):
+		writeError(c, http.StatusBadRequest, "validation_failed", "this sign-in provider is not enabled")
+	case errors.Is(err, auth.ErrRedirectNotAllowed):
+		writeError(c, http.StatusBadRequest, "validation_failed", "redirect_uri is not allowed")
+	case errors.Is(err, auth.ErrProviderEmailUnverified):
+		writeError(c, http.StatusForbidden, "email_not_verified", "the identity provider has not verified your email; sign in another way and link it from settings")
+	case errors.Is(err, auth.ErrLinkRequired):
+		writeError(c, http.StatusConflict, "link_required", "an account with this email exists; sign in to it and link this provider from settings")
+	case errors.Is(err, auth.ErrIdentityInUse):
+		writeError(c, http.StatusConflict, "conflict", "this identity is linked to another account")
+	case errors.Is(err, auth.ErrLastLoginMethod):
+		writeError(c, http.StatusConflict, "conflict", "set a password or link another provider before removing this one")
 	case errors.Is(err, auth.ErrInvalidToken):
 		writeError(c, http.StatusBadRequest, "invalid_token", "the link is invalid, expired or already used")
 	case errors.Is(err, auth.ErrWeakPassword):

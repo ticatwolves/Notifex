@@ -45,16 +45,27 @@ type consoleEnv struct {
 
 func newConsoleEnv(t *testing.T, limits Limits, trusted []string) consoleEnv {
 	t.Helper()
+	return newConsoleEnvWith(t, limits, trusted, nil)
+}
+
+// newConsoleEnvWith optionally enables OAuth via mk, which receives the
+// account service the router uses.
+func newConsoleEnvWith(t *testing.T, limits Limits, trusted []string, mk func(*auth.Accounts) ConsoleOAuth) consoleEnv {
+	t.Helper()
 	st := entstore.New(storetest.DB(t))
 	var logs bytes.Buffer
 	log := observability.NewLogger(config.Config{Service: "api", Env: "local", LogFormat: "json", LogLevel: slog.LevelDebug}, &logs)
 	rec := &mail.Recorder{}
 	accounts := auth.NewAccounts(st, auth.NewPasswordHasher(4), rec, log, "https://console.test", auth.DefaultSessionPolicy)
-	h := NewRouter(Deps{
+	deps := Deps{
 		Service: "api", Logger: log, Metrics: prometheus.NewRegistry(), Health: health.NewRegistry(time.Second),
 		APIKeys: rejectAllAuth{}, Accounts: accounts, Sessions: auth.NewSessionAuthenticator(st, log, auth.DefaultSessionPolicy),
 		Limits: limits, TrustedProxies: trusted,
-	})
+	}
+	if mk != nil {
+		deps.OAuth = mk(accounts)
+	}
+	h := NewRouter(deps)
 	return consoleEnv{h: h, mail: rec, logs: &logs, v: specValidator(t), t: t}
 }
 

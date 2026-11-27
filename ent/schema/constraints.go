@@ -54,6 +54,16 @@ func ForeignKeys() []ForeignKey {
 			OnDelete: "CASCADE",
 		},
 		ForeignKey{
+			Name: "user_identities_user_fk", Table: "user_identities",
+			Columns: []string{"user_id"}, RefTable: "users", RefColumns: []string{"id"},
+			OnDelete: "CASCADE",
+		},
+		ForeignKey{
+			Name: "oauth_states_link_user_fk", Table: "oauth_states",
+			Columns: []string{"link_user_id"}, RefTable: "users", RefColumns: []string{"id"},
+			OnDelete: "CASCADE",
+		},
+		ForeignKey{
 			Name: "audit_events_tenant_fk", Table: "audit_events",
 			Columns: []string{"tenant_id"}, RefTable: "tenants", RefColumns: []string{"id"},
 		},

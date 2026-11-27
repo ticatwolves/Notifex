@@ -19,9 +19,11 @@ import (
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
 	"github.com/ticatwolves/notifex/ent/membership"
+	"github.com/ticatwolves/notifex/ent/oauthstate"
 	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/tenant"
 	"github.com/ticatwolves/notifex/ent/user"
+	"github.com/ticatwolves/notifex/ent/useridentity"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -89,9 +91,11 @@ func checkColumn(t, c string) error {
 			emailtoken.Table:   emailtoken.ValidColumn,
 			environment.Table:  environment.ValidColumn,
 			membership.Table:   membership.ValidColumn,
+			oauthstate.Table:   oauthstate.ValidColumn,
 			session.Table:      session.ValidColumn,
 			tenant.Table:       tenant.ValidColumn,
 			user.Table:         user.ValidColumn,
+			useridentity.Table: useridentity.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

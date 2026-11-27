@@ -79,7 +79,7 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 | Mail bombing | At most 3 reset emails per address per hour, applied silently | Per-IP signup mail cap (Phase 1 slice 4 with invitations) |
 | Email header injection | CR/LF in To/Subject/From rejected before sending (`TestHeaderInjectionRejected`) | — |
 | Mass assignment / unexpected fields | Strict JSON decoding rejects unknown fields (mutation-tested) | — |
-| OAuth account takeover | — | Slice 3: PKCE + state + nonce, verified-email linking rule, Microsoft `tid`+`oid` (ADR-011 §3) |
+| OAuth account takeover | PKCE S256 + single-use, provider-bound `state` (10 min) + `nonce`; exact-match redirect allowlist; ID token signature, issuer, audience, expiry and nonce verified; Microsoft keyed on `tid:oid` with per-tenant issuer check, email trusted only with `xms_edov` (nOAuth); GitHub primary *verified* email only; unverified provider emails never looked up; auto-link only when both sides are verified; linking requires the session that started it (linking CSRF). Each rule covered by a failing-on-mutation test against a fake IdP (`oauth_test.go`) | Real-provider smoke test in staging |
 | XSS through tenant content | — | Template preview in a sandboxed iframe with strict CSP (docs/11) |
 | BOLA across tenants | — | Slice 4 RBAC + B3 below |
 

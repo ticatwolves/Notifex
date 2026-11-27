@@ -9,7 +9,10 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/fstest"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -85,4 +88,65 @@ func TestOpenRedactsPasswordOnError(t *testing.T) {
 	_, err := db.Open(context.Background(), "postgres://notifex:s3cr3t-pw@127.0.0.1:1/x?sslmode=disable&connect_timeout=1", db.PoolConfig{})
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "s3cr3t-pw")
+}
+
+// TestMigrationFileIsAtomic backs `assume_in_transaction` in .squawk.toml:
+// a migration file that fails part way leaves nothing behind.
+func TestMigrationFileIsAtomic(t *testing.T) {
+	sqlDB := storetest.DB(t)
+	url := storetest.URL(t)
+	ctx := context.Background()
+	sfx := strings.ReplaceAll(uuid.NewString()[:8], "-", "")
+	src := fstest.MapFS{
+		"1_ok.up.sql":  {Data: []byte("CREATE TABLE atomic_ok_" + sfx + " (id int);")},
+		"2_bad.up.sql": {Data: []byte("CREATE TABLE atomic_half_" + sfx + " (id int);\nCREATE INDEX ON atomic_half_" + sfx + " (id);\nSELECT 1/0;")},
+	}
+	t.Cleanup(func() {
+		_, _ = sqlDB.Exec(`DROP TABLE IF EXISTS atomic_ok_` + sfx + `, atomic_half_` + sfx + `, mig_atomic_` + sfx)
+	})
+	_, err := db.MigrateUpWith(ctx, url, src, "mig_atomic_"+sfx, db.DefaultMigrateOptions, quiet)
+	require.ErrorContains(t, err, "division by zero")
+
+	exists := func(name string) bool {
+		var ok bool
+		require.NoError(t, sqlDB.QueryRow(`SELECT to_regclass($1) IS NOT NULL`, name).Scan(&ok))
+		return ok
+	}
+	assert.True(t, exists("atomic_ok_"+sfx), "earlier migration applied")
+	assert.False(t, exists("atomic_half_"+sfx), "the failing file rolled back as a whole")
+}
+
+// TestMigrationsRunWithTimeouts backs excluding squawk's require-lock-timeout
+// and require-statement-timeout: the migration connection carries both, and
+// DDL gives up instead of queueing behind a lock.
+func TestMigrationsRunWithTimeouts(t *testing.T) {
+	sqlDB := storetest.DB(t)
+	url := storetest.URL(t)
+	ctx := context.Background()
+	sfx := strings.ReplaceAll(uuid.NewString()[:8], "-", "")
+	tbl := "locked_" + sfx
+	_, err := sqlDB.Exec(`CREATE TABLE ` + tbl + ` (id int)`)
+	require.NoError(t, err)
+	t.Cleanup(func() { _, _ = sqlDB.Exec(`DROP TABLE IF EXISTS ` + tbl + `, mig_to_` + sfx) })
+
+	check := fstest.MapFS{"1_check.up.sql": {Data: []byte(`DO $$ BEGIN
+  IF current_setting('lock_timeout') <> '200ms' OR current_setting('statement_timeout') <> '30s' THEN
+    RAISE EXCEPTION 'timeouts not set: lock=% stmt=%', current_setting('lock_timeout'), current_setting('statement_timeout');
+  END IF;
+END $$;
+ALTER TABLE ` + tbl + ` ADD COLUMN note text;`)}}
+
+	holder, err := sqlDB.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	// Registered after the DROP cleanup, so it runs first (LIFO): a failed
+	// assertion must not leave the lock held while the table is dropped.
+	t.Cleanup(func() { _ = holder.Rollback() })
+	_, err = holder.Exec(`LOCK TABLE ` + tbl + ` IN ACCESS EXCLUSIVE MODE`)
+	require.NoError(t, err)
+
+	opts := db.MigrateOptions{LockTimeout: 200 * time.Millisecond, StatementTimeout: 30 * time.Second}
+	start := time.Now()
+	_, err = db.MigrateUpWith(ctx, url, check, "mig_to_"+sfx, opts, quiet)
+	require.ErrorContains(t, err, "lock timeout")
+	assert.Less(t, time.Since(start), 10*time.Second, "gave up instead of queueing behind the lock")
 }

@@ -69,8 +69,8 @@ lint: $(GOLANGCI_LINT) vet ## golangci-lint + go vet
 .PHONY: test
 test: ## Unit + integration tests with the race detector (integration tests need Docker)
 	go test -race -count=1 -coverprofile=coverage.out ./...
-	@grep -v -E '/ent/(apikey|application|auditevent|environment|membership|tenant|user|enttest|hook|intercept|migrate|predicate|runtime)/|/ent/[a-z_]+\.go:' coverage.out > coverage.handwritten.out
-	@printf 'coverage (excluding generated ent code): '; go tool cover -func=coverage.handwritten.out | tail -1 | awk '{print $$NF}'
+	@grep -v -E '/ent/[a-z_]+/|/ent/[a-z_]+\.go:|/internal/auth/oauthtest/|/internal/store/storetest/' coverage.out > coverage.handwritten.out
+	@printf 'coverage (excluding generated ent code and test helpers): '; go tool cover -func=coverage.handwritten.out | tail -1 | awk '{print $$NF}'
 
 .PHONY: test-short
 test-short: ## Fast tests only (skips container-backed integration tests)
@@ -107,7 +107,7 @@ migrate-check: ## Fail if ent/schema changed without a migration (needs Docker)
 
 .PHONY: migrate-lint
 migrate-lint: ## Lint migrations for unsafe operations (squawk; needs Node)
-	npx -y squawk-cli@$(SQUAWK_VERSION) --pg-version 18 migrations/*.up.sql
+	npx -y squawk-cli@$(SQUAWK_VERSION) migrations/*.up.sql  # settings in .squawk.toml
 
 .PHONY: migrate
 migrate: ## Apply migrations to the local compose database

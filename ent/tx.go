@@ -28,12 +28,16 @@ type Tx struct {
 	Environment *EnvironmentClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
+	// OAuthState is the client for interacting with the OAuthState builders.
+	OAuthState *OAuthStateClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
+	// UserIdentity is the client for interacting with the UserIdentity builders.
+	UserIdentity *UserIdentityClient
 
 	// lazily loaded.
 	client     *Client
@@ -172,9 +176,11 @@ func (tx *Tx) init() {
 	tx.EmailToken = NewEmailTokenClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
+	tx.OAuthState = NewOAuthStateClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
 	tx.User = NewUserClient(tx.config)
+	tx.UserIdentity = NewUserIdentityClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

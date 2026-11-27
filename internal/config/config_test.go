@@ -62,6 +62,11 @@ func TestValidate(t *testing.T) {
 		{name: "hash concurrency 0", mutate: func(c *Config) { c.PasswordHashConcurrency = 0 }, wantErr: "PASSWORD_HASH_CONCURRENCY"},
 		{name: "bad trusted proxy", mutate: func(c *Config) { c.TrustedProxies = []string{"10.0.0.0"} }, wantErr: "TRUSTED_PROXIES"},
 		{name: "trusted proxy cidr ok", mutate: func(c *Config) { c.TrustedProxies = []string{"10.0.0.0/16"} }},
+		{name: "oauth id without secret", mutate: func(c *Config) { c.GoogleClientID = "id"; c.OAuthRedirectURIs = []string{"https://x/cb"} }, wantErr: "OAUTH_GOOGLE"},
+		{name: "oauth without redirects", mutate: func(c *Config) { c.GitHubClientID = "id"; c.GitHubClientSecret = "s" }, wantErr: "OAUTH_REDIRECT_URIS"},
+		{name: "oauth configured ok", mutate: func(c *Config) {
+			c.MicrosoftClientID, c.MicrosoftClientSecret, c.OAuthRedirectURIs = "id", "s", []string{"https://console.example/cb"}
+		}},
 		{name: "sqs endpoint local ok", mutate: func(c *Config) { c.SQSEndpoint = "http://elasticmq:9324" }},
 	}
 	for _, tt := range tests {

@@ -61,6 +61,12 @@ func (s *Store) EmailTokens() store.EmailTokenStore { return emailTokens{s.clien
 // Throttle implements store.Store.
 func (s *Store) Throttle() store.ThrottleStore { return throttle{s.client} }
 
+// Identities implements store.Store.
+func (s *Store) Identities() store.IdentityStore { return identities{s.client} }
+
+// OAuthStates implements store.Store.
+func (s *Store) OAuthStates() store.OAuthStateStore { return oauthStates{s.client} }
+
 // WithTx implements store.Store. Nested calls join the outer transaction.
 func (s *Store) WithTx(ctx context.Context, fn func(ctx context.Context, tx store.Store) error) (err error) {
 	if s.inTx {
