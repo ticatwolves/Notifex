@@ -22,6 +22,9 @@ type Deps struct {
 	Logger  *slog.Logger
 	Metrics prometheus.Registerer
 	Health  *health.Registry
+	// APIKeys authenticates /v1 data-plane routes. Nil disables them (tests of
+	// the bare router only).
+	APIKeys APIKeyAuthenticator
 }
 
 // NewRouter builds the public REST handler.
@@ -57,6 +60,11 @@ func NewRouter(d Deps) http.Handler {
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+
+	if d.APIKeys != nil {
+		v1 := r.Group("/v1", requireAPIKey(d.APIKeys))
+		v1.GET("/whoami", whoami)
+	}
 
 	return r
 }

@@ -7,12 +7,14 @@ GOLANGCI_LINT_VERSION := v2.15.0
 GOVULNCHECK_VERSION   := v1.10.0
 BUF_VERSION           := v1.75.0
 SQUAWK_VERSION        := 2.74.0
-LOCAL_DATABASE_URL    ?= postgres://notifex:notifex@localhost:5432/notifex?sslmode=disable
+LOCAL_DATABASE_URL    ?= postgres://notifex:notifex@localhost:54320/notifex?sslmode=disable
+# Pepper and local master key default to public dev values when NOTIFEX_ENV=local.
+LOCAL_ENV := NOTIFEX_ENV=local LOG_FORMAT=text DATABASE_URL=$(LOCAL_DATABASE_URL)
 
 BIN     := $(CURDIR)/bin
 VERSION ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo dev)
 IMAGE   ?= notifex-core
-SERVICES := api dispatcher scheduler migrate healthcheck
+SERVICES := api dispatcher scheduler migrate healthcheck seed
 
 GOLANGCI_LINT := $(BIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 GOVULNCHECK   := $(BIN)/govulncheck-$(GOVULNCHECK_VERSION)
@@ -103,7 +105,11 @@ migrate-lint: ## Lint migrations for unsafe operations (squawk; needs Node)
 
 .PHONY: migrate
 migrate: ## Apply migrations to the local compose database
-	DATABASE_URL=$(LOCAL_DATABASE_URL) go run ./cmd/migrate up
+	$(LOCAL_ENV) go run ./cmd/migrate up
+
+.PHONY: seed
+seed: ## Seed a local tenant/app/env and print a fresh API key (stack must be up)
+	@$(LOCAL_ENV) go run ./cmd/seed
 
 ## ---- tools ----
 $(GOLANGCI_LINT):
@@ -123,4 +129,4 @@ $(BUF):
 
 .PHONY: clean
 clean: ## Remove build output
-	rm -rf $(BIN)/api $(BIN)/dispatcher $(BIN)/scheduler $(BIN)/migrate $(BIN)/healthcheck coverage.out
+	rm -rf $(addprefix $(BIN)/,$(SERVICES)) coverage.out coverage.handwritten.out

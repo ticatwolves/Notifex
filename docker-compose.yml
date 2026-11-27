@@ -22,6 +22,8 @@ x-core: &core
     AWS_REGION: ap-south-1
     AWS_ACCESS_KEY_ID: local       # ElasticMQ ignores credentials
     AWS_SECRET_ACCESS_KEY: local
+    # API_KEY_PEPPER / NOTIFEX_LOCAL_MASTER_KEY default to public dev values
+    # in local (internal/config); set them in .env to override.
   depends_on:
     migrate:
       condition: service_completed_successfully
@@ -42,7 +44,8 @@ services:
       POSTGRES_USER: notifex
       POSTGRES_PASSWORD: notifex  # local only
       POSTGRES_DB: notifex
-    ports: ["5432:5432"]
+    # Host port 54320 avoids clashing with a native Postgres on 5432.
+    ports: ["${POSTGRES_HOST_PORT:-54320}:5432"]
     volumes: [pgdata:/var/lib/postgresql]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U notifex -d notifex"]

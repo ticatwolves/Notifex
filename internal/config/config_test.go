@@ -19,6 +19,16 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, ":9100", cfg.OpsAddr)
 	assert.Equal(t, 20*time.Second, cfg.ShutdownTimeout)
 	assert.False(t, cfg.Deployed())
+	assert.Equal(t, LocalDevAPIKeyPepper, cfg.APIKeyPepper, "local falls back to the public dev pepper")
+	assert.Equal(t, LocalDevLocalMasterKey, cfg.LocalMasterKey)
+}
+
+func TestNoDevSecretFallbackOutsideLocal(t *testing.T) {
+	t.Setenv("NOTIFEX_ENV", "staging")
+	cfg, err := Load("api", "test")
+	require.NoError(t, err)
+	assert.Empty(t, cfg.APIKeyPepper, "deployed envs never get the dev pepper; api startup then fails on the empty value")
+	assert.Empty(t, cfg.LocalMasterKey)
 }
 
 func TestLoadFromEnv(t *testing.T) {
@@ -46,6 +56,9 @@ func TestValidate(t *testing.T) {
 		{name: "zero shutdown", mutate: func(c *Config) { c.ShutdownTimeout = 0 }, wantErr: "SHUTDOWN_TIMEOUT"},
 		{name: "sample ratio > 1", mutate: func(c *Config) { c.TraceSampleRatio = 1.5 }, wantErr: "SAMPLER_RATIO"},
 		{name: "sqs endpoint in prod", mutate: func(c *Config) { c.Env = EnvProd; c.SQSEndpoint = "http://x" }, wantErr: "SQS_ENDPOINT"},
+		{name: "local pepper in staging", mutate: func(c *Config) { c.Env = EnvStaging; c.APIKeyPepper = LocalDevAPIKeyPepper }, wantErr: "API_KEY_PEPPER"},
+		{name: "local pepper locally ok", mutate: func(c *Config) { c.APIKeyPepper = LocalDevAPIKeyPepper }},
+		{name: "local master key in prod", mutate: func(c *Config) { c.Env = EnvProd; c.LocalMasterKey = LocalDevLocalMasterKey }, wantErr: "NOTIFEX_LOCAL_MASTER_KEY"},
 		{name: "sqs endpoint local ok", mutate: func(c *Config) { c.SQSEndpoint = "http://elasticmq:9324" }},
 	}
 	for _, tt := range tests {

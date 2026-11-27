@@ -105,6 +105,14 @@ Response `202`:
 | per-notification (429 if all) | `platform_sms_daily_limit` | tenant's daily platform SMS limit reached |
 | 503 | `unavailable` | e.g. DB failover; retry with same idempotency key |
 
+## API keys
+- **Format:** `nfx_<env>_<prefix>_<secret><checksum>`. `env` is `dev`, `staging` or `prod` and must match the key's environment. `prefix` is 12 characters `[a-z0-9]`: the unique, public lookup handle. `secret` is 43 base62 characters (256 random bits). `checksum` is 6 base62 characters of CRC32 over everything before it, so malformed keys are rejected without a DB lookup, and secret scanners get a self-validating pattern.
+- **Stored** as `HMAC-SHA256(API_KEY_PEPPER, "nfx-api-key-v1\0" | prefix | ":" | secret)`, compared in constant time. The plaintext key is shown once. Rotating the pepper invalidates every key.
+- **Auth:** `Authorization: Bearer <key>`. Every credential failure (malformed, unknown, wrong secret, revoked, expired, environment mismatch, inactive tenant) returns the same `401 unauthenticated` with `WWW-Authenticate: Bearer realm="notifex"`. If authentication can't be decided (e.g. the database is down), the response is `503 unavailable` with `Retry-After`, never 401.
+- `last_used_at` is updated at most once per minute per key.
+
+`GET /v1/whoami` returns the caller's identity: `{tenant_id, application_id, environment_id, environment, api_key_id, api_key_prefix, scopes}`. Useful for SDK connectivity checks.
+
 ## Other REST endpoints (v1)
 - `GET /v1/runs/{id}`, `GET /v1/notifications/{id}` (timeline; payload fields shown only if not purged and caller has rights), `GET /v1/runs?workflow=&status=&from=&to=`
 - `POST /v1/notifications/{id}/replay` (409 `payload_expired` if purged), `POST /v1/runs/{id}/cancel`

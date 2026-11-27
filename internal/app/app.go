@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -30,7 +31,14 @@ type Runtime struct {
 	Logger  *slog.Logger
 	Metrics *prometheus.Registry
 	Health  *health.Registry
+
+	shutdown []func() error
 }
+
+// OnShutdown registers fn to run after every component has stopped (e.g.
+// closing the DB pool only once servers have drained). Hooks run in reverse
+// registration order.
+func (r *Runtime) OnShutdown(fn func() error) { r.shutdown = append(r.shutdown, fn) }
 
 // BuildFunc returns the service-specific components. The ops server is added
 // by Main and must not be returned here.
@@ -87,17 +95,26 @@ func run(ctx context.Context, cfg config.Config, log *slog.Logger, build BuildFu
 
 	comps, err := build(ctx, rt)
 	if err != nil {
-		return fmt.Errorf("build %s: %w", cfg.Service, err)
+		return errors.Join(fmt.Errorf("build %s: %w", cfg.Service, err), rt.runShutdown())
 	}
 
 	ops := lifecycle.NewHTTPServer("ops", cfg.OpsAddr, httptransport.NewOpsHandler(rt.Metrics, rt.Health), log)
 	if err := ops.Listen(ctx); err != nil {
-		return err
+		return errors.Join(err, rt.runShutdown())
 	}
 	comps = append(comps, ops)
 
 	log.Info("service starting", slog.String("ops_addr", cfg.OpsAddr))
-	return lifecycle.Run(ctx, log, rt.Health, cfg.ShutdownTimeout, comps...)
+	runErr := lifecycle.Run(ctx, log, rt.Health, cfg.ShutdownTimeout, comps...)
+	return errors.Join(runErr, rt.runShutdown())
+}
+
+func (r *Runtime) runShutdown() error {
+	var errs []error
+	for i := len(r.shutdown) - 1; i >= 0; i-- {
+		errs = append(errs, r.shutdown[i]())
+	}
+	return errors.Join(errs...)
 }
 
 // version prefers the -ldflags value and falls back to the VCS revision Go

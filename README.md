@@ -9,8 +9,9 @@ Start with [CLAUDE.md](CLAUDE.md) and [docs/](docs/). Decisions are in [docs/adr
 Requires Go (version in `go.mod`), Docker, and GNU make.
 
 ```bash
-make dev        # postgres, elasticmq, api, dispatcher, scheduler
-curl localhost:8080/healthz
+make dev        # postgres, elasticmq, migrate (one-shot), api, dispatcher, scheduler
+make seed       # local tenant + app + env; prints a fresh API key and a curl command
+curl -s -H "Authorization: Bearer <key>" localhost:8080/v1/whoami
 curl localhost:9100/readyz   # ops port: readiness detail + /metrics
 make down
 ```
@@ -45,5 +46,5 @@ make image      # linux/arm64 core image
 | api | 9090 | public gRPC |
 | every service | 9100 (host 9100/9101/9102) | ops: `/metrics`, `/healthz`, `/readyz`; never exposed via the ALB |
 | elasticmq | 9324 / 9325 | SQS API / stats UI |
-| postgres | 5432 | |
+| postgres | 54320 (host) → 5432 | host port avoids a native Postgres; override with `POSTGRES_HOST_PORT` |
 | jaeger (`--profile obs`) | 16686 / 4317 | tracing UI / OTLP |

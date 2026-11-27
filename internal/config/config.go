@@ -44,8 +44,15 @@ type Config struct {
 
 	ShutdownTimeout time.Duration `env:"SHUTDOWN_TIMEOUT" envDefault:"20s"`
 
-	// DatabaseURL is the Postgres DSN. Required from slice 3 (store) onwards.
+	// DatabaseURL is the Postgres DSN (required by api, migrate, seed).
 	DatabaseURL string `env:"DATABASE_URL"`
+
+	// APIKeyPepper is the base64 HMAC key for stored API key hashes (>= 32
+	// bytes). Secrets Manager in AWS. Rotating it invalidates every key.
+	APIKeyPepper string `env:"API_KEY_PEPPER"`
+	// LocalMasterKey is the base64 32-byte master key for the local
+	// KeyProvider. Local only; deployed environments use KMS.
+	LocalMasterKey string `env:"NOTIFEX_LOCAL_MASTER_KEY"`
 
 	AWSRegion string `env:"AWS_REGION" envDefault:"ap-south-1"`
 	// SQSEndpoint overrides the SQS endpoint (ElasticMQ locally). Empty in AWS.
@@ -58,6 +65,14 @@ type Config struct {
 	TraceSampleRatio float64 `env:"OTEL_TRACES_SAMPLER_RATIO" envDefault:"1.0"`
 }
 
+// Well-known local development values, used only when NOTIFEX_ENV=local and
+// the variable is unset. They decode to "local-dev-only-…-NOT-A-SECRET" text,
+// are deliberately public, and are rejected outside local.
+const (
+	LocalDevAPIKeyPepper   = "bG9jYWwtZGV2LW9ubHktcGVwcGVyLU5PVC1BLVNFQ1JFVA==" //nolint:gosec // gitleaks:allow — public dev value, see above
+	LocalDevLocalMasterKey = "bG9jYWwtZGV2LW9ubHktbWFzdGVyLWtleS1OT1RTRUM="     // gitleaks:allow — public dev value, see above
+)
+
 // Load parses the environment into a Config for the named service.
 func Load(service, version string) (Config, error) {
 	cfg, err := env.ParseAs[Config]()
@@ -66,6 +81,14 @@ func Load(service, version string) (Config, error) {
 	}
 	cfg.Service = service
 	cfg.Version = version
+	if !cfg.Deployed() {
+		if cfg.APIKeyPepper == "" {
+			cfg.APIKeyPepper = LocalDevAPIKeyPepper
+		}
+		if cfg.LocalMasterKey == "" {
+			cfg.LocalMasterKey = LocalDevLocalMasterKey
+		}
+	}
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
 	}
@@ -86,6 +109,12 @@ func (c Config) Validate() error {
 	}
 	if c.TraceSampleRatio < 0 || c.TraceSampleRatio > 1 {
 		errs = append(errs, fmt.Errorf("OTEL_TRACES_SAMPLER_RATIO %v: must be within [0, 1]", c.TraceSampleRatio))
+	}
+	if c.Deployed() && c.APIKeyPepper == LocalDevAPIKeyPepper {
+		errs = append(errs, errors.New("API_KEY_PEPPER is the public local-dev value; set a real secret"))
+	}
+	if c.Deployed() && c.LocalMasterKey != "" {
+		errs = append(errs, errors.New("NOTIFEX_LOCAL_MASTER_KEY must not be set outside local (use KMS)"))
 	}
 	if c.Deployed() && c.SQSEndpoint != "" {
 		errs = append(errs, errors.New("SQS_ENDPOINT must be empty outside local (ElasticMQ is local-only)"))
