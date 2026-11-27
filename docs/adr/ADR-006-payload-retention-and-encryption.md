@@ -38,6 +38,11 @@ These refine the encryption design above without changing the decision:
 - An hourly purge job nulls sensitive columns (`payload = NULL, purged_at = now()`) once a row passes its tenant's retention after terminal state, in bounded batches. This enforces the 1–7-day promise.
 - **Partitions are dropped after 90 days + 7-day schedule horizon + margin (≈ 100 days)**, removing metadata. By then sensitive columns are long since NULL.
 - Pre-send payloads for scheduled triggers live encrypted in `scheduled_dispatch` and are deleted once moved to the outbox.
+- **Partition helpers (`internal/db/partition`, Phase 0 slice 4):**
+  - Partitions are named `<table>_pYYYYMMDD` with UTC day bounds `[d, d+1)`. There is no DEFAULT partition, so a row beyond coverage fails loudly. `Coverage()` feeds a "days of partitions ahead" alert (Phase 5). Partitions are pre-created about 14 days ahead.
+  - Every DDL statement runs under `lock_timeout` (5s), so partition maintenance can't queue behind a long transaction and then block the accept path. A run that times out is retried.
+  - Drops use `DETACH PARTITION … CONCURRENTLY`, then `DROP`. Detaches left pending by a crash are finalized, and leftovers detached but not dropped are cleaned up. Bounds come from the catalog, not from names.
+  - A hard `MinRetention` guard (90 days) refuses to drop anything newer, whatever cutoff the caller passes.
 - Replay is only possible while the payload exists; after purge the console shows "payload expired" and disables replay, but the metadata timeline stays visible for 90 days.
 
 ## Notes
