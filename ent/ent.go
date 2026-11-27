@@ -16,6 +16,7 @@ import (
 	"github.com/ticatwolves/notifex/ent/application"
 	"github.com/ticatwolves/notifex/ent/auditevent"
 	"github.com/ticatwolves/notifex/ent/auththrottle"
+	"github.com/ticatwolves/notifex/ent/brandprofile"
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
 	"github.com/ticatwolves/notifex/ent/invitation"
@@ -23,6 +24,7 @@ import (
 	"github.com/ticatwolves/notifex/ent/oauthstate"
 	"github.com/ticatwolves/notifex/ent/operator"
 	"github.com/ticatwolves/notifex/ent/operatorsession"
+	"github.com/ticatwolves/notifex/ent/sendingpolicy"
 	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/tenant"
 	"github.com/ticatwolves/notifex/ent/user"
@@ -91,6 +93,7 @@ func checkColumn(t, c string) error {
 			application.Table:     application.ValidColumn,
 			auditevent.Table:      auditevent.ValidColumn,
 			auththrottle.Table:    auththrottle.ValidColumn,
+			brandprofile.Table:    brandprofile.ValidColumn,
 			emailtoken.Table:      emailtoken.ValidColumn,
 			environment.Table:     environment.ValidColumn,
 			invitation.Table:      invitation.ValidColumn,
@@ -98,6 +101,7 @@ func checkColumn(t, c string) error {
 			oauthstate.Table:      oauthstate.ValidColumn,
 			operator.Table:        operator.ValidColumn,
 			operatorsession.Table: operatorsession.ValidColumn,
+			sendingpolicy.Table:   sendingpolicy.ValidColumn,
 			session.Table:         session.ValidColumn,
 			tenant.Table:          tenant.ValidColumn,
 			user.Table:            user.ValidColumn,

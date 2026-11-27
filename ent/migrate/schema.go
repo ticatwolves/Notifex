@@ -111,6 +111,39 @@ var (
 		Columns:    AuthThrottlesColumns,
 		PrimaryKey: []*schema.Column{AuthThrottlesColumns[0]},
 	}
+	// BrandProfilesColumns holds the columns for the "brand_profiles" table.
+	BrandProfilesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "application_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "doc", Type: field.TypeJSON},
+	}
+	// BrandProfilesTable holds the schema information for the "brand_profiles" table.
+	BrandProfilesTable = &schema.Table{
+		Name:       "brand_profiles",
+		Columns:    BrandProfilesColumns,
+		PrimaryKey: []*schema.Column{BrandProfilesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "brand_profiles_tenant_key",
+				Unique:  true,
+				Columns: []*schema.Column{BrandProfilesColumns[1]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "application_id IS NULL",
+				},
+			},
+			{
+				Name:    "brand_profiles_application_key",
+				Unique:  true,
+				Columns: []*schema.Column{BrandProfilesColumns[1], BrandProfilesColumns[4]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "application_id IS NOT NULL",
+				},
+			},
+		},
+	}
 	// EmailTokensColumns holds the columns for the "email_tokens" table.
 	EmailTokensColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -323,6 +356,40 @@ var (
 			},
 		},
 	}
+	// PoliciesColumns holds the columns for the "policies" table.
+	PoliciesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "application_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "doc", Type: field.TypeJSON},
+		{Name: "payload_retention_days", Type: field.TypeInt, Nullable: true},
+	}
+	// PoliciesTable holds the schema information for the "policies" table.
+	PoliciesTable = &schema.Table{
+		Name:       "policies",
+		Columns:    PoliciesColumns,
+		PrimaryKey: []*schema.Column{PoliciesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "policies_tenant_key",
+				Unique:  true,
+				Columns: []*schema.Column{PoliciesColumns[1]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "application_id IS NULL",
+				},
+			},
+			{
+				Name:    "policies_application_key",
+				Unique:  true,
+				Columns: []*schema.Column{PoliciesColumns[1], PoliciesColumns[4]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "application_id IS NOT NULL",
+				},
+			},
+		},
+	}
 	// SessionsColumns holds the columns for the "sessions" table.
 	SessionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -431,6 +498,7 @@ var (
 		ApplicationsTable,
 		AuditEventsTable,
 		AuthThrottlesTable,
+		BrandProfilesTable,
 		EmailTokensTable,
 		EnvironmentsTable,
 		InvitationsTable,
@@ -438,6 +506,7 @@ var (
 		OauthStatesTable,
 		OperatorsTable,
 		OperatorSessionsTable,
+		PoliciesTable,
 		SessionsTable,
 		TenantsTable,
 		UsersTable,
@@ -446,6 +515,18 @@ var (
 )
 
 func init() {
+	BrandProfilesTable.Annotation = &entsql.Annotation{}
+	BrandProfilesTable.Annotation.Checks = map[string]string{
+		"brand_profiles_doc_object": "jsonb_typeof(doc) = 'object'",
+	}
+	PoliciesTable.Annotation = &entsql.Annotation{
+		Table: "policies",
+	}
+	PoliciesTable.Annotation.Checks = map[string]string{
+		"policies_doc_object":            "jsonb_typeof(doc) = 'object'",
+		"policies_retention_range":       "payload_retention_days IS NULL OR payload_retention_days BETWEEN 1 AND 7",
+		"policies_retention_tenant_only": "application_id IS NULL OR payload_retention_days IS NULL",
+	}
 	TenantsTable.Annotation = &entsql.Annotation{}
 	TenantsTable.Annotation.Checks = map[string]string{
 		"tenants_dek_version_range":               "dek_version BETWEEN 1 AND 255",

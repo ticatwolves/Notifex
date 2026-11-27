@@ -67,6 +67,12 @@ func (s *Store) Identities() store.IdentityStore { return identities{s.client} }
 // Operators implements store.Store.
 func (s *Store) Operators() store.OperatorStore { return operators{s.client} }
 
+// Brands implements store.Store.
+func (s *Store) Brands() store.SettingsStore { return brands{s.client} }
+
+// Policies implements store.Store.
+func (s *Store) Policies() store.SettingsStore { return policies{s.client} }
+
 // OperatorSessions implements store.Store.
 func (s *Store) OperatorSessions() store.OperatorSessionStore { return operatorSessions{s.client} }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/ticatwolves/notifex/ent/application"
 	"github.com/ticatwolves/notifex/ent/auditevent"
 	"github.com/ticatwolves/notifex/ent/auththrottle"
+	"github.com/ticatwolves/notifex/ent/brandprofile"
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
 	"github.com/ticatwolves/notifex/ent/invitation"
@@ -24,6 +25,7 @@ import (
 	"github.com/ticatwolves/notifex/ent/operator"
 	"github.com/ticatwolves/notifex/ent/operatorsession"
 	"github.com/ticatwolves/notifex/ent/predicate"
+	"github.com/ticatwolves/notifex/ent/sendingpolicy"
 	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/tenant"
 	"github.com/ticatwolves/notifex/ent/user"
@@ -43,6 +45,7 @@ const (
 	TypeApplication     = "Application"
 	TypeAuditEvent      = "AuditEvent"
 	TypeAuthThrottle    = "AuthThrottle"
+	TypeBrandProfile    = "BrandProfile"
 	TypeEmailToken      = "EmailToken"
 	TypeEnvironment     = "Environment"
 	TypeInvitation      = "Invitation"
@@ -50,6 +53,7 @@ const (
 	TypeOAuthState      = "OAuthState"
 	TypeOperator        = "Operator"
 	TypeOperatorSession = "OperatorSession"
+	TypeSendingPolicy   = "SendingPolicy"
 	TypeSession         = "Session"
 	TypeTenant          = "Tenant"
 	TypeUser            = "User"
@@ -3012,6 +3016,576 @@ func (m *AuthThrottleMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *AuthThrottleMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown AuthThrottle edge %s", name)
+}
+
+// BrandProfileMutation represents an operation that mutates the BrandProfile nodes in the graph.
+type BrandProfileMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *uuid.UUID
+	tenant_id      *uuid.UUID
+	created_at     *time.Time
+	updated_at     *time.Time
+	application_id *uuid.UUID
+	doc            *map[string]interface{}
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*BrandProfile, error)
+	predicates     []predicate.BrandProfile
+}
+
+var _ ent.Mutation = (*BrandProfileMutation)(nil)
+
+// brandprofileOption allows management of the mutation configuration using functional options.
+type brandprofileOption func(*BrandProfileMutation)
+
+// newBrandProfileMutation creates new mutation for the BrandProfile entity.
+func newBrandProfileMutation(c config, op Op, opts ...brandprofileOption) *BrandProfileMutation {
+	m := &BrandProfileMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeBrandProfile,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withBrandProfileID sets the ID field of the mutation.
+func withBrandProfileID(id uuid.UUID) brandprofileOption {
+	return func(m *BrandProfileMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *BrandProfile
+		)
+		m.oldValue = func(ctx context.Context) (*BrandProfile, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().BrandProfile.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withBrandProfile sets the old BrandProfile of the mutation.
+func withBrandProfile(node *BrandProfile) brandprofileOption {
+	return func(m *BrandProfileMutation) {
+		m.oldValue = func(context.Context) (*BrandProfile, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m BrandProfileMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m BrandProfileMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of BrandProfile entities.
+func (m *BrandProfileMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *BrandProfileMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *BrandProfileMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().BrandProfile.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *BrandProfileMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *BrandProfileMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the BrandProfile entity.
+// If the BrandProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BrandProfileMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *BrandProfileMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *BrandProfileMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *BrandProfileMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the BrandProfile entity.
+// If the BrandProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BrandProfileMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *BrandProfileMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *BrandProfileMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *BrandProfileMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the BrandProfile entity.
+// If the BrandProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BrandProfileMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *BrandProfileMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetApplicationID sets the "application_id" field.
+func (m *BrandProfileMutation) SetApplicationID(u uuid.UUID) {
+	m.application_id = &u
+}
+
+// ApplicationID returns the value of the "application_id" field in the mutation.
+func (m *BrandProfileMutation) ApplicationID() (r uuid.UUID, exists bool) {
+	v := m.application_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApplicationID returns the old "application_id" field's value of the BrandProfile entity.
+// If the BrandProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BrandProfileMutation) OldApplicationID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApplicationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApplicationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApplicationID: %w", err)
+	}
+	return oldValue.ApplicationID, nil
+}
+
+// ClearApplicationID clears the value of the "application_id" field.
+func (m *BrandProfileMutation) ClearApplicationID() {
+	m.application_id = nil
+	m.clearedFields[brandprofile.FieldApplicationID] = struct{}{}
+}
+
+// ApplicationIDCleared returns if the "application_id" field was cleared in this mutation.
+func (m *BrandProfileMutation) ApplicationIDCleared() bool {
+	_, ok := m.clearedFields[brandprofile.FieldApplicationID]
+	return ok
+}
+
+// ResetApplicationID resets all changes to the "application_id" field.
+func (m *BrandProfileMutation) ResetApplicationID() {
+	m.application_id = nil
+	delete(m.clearedFields, brandprofile.FieldApplicationID)
+}
+
+// SetDoc sets the "doc" field.
+func (m *BrandProfileMutation) SetDoc(value map[string]interface{}) {
+	m.doc = &value
+}
+
+// Doc returns the value of the "doc" field in the mutation.
+func (m *BrandProfileMutation) Doc() (r map[string]interface{}, exists bool) {
+	v := m.doc
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDoc returns the old "doc" field's value of the BrandProfile entity.
+// If the BrandProfile object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BrandProfileMutation) OldDoc(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDoc is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDoc requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDoc: %w", err)
+	}
+	return oldValue.Doc, nil
+}
+
+// ResetDoc resets all changes to the "doc" field.
+func (m *BrandProfileMutation) ResetDoc() {
+	m.doc = nil
+}
+
+// Where appends a list predicates to the BrandProfileMutation builder.
+func (m *BrandProfileMutation) Where(ps ...predicate.BrandProfile) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the BrandProfileMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *BrandProfileMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.BrandProfile, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *BrandProfileMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *BrandProfileMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (BrandProfile).
+func (m *BrandProfileMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *BrandProfileMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.tenant_id != nil {
+		fields = append(fields, brandprofile.FieldTenantID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, brandprofile.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, brandprofile.FieldUpdatedAt)
+	}
+	if m.application_id != nil {
+		fields = append(fields, brandprofile.FieldApplicationID)
+	}
+	if m.doc != nil {
+		fields = append(fields, brandprofile.FieldDoc)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *BrandProfileMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case brandprofile.FieldTenantID:
+		return m.TenantID()
+	case brandprofile.FieldCreatedAt:
+		return m.CreatedAt()
+	case brandprofile.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case brandprofile.FieldApplicationID:
+		return m.ApplicationID()
+	case brandprofile.FieldDoc:
+		return m.Doc()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *BrandProfileMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case brandprofile.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case brandprofile.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case brandprofile.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case brandprofile.FieldApplicationID:
+		return m.OldApplicationID(ctx)
+	case brandprofile.FieldDoc:
+		return m.OldDoc(ctx)
+	}
+	return nil, fmt.Errorf("unknown BrandProfile field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BrandProfileMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case brandprofile.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case brandprofile.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case brandprofile.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case brandprofile.FieldApplicationID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApplicationID(v)
+		return nil
+	case brandprofile.FieldDoc:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDoc(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BrandProfile field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *BrandProfileMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *BrandProfileMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BrandProfileMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown BrandProfile numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *BrandProfileMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(brandprofile.FieldApplicationID) {
+		fields = append(fields, brandprofile.FieldApplicationID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *BrandProfileMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *BrandProfileMutation) ClearField(name string) error {
+	switch name {
+	case brandprofile.FieldApplicationID:
+		m.ClearApplicationID()
+		return nil
+	}
+	return fmt.Errorf("unknown BrandProfile nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *BrandProfileMutation) ResetField(name string) error {
+	switch name {
+	case brandprofile.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case brandprofile.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case brandprofile.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case brandprofile.FieldApplicationID:
+		m.ResetApplicationID()
+		return nil
+	case brandprofile.FieldDoc:
+		m.ResetDoc()
+		return nil
+	}
+	return fmt.Errorf("unknown BrandProfile field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *BrandProfileMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *BrandProfileMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *BrandProfileMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *BrandProfileMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *BrandProfileMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *BrandProfileMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *BrandProfileMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown BrandProfile unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *BrandProfileMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown BrandProfile edge %s", name)
 }
 
 // EmailTokenMutation represents an operation that mutates the EmailToken nodes in the graph.
@@ -7966,6 +8540,686 @@ func (m *OperatorSessionMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *OperatorSessionMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown OperatorSession edge %s", name)
+}
+
+// SendingPolicyMutation represents an operation that mutates the SendingPolicy nodes in the graph.
+type SendingPolicyMutation struct {
+	config
+	op                        Op
+	typ                       string
+	id                        *uuid.UUID
+	tenant_id                 *uuid.UUID
+	created_at                *time.Time
+	updated_at                *time.Time
+	application_id            *uuid.UUID
+	doc                       *map[string]interface{}
+	payload_retention_days    *int
+	addpayload_retention_days *int
+	clearedFields             map[string]struct{}
+	done                      bool
+	oldValue                  func(context.Context) (*SendingPolicy, error)
+	predicates                []predicate.SendingPolicy
+}
+
+var _ ent.Mutation = (*SendingPolicyMutation)(nil)
+
+// sendingpolicyOption allows management of the mutation configuration using functional options.
+type sendingpolicyOption func(*SendingPolicyMutation)
+
+// newSendingPolicyMutation creates new mutation for the SendingPolicy entity.
+func newSendingPolicyMutation(c config, op Op, opts ...sendingpolicyOption) *SendingPolicyMutation {
+	m := &SendingPolicyMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSendingPolicy,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSendingPolicyID sets the ID field of the mutation.
+func withSendingPolicyID(id uuid.UUID) sendingpolicyOption {
+	return func(m *SendingPolicyMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SendingPolicy
+		)
+		m.oldValue = func(ctx context.Context) (*SendingPolicy, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SendingPolicy.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSendingPolicy sets the old SendingPolicy of the mutation.
+func withSendingPolicy(node *SendingPolicy) sendingpolicyOption {
+	return func(m *SendingPolicyMutation) {
+		m.oldValue = func(context.Context) (*SendingPolicy, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SendingPolicyMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SendingPolicyMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of SendingPolicy entities.
+func (m *SendingPolicyMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SendingPolicyMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SendingPolicyMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SendingPolicy.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *SendingPolicyMutation) SetTenantID(u uuid.UUID) {
+	m.tenant_id = &u
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *SendingPolicyMutation) TenantID() (r uuid.UUID, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the SendingPolicy entity.
+// If the SendingPolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SendingPolicyMutation) OldTenantID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *SendingPolicyMutation) ResetTenantID() {
+	m.tenant_id = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SendingPolicyMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SendingPolicyMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the SendingPolicy entity.
+// If the SendingPolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SendingPolicyMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SendingPolicyMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *SendingPolicyMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *SendingPolicyMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the SendingPolicy entity.
+// If the SendingPolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SendingPolicyMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *SendingPolicyMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetApplicationID sets the "application_id" field.
+func (m *SendingPolicyMutation) SetApplicationID(u uuid.UUID) {
+	m.application_id = &u
+}
+
+// ApplicationID returns the value of the "application_id" field in the mutation.
+func (m *SendingPolicyMutation) ApplicationID() (r uuid.UUID, exists bool) {
+	v := m.application_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApplicationID returns the old "application_id" field's value of the SendingPolicy entity.
+// If the SendingPolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SendingPolicyMutation) OldApplicationID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApplicationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApplicationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApplicationID: %w", err)
+	}
+	return oldValue.ApplicationID, nil
+}
+
+// ClearApplicationID clears the value of the "application_id" field.
+func (m *SendingPolicyMutation) ClearApplicationID() {
+	m.application_id = nil
+	m.clearedFields[sendingpolicy.FieldApplicationID] = struct{}{}
+}
+
+// ApplicationIDCleared returns if the "application_id" field was cleared in this mutation.
+func (m *SendingPolicyMutation) ApplicationIDCleared() bool {
+	_, ok := m.clearedFields[sendingpolicy.FieldApplicationID]
+	return ok
+}
+
+// ResetApplicationID resets all changes to the "application_id" field.
+func (m *SendingPolicyMutation) ResetApplicationID() {
+	m.application_id = nil
+	delete(m.clearedFields, sendingpolicy.FieldApplicationID)
+}
+
+// SetDoc sets the "doc" field.
+func (m *SendingPolicyMutation) SetDoc(value map[string]interface{}) {
+	m.doc = &value
+}
+
+// Doc returns the value of the "doc" field in the mutation.
+func (m *SendingPolicyMutation) Doc() (r map[string]interface{}, exists bool) {
+	v := m.doc
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDoc returns the old "doc" field's value of the SendingPolicy entity.
+// If the SendingPolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SendingPolicyMutation) OldDoc(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDoc is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDoc requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDoc: %w", err)
+	}
+	return oldValue.Doc, nil
+}
+
+// ResetDoc resets all changes to the "doc" field.
+func (m *SendingPolicyMutation) ResetDoc() {
+	m.doc = nil
+}
+
+// SetPayloadRetentionDays sets the "payload_retention_days" field.
+func (m *SendingPolicyMutation) SetPayloadRetentionDays(i int) {
+	m.payload_retention_days = &i
+	m.addpayload_retention_days = nil
+}
+
+// PayloadRetentionDays returns the value of the "payload_retention_days" field in the mutation.
+func (m *SendingPolicyMutation) PayloadRetentionDays() (r int, exists bool) {
+	v := m.payload_retention_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayloadRetentionDays returns the old "payload_retention_days" field's value of the SendingPolicy entity.
+// If the SendingPolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SendingPolicyMutation) OldPayloadRetentionDays(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayloadRetentionDays is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayloadRetentionDays requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayloadRetentionDays: %w", err)
+	}
+	return oldValue.PayloadRetentionDays, nil
+}
+
+// AddPayloadRetentionDays adds i to the "payload_retention_days" field.
+func (m *SendingPolicyMutation) AddPayloadRetentionDays(i int) {
+	if m.addpayload_retention_days != nil {
+		*m.addpayload_retention_days += i
+	} else {
+		m.addpayload_retention_days = &i
+	}
+}
+
+// AddedPayloadRetentionDays returns the value that was added to the "payload_retention_days" field in this mutation.
+func (m *SendingPolicyMutation) AddedPayloadRetentionDays() (r int, exists bool) {
+	v := m.addpayload_retention_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearPayloadRetentionDays clears the value of the "payload_retention_days" field.
+func (m *SendingPolicyMutation) ClearPayloadRetentionDays() {
+	m.payload_retention_days = nil
+	m.addpayload_retention_days = nil
+	m.clearedFields[sendingpolicy.FieldPayloadRetentionDays] = struct{}{}
+}
+
+// PayloadRetentionDaysCleared returns if the "payload_retention_days" field was cleared in this mutation.
+func (m *SendingPolicyMutation) PayloadRetentionDaysCleared() bool {
+	_, ok := m.clearedFields[sendingpolicy.FieldPayloadRetentionDays]
+	return ok
+}
+
+// ResetPayloadRetentionDays resets all changes to the "payload_retention_days" field.
+func (m *SendingPolicyMutation) ResetPayloadRetentionDays() {
+	m.payload_retention_days = nil
+	m.addpayload_retention_days = nil
+	delete(m.clearedFields, sendingpolicy.FieldPayloadRetentionDays)
+}
+
+// Where appends a list predicates to the SendingPolicyMutation builder.
+func (m *SendingPolicyMutation) Where(ps ...predicate.SendingPolicy) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SendingPolicyMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SendingPolicyMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SendingPolicy, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SendingPolicyMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SendingPolicyMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SendingPolicy).
+func (m *SendingPolicyMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SendingPolicyMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.tenant_id != nil {
+		fields = append(fields, sendingpolicy.FieldTenantID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, sendingpolicy.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, sendingpolicy.FieldUpdatedAt)
+	}
+	if m.application_id != nil {
+		fields = append(fields, sendingpolicy.FieldApplicationID)
+	}
+	if m.doc != nil {
+		fields = append(fields, sendingpolicy.FieldDoc)
+	}
+	if m.payload_retention_days != nil {
+		fields = append(fields, sendingpolicy.FieldPayloadRetentionDays)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SendingPolicyMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case sendingpolicy.FieldTenantID:
+		return m.TenantID()
+	case sendingpolicy.FieldCreatedAt:
+		return m.CreatedAt()
+	case sendingpolicy.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case sendingpolicy.FieldApplicationID:
+		return m.ApplicationID()
+	case sendingpolicy.FieldDoc:
+		return m.Doc()
+	case sendingpolicy.FieldPayloadRetentionDays:
+		return m.PayloadRetentionDays()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SendingPolicyMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case sendingpolicy.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case sendingpolicy.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case sendingpolicy.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case sendingpolicy.FieldApplicationID:
+		return m.OldApplicationID(ctx)
+	case sendingpolicy.FieldDoc:
+		return m.OldDoc(ctx)
+	case sendingpolicy.FieldPayloadRetentionDays:
+		return m.OldPayloadRetentionDays(ctx)
+	}
+	return nil, fmt.Errorf("unknown SendingPolicy field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SendingPolicyMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case sendingpolicy.FieldTenantID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case sendingpolicy.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case sendingpolicy.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case sendingpolicy.FieldApplicationID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApplicationID(v)
+		return nil
+	case sendingpolicy.FieldDoc:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDoc(v)
+		return nil
+	case sendingpolicy.FieldPayloadRetentionDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayloadRetentionDays(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SendingPolicy field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SendingPolicyMutation) AddedFields() []string {
+	var fields []string
+	if m.addpayload_retention_days != nil {
+		fields = append(fields, sendingpolicy.FieldPayloadRetentionDays)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SendingPolicyMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case sendingpolicy.FieldPayloadRetentionDays:
+		return m.AddedPayloadRetentionDays()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SendingPolicyMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case sendingpolicy.FieldPayloadRetentionDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPayloadRetentionDays(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SendingPolicy numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SendingPolicyMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(sendingpolicy.FieldApplicationID) {
+		fields = append(fields, sendingpolicy.FieldApplicationID)
+	}
+	if m.FieldCleared(sendingpolicy.FieldPayloadRetentionDays) {
+		fields = append(fields, sendingpolicy.FieldPayloadRetentionDays)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SendingPolicyMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SendingPolicyMutation) ClearField(name string) error {
+	switch name {
+	case sendingpolicy.FieldApplicationID:
+		m.ClearApplicationID()
+		return nil
+	case sendingpolicy.FieldPayloadRetentionDays:
+		m.ClearPayloadRetentionDays()
+		return nil
+	}
+	return fmt.Errorf("unknown SendingPolicy nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SendingPolicyMutation) ResetField(name string) error {
+	switch name {
+	case sendingpolicy.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case sendingpolicy.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case sendingpolicy.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case sendingpolicy.FieldApplicationID:
+		m.ResetApplicationID()
+		return nil
+	case sendingpolicy.FieldDoc:
+		m.ResetDoc()
+		return nil
+	case sendingpolicy.FieldPayloadRetentionDays:
+		m.ResetPayloadRetentionDays()
+		return nil
+	}
+	return fmt.Errorf("unknown SendingPolicy field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SendingPolicyMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SendingPolicyMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SendingPolicyMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SendingPolicyMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SendingPolicyMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SendingPolicyMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SendingPolicyMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown SendingPolicy unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SendingPolicyMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown SendingPolicy edge %s", name)
 }
 
 // SessionMutation represents an operation that mutates the Session nodes in the graph.

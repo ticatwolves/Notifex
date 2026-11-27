@@ -15,7 +15,7 @@ type ForeignKey struct {
 }
 
 // tenantOwned lists tables whose tenant_id must reference tenants(id).
-var tenantOwned = []string{"memberships", "applications", "environments", "api_keys", "invitations"}
+var tenantOwned = []string{"memberships", "applications", "environments", "api_keys", "invitations", "brand_profiles", "policies"}
 
 // ForeignKeys returns every foreign key in the core schema.
 func ForeignKeys() []ForeignKey {
@@ -42,6 +42,17 @@ func ForeignKeys() []ForeignKey {
 			Columns:    []string{"tenant_id", "application_id", "environment_id"},
 			RefTable:   "environments",
 			RefColumns: []string{"tenant_id", "application_id", "id"},
+		},
+		// Overrides belong to an application of the same tenant and go with it.
+		ForeignKey{
+			Name: "brand_profiles_application_fk", Table: "brand_profiles",
+			Columns: []string{"tenant_id", "application_id"}, RefTable: "applications", RefColumns: []string{"tenant_id", "id"},
+			OnDelete: "CASCADE",
+		},
+		ForeignKey{
+			Name: "policies_application_fk", Table: "policies",
+			Columns: []string{"tenant_id", "application_id"}, RefTable: "applications", RefColumns: []string{"tenant_id", "id"},
+			OnDelete: "CASCADE",
 		},
 		ForeignKey{
 			Name: "sessions_user_fk", Table: "sessions",

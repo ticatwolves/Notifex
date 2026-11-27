@@ -434,6 +434,9 @@ func consoleError(c *gin.Context, err error) {
 		writeError(c, http.StatusConflict, "conflict", "already a member of this tenant")
 	case errors.Is(err, tenant.ErrInvalidToken):
 		writeError(c, http.StatusBadRequest, "invalid_token", "the invitation is invalid, expired or already used")
+	case errors.As(err, new(*tenant.FieldError)):
+		// Field-level messages are ours (never echo input values).
+		writeError(c, http.StatusBadRequest, "validation_failed", strings.ReplaceAll(err.Error(), "\n", "; "))
 	case errors.Is(err, store.ErrInvalid):
 		writeError(c, http.StatusBadRequest, "validation_failed", "invalid input")
 	case errors.Is(err, store.ErrNotFound):

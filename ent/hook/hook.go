@@ -57,6 +57,18 @@ func (f AuthThrottleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuthThrottleMutation", m)
 }
 
+// The BrandProfileFunc type is an adapter to allow the use of ordinary
+// function as BrandProfile mutator.
+type BrandProfileFunc func(context.Context, *ent.BrandProfileMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BrandProfileFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BrandProfileMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BrandProfileMutation", m)
+}
+
 // The EmailTokenFunc type is an adapter to allow the use of ordinary
 // function as EmailToken mutator.
 type EmailTokenFunc func(context.Context, *ent.EmailTokenMutation) (ent.Value, error)
@@ -139,6 +151,18 @@ func (f OperatorSessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OperatorSessionMutation", m)
+}
+
+// The SendingPolicyFunc type is an adapter to allow the use of ordinary
+// function as SendingPolicy mutator.
+type SendingPolicyFunc func(context.Context, *ent.SendingPolicyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SendingPolicyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SendingPolicyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SendingPolicyMutation", m)
 }
 
 // The SessionFunc type is an adapter to allow the use of ordinary

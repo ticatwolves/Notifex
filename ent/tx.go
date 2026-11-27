@@ -22,6 +22,8 @@ type Tx struct {
 	AuditEvent *AuditEventClient
 	// AuthThrottle is the client for interacting with the AuthThrottle builders.
 	AuthThrottle *AuthThrottleClient
+	// BrandProfile is the client for interacting with the BrandProfile builders.
+	BrandProfile *BrandProfileClient
 	// EmailToken is the client for interacting with the EmailToken builders.
 	EmailToken *EmailTokenClient
 	// Environment is the client for interacting with the Environment builders.
@@ -36,6 +38,8 @@ type Tx struct {
 	Operator *OperatorClient
 	// OperatorSession is the client for interacting with the OperatorSession builders.
 	OperatorSession *OperatorSessionClient
+	// SendingPolicy is the client for interacting with the SendingPolicy builders.
+	SendingPolicy *SendingPolicyClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// Tenant is the client for interacting with the Tenant builders.
@@ -179,6 +183,7 @@ func (tx *Tx) init() {
 	tx.Application = NewApplicationClient(tx.config)
 	tx.AuditEvent = NewAuditEventClient(tx.config)
 	tx.AuthThrottle = NewAuthThrottleClient(tx.config)
+	tx.BrandProfile = NewBrandProfileClient(tx.config)
 	tx.EmailToken = NewEmailTokenClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.Invitation = NewInvitationClient(tx.config)
@@ -186,6 +191,7 @@ func (tx *Tx) init() {
 	tx.OAuthState = NewOAuthStateClient(tx.config)
 	tx.Operator = NewOperatorClient(tx.config)
 	tx.OperatorSession = NewOperatorSessionClient(tx.config)
+	tx.SendingPolicy = NewSendingPolicyClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
 	tx.User = NewUserClient(tx.config)

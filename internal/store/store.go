@@ -60,6 +60,8 @@ type Store interface {
 	Invitations() InvitationStore
 	Operators() OperatorStore
 	OperatorSessions() OperatorSessionStore
+	Brands() SettingsStore
+	Policies() SettingsStore
 	// WithTx runs fn in one transaction. The Store passed to fn is bound to it,
 	// so a mutation and its audit event commit or roll back together. fn's
 	// error rolls back; a panic rolls back and re-panics.
@@ -666,4 +668,27 @@ type OperatorSessionStore interface {
 	Touch(ctx context.Context, id uuid.UUID, now time.Time, minInterval time.Duration) error
 	Revoke(ctx context.Context, operatorID, id uuid.UUID, now time.Time) error
 	RevokeAllForOperator(ctx context.Context, operatorID uuid.UUID, now time.Time) (int, error)
+}
+
+// ---- brand profiles and policies (Phase 2, docs/03) ----
+
+// Settings is a brand profile or policy row: the tenant's (ApplicationID
+// nil) or an application's override. Doc holds the fields as JSON; the typed
+// view and validation live in the service. PayloadRetentionDays is used by
+// policies only (tenant rows, 1–7; ADR-006) and is enforced by the database.
+type Settings struct {
+	ApplicationID        *uuid.UUID
+	Doc                  map[string]any
+	PayloadRetentionDays *int
+	UpdatedAt            time.Time
+}
+
+// SettingsStore persists one kind of settings document per scope.
+type SettingsStore interface {
+	// Get returns the row for the tenant (appID nil) or application; ErrNotFound if unset.
+	Get(ctx context.Context, tid TenantID, appID *uuid.UUID) (Settings, error)
+	// Put creates or replaces it. An unknown application is ErrNotFound.
+	Put(ctx context.Context, tid TenantID, appID *uuid.UUID, doc map[string]any, retentionDays *int) (Settings, error)
+	// Delete removes an application override; ErrNotFound if there is none.
+	Delete(ctx context.Context, tid TenantID, appID uuid.UUID) error
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/ticatwolves/notifex/ent/application"
 	"github.com/ticatwolves/notifex/ent/auditevent"
 	"github.com/ticatwolves/notifex/ent/auththrottle"
+	"github.com/ticatwolves/notifex/ent/brandprofile"
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
 	"github.com/ticatwolves/notifex/ent/invitation"
@@ -18,6 +19,7 @@ import (
 	"github.com/ticatwolves/notifex/ent/operator"
 	"github.com/ticatwolves/notifex/ent/operatorsession"
 	"github.com/ticatwolves/notifex/ent/schema"
+	"github.com/ticatwolves/notifex/ent/sendingpolicy"
 	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/tenant"
 	"github.com/ticatwolves/notifex/ent/user"
@@ -253,6 +255,31 @@ func init() {
 			return nil
 		}
 	}()
+	brandprofileMixin := schema.BrandProfile{}.Mixin()
+	brandprofileMixinHooks1 := brandprofileMixin[1].Hooks()
+	brandprofile.Hooks[0] = brandprofileMixinHooks1[0]
+	brandprofileMixinInters1 := brandprofileMixin[1].Interceptors()
+	brandprofile.Interceptors[0] = brandprofileMixinInters1[0]
+	brandprofileMixinFields0 := brandprofileMixin[0].Fields()
+	_ = brandprofileMixinFields0
+	brandprofileMixinFields2 := brandprofileMixin[2].Fields()
+	_ = brandprofileMixinFields2
+	brandprofileFields := schema.BrandProfile{}.Fields()
+	_ = brandprofileFields
+	// brandprofileDescCreatedAt is the schema descriptor for created_at field.
+	brandprofileDescCreatedAt := brandprofileMixinFields2[0].Descriptor()
+	// brandprofile.DefaultCreatedAt holds the default value on creation for the created_at field.
+	brandprofile.DefaultCreatedAt = brandprofileDescCreatedAt.Default.(func() time.Time)
+	// brandprofileDescUpdatedAt is the schema descriptor for updated_at field.
+	brandprofileDescUpdatedAt := brandprofileMixinFields2[1].Descriptor()
+	// brandprofile.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	brandprofile.DefaultUpdatedAt = brandprofileDescUpdatedAt.Default.(func() time.Time)
+	// brandprofile.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	brandprofile.UpdateDefaultUpdatedAt = brandprofileDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// brandprofileDescID is the schema descriptor for id field.
+	brandprofileDescID := brandprofileMixinFields0[0].Descriptor()
+	// brandprofile.DefaultID holds the default value on creation for the id field.
+	brandprofile.DefaultID = brandprofileDescID.Default.(func() uuid.UUID)
 	emailtokenMixin := schema.EmailToken{}.Mixin()
 	emailtokenMixinFields0 := emailtokenMixin[0].Fields()
 	_ = emailtokenMixinFields0
@@ -488,6 +515,31 @@ func init() {
 	operatorsessionDescID := operatorsessionMixinFields0[0].Descriptor()
 	// operatorsession.DefaultID holds the default value on creation for the id field.
 	operatorsession.DefaultID = operatorsessionDescID.Default.(func() uuid.UUID)
+	sendingpolicyMixin := schema.SendingPolicy{}.Mixin()
+	sendingpolicyMixinHooks1 := sendingpolicyMixin[1].Hooks()
+	sendingpolicy.Hooks[0] = sendingpolicyMixinHooks1[0]
+	sendingpolicyMixinInters1 := sendingpolicyMixin[1].Interceptors()
+	sendingpolicy.Interceptors[0] = sendingpolicyMixinInters1[0]
+	sendingpolicyMixinFields0 := sendingpolicyMixin[0].Fields()
+	_ = sendingpolicyMixinFields0
+	sendingpolicyMixinFields2 := sendingpolicyMixin[2].Fields()
+	_ = sendingpolicyMixinFields2
+	sendingpolicyFields := schema.SendingPolicy{}.Fields()
+	_ = sendingpolicyFields
+	// sendingpolicyDescCreatedAt is the schema descriptor for created_at field.
+	sendingpolicyDescCreatedAt := sendingpolicyMixinFields2[0].Descriptor()
+	// sendingpolicy.DefaultCreatedAt holds the default value on creation for the created_at field.
+	sendingpolicy.DefaultCreatedAt = sendingpolicyDescCreatedAt.Default.(func() time.Time)
+	// sendingpolicyDescUpdatedAt is the schema descriptor for updated_at field.
+	sendingpolicyDescUpdatedAt := sendingpolicyMixinFields2[1].Descriptor()
+	// sendingpolicy.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	sendingpolicy.DefaultUpdatedAt = sendingpolicyDescUpdatedAt.Default.(func() time.Time)
+	// sendingpolicy.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	sendingpolicy.UpdateDefaultUpdatedAt = sendingpolicyDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// sendingpolicyDescID is the schema descriptor for id field.
+	sendingpolicyDescID := sendingpolicyMixinFields0[0].Descriptor()
+	// sendingpolicy.DefaultID holds the default value on creation for the id field.
+	sendingpolicy.DefaultID = sendingpolicyDescID.Default.(func() uuid.UUID)
 	sessionMixin := schema.Session{}.Mixin()
 	sessionMixinFields0 := sessionMixin[0].Fields()
 	_ = sessionMixinFields0

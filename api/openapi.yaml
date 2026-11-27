@@ -1092,7 +1092,7 @@ paths:
       tags: [brand-policy]
       summary: Get the tenant brand profile (any member)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "200":
@@ -1109,7 +1109,7 @@ paths:
       summary: Replace the tenant brand profile (admin, owner)
       description: Full replacement; omitted optional fields are cleared. Audited.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       requestBody:
         required: true
@@ -1137,7 +1137,7 @@ paths:
       tags: [brand-policy]
       summary: Get the application brand override and the effective brand (any member)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "200":
@@ -1154,7 +1154,7 @@ paths:
       summary: Replace the application brand override (admin, owner)
       description: Null or omitted fields inherit from the tenant brand. Audited.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       requestBody:
         required: true
@@ -1178,7 +1178,7 @@ paths:
       tags: [brand-policy]
       summary: Remove the application brand override (admin, owner)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "204": { description: Removed; the application now uses the tenant brand. }
@@ -1194,7 +1194,7 @@ paths:
       tags: [brand-policy]
       summary: Get the tenant policy (any member)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "200":
@@ -1211,7 +1211,7 @@ paths:
       summary: Replace the tenant policy (admin, owner)
       description: Full replacement. Changes to `payload_retention_days` apply to notifications that reach a terminal state afterwards. Audited.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       requestBody:
         required: true
@@ -1239,7 +1239,7 @@ paths:
       tags: [brand-policy]
       summary: Get the application policy override and the effective policy (any member)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "200":
@@ -1256,7 +1256,7 @@ paths:
       summary: Replace the application policy override (admin, owner)
       description: Null or omitted fields inherit from the tenant policy. Retention is tenant-level only (ADR-006). Audited.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       requestBody:
         required: true
@@ -1280,7 +1280,7 @@ paths:
       tags: [brand-policy]
       summary: Remove the application policy override (admin, owner)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "204": { description: Removed; the application now uses the tenant policy. }

@@ -29,7 +29,17 @@ var sweepBodies = map[string]func(ids map[string]string) any{
 	},
 	"DELETE /invitations/:invitation_id": nil,
 	"GET /audit-events":                  nil,
-	"GET /applications":                  nil,
+	"GET /brand":                         nil,
+	"PUT /brand":                         func(map[string]string) any { return map[string]string{"display_name": "pwned"} },
+	"GET /policy":                        nil,
+	"PUT /policy":                        func(map[string]string) any { return map[string]any{"max_attempts": 1} },
+	"GET /applications/:application_id/brand":     nil,
+	"PUT /applications/:application_id/brand":     func(map[string]string) any { return map[string]string{"display_name": "pwned"} },
+	"DELETE /applications/:application_id/brand":  nil,
+	"GET /applications/:application_id/policy":    nil,
+	"PUT /applications/:application_id/policy":    func(map[string]string) any { return map[string]any{"max_attempts": 1} },
+	"DELETE /applications/:application_id/policy": nil,
+	"GET /applications":                           nil,
 	"POST /applications": func(map[string]string) any {
 		return map[string]string{"name": "x", "key": "sweep"}
 	},
@@ -168,6 +178,13 @@ func TestBOLASweep(t *testing.T) {
 	rec = e.do(call{method: "GET", path: base + "/invitations", token: ownerA})
 	assert.Contains(t, rec.Body.String(), a["invitation_id"])
 	assert.NotContains(t, rec.Body.String(), "sweep-")
+
+	// A's brand and policy were never written (defaults, updated_at null).
+	rec = e.do(call{method: "GET", path: base + "/brand", token: ownerA})
+	assert.JSONEq(t, `{"default_locale":"en","updated_at":null}`, rec.Body.String())
+	rec = e.do(call{method: "GET", path: appPath + "/policy", token: ownerA})
+	assert.Contains(t, rec.Body.String(), `"override":null`)
+	assert.Contains(t, rec.Body.String(), `"max_attempts":5`)
 
 	// A's audit trail shows nothing done by the attacker.
 	rec = e.do(call{method: "GET", path: base + "/audit-events?limit=200", token: ownerA})

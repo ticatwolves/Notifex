@@ -23,6 +23,12 @@ func TestTenantIsolation(t *testing.T) {
 	B := b.tenant.ID
 	_, err := f.s.Audit().Append(ctx, store.AuditEvent{TenantID: &a.tenant.ID, ActorType: store.ActorUser, ActorID: "u", Action: "a.b", EntityType: "a"})
 	require.NoError(t, err)
+	for _, ss := range []store.SettingsStore{f.s.Brands(), f.s.Policies()} {
+		_, err = ss.Put(ctx, a.tenant.ID, nil, map[string]any{"owner": "A"}, nil)
+		require.NoError(t, err)
+		_, err = ss.Put(ctx, a.tenant.ID, &a.app.ID, map[string]any{"owner": "A-app"}, nil)
+		require.NoError(t, err)
+	}
 
 	notFound := []struct {
 		name string
@@ -55,6 +61,20 @@ func TestTenantIsolation(t *testing.T) {
 			return err
 		}},
 		{"memberships.delete", func() error { return f.s.Memberships().Delete(ctx, B, a.user.ID) }},
+		{"brands.get tenant (B has none; never A's)", func() error { _, err := f.s.Brands().Get(ctx, B, nil); return err }},
+		{"brands.get A's override", func() error { _, err := f.s.Brands().Get(ctx, B, &a.app.ID); return err }},
+		{"brands.put on A's app", func() error {
+			_, err := f.s.Brands().Put(ctx, B, &a.app.ID, map[string]any{"owner": "B"}, nil)
+			return err
+		}},
+		{"brands.delete A's override", func() error { return f.s.Brands().Delete(ctx, B, a.app.ID) }},
+		{"policies.get tenant (B has none; never A's)", func() error { _, err := f.s.Policies().Get(ctx, B, nil); return err }},
+		{"policies.get A's override", func() error { _, err := f.s.Policies().Get(ctx, B, &a.app.ID); return err }},
+		{"policies.put on A's app", func() error {
+			_, err := f.s.Policies().Put(ctx, B, &a.app.ID, map[string]any{"owner": "B"}, nil)
+			return err
+		}},
+		{"policies.delete A's override", func() error { return f.s.Policies().Delete(ctx, B, a.app.ID) }},
 	}
 	for _, tt := range notFound {
 		t.Run(tt.name, func(t *testing.T) {
@@ -114,6 +134,14 @@ func TestTenantIsolation(t *testing.T) {
 	assert.Equal(t, store.RoleAdmin, m.Role)
 	_, err = f.s.Environments().Get(ctx, a.tenant.ID, a.env.ID)
 	require.NoError(t, err)
+	for _, ss := range []store.SettingsStore{f.s.Brands(), f.s.Policies()} {
+		got, err := ss.Get(ctx, a.tenant.ID, nil)
+		require.NoError(t, err)
+		assert.Equal(t, "A", got.Doc["owner"])
+		got, err = ss.Get(ctx, a.tenant.ID, &a.app.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "A-app", got.Doc["owner"])
+	}
 }
 
 func countTenant[T any](rows []T, tid store.TenantID, get func(T) store.TenantID) int {

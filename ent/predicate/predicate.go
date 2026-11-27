@@ -18,6 +18,9 @@ type AuditEvent func(*sql.Selector)
 // AuthThrottle is the predicate function for auththrottle builders.
 type AuthThrottle func(*sql.Selector)
 
+// BrandProfile is the predicate function for brandprofile builders.
+type BrandProfile func(*sql.Selector)
+
 // EmailToken is the predicate function for emailtoken builders.
 type EmailToken func(*sql.Selector)
 
@@ -38,6 +41,9 @@ type Operator func(*sql.Selector)
 
 // OperatorSession is the predicate function for operatorsession builders.
 type OperatorSession func(*sql.Selector)
+
+// SendingPolicy is the predicate function for sendingpolicy builders.
+type SendingPolicy func(*sql.Selector)
 
 // Session is the predicate function for session builders.
 type Session func(*sql.Selector)

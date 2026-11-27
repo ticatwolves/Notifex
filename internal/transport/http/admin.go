@@ -43,6 +43,17 @@ type TenantAdmin interface {
 	RotateAPIKey(ctx context.Context, a tenant.Actor, appID, keyID uuid.UUID, grace time.Duration) (tenant.Rotated, error)
 
 	ListAuditEvents(ctx context.Context, a tenant.Actor, p store.Page) ([]store.AuditEvent, error)
+
+	GetBrand(ctx context.Context, a tenant.Actor) (tenant.BrandView, error)
+	PutBrand(ctx context.Context, a tenant.Actor, b tenant.Brand) (tenant.BrandView, error)
+	AppBrand(ctx context.Context, a tenant.Actor, appID uuid.UUID) (*tenant.Brand, tenant.BrandView, error)
+	PutAppBrand(ctx context.Context, a tenant.Actor, appID uuid.UUID, b tenant.Brand) (*tenant.Brand, tenant.BrandView, error)
+	DeleteAppBrand(ctx context.Context, a tenant.Actor, appID uuid.UUID) error
+	GetPolicy(ctx context.Context, a tenant.Actor) (tenant.SendingPolicyView, error)
+	PutPolicy(ctx context.Context, a tenant.Actor, p tenant.SendingPolicy) (tenant.SendingPolicyView, error)
+	AppPolicy(ctx context.Context, a tenant.Actor, appID uuid.UUID) (*tenant.SendingPolicy, tenant.SendingPolicyView, error)
+	PutAppPolicy(ctx context.Context, a tenant.Actor, appID uuid.UUID, p tenant.SendingPolicy) (*tenant.SendingPolicy, tenant.SendingPolicyView, error)
+	DeleteAppPolicy(ctx context.Context, a tenant.Actor, appID uuid.UUID) error
 }
 
 const ctxActor = "tenant_actor"
@@ -169,6 +180,7 @@ func registerAdmin(r *gin.Engine, d Deps) {
 	})
 
 	registerApps(one, t)
+	registerSettings(one, t)
 
 	one.GET("/audit-events", func(c *gin.Context) {
 		p, ok := pageParams(c, ids.AuditEvent)
