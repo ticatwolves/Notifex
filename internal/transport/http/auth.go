@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ticatwolves/notifex/internal/auth"
+	"github.com/ticatwolves/notifex/internal/ids"
 	"github.com/ticatwolves/notifex/internal/observability"
 )
 
@@ -93,8 +94,12 @@ func whoami(c *gin.Context) {
 		scopes = []string{}
 	}
 	c.JSON(http.StatusOK, whoamiResponse{
-		TenantID: p.TenantID.String(), ApplicationID: p.ApplicationID.String(),
-		EnvironmentID: p.EnvironmentID.String(), Environment: string(p.Environment),
-		APIKeyID: p.APIKeyID.String(), APIKeyPrefix: p.APIKeyPrefix, Scopes: scopes,
+		TenantID:      ids.Format(ids.Tenant, p.TenantID.UUID()),
+		ApplicationID: ids.Format(ids.Application, p.ApplicationID),
+		EnvironmentID: ids.Format(ids.Environment, p.EnvironmentID),
+		Environment:   string(p.Environment),
+		APIKeyID:      ids.Format(ids.APIKey, p.APIKeyID),
+		APIKeyPrefix:  p.APIKeyPrefix,
+		Scopes:        scopes,
 	})
 }

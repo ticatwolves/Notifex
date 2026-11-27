@@ -119,7 +119,8 @@ Response `202`:
 - Control plane under `/v1/admin/...`: tenants, members, applications, environments, api-keys, workflows, actions, templates, brand, policies, **channel-credentials** (create/rotate/verify/disable; secrets write-only), audit-events, metrics, **usage** (daily usage, daily SMS remaining).
 - `POST /v1/templates/preview` — render a template with sample payload + brand (SMS shows segment count).
 - Vendor callbacks: `POST /callbacks/{provider}` (signature verified, idempotent).
-- OpenAPI 3.1 spec is the source of truth; generate docs and SDK scaffolding from it.
+- OpenAPI 3.1 spec is the source of truth: `api/openapi.yaml`. Each operation is marked `x-notifex-status: implemented | draft`. Implemented operations are contract-tested against real responses, and a drift test fails if the router and spec disagree (`internal/transport/http/contract_test.go`). `make api-lint` runs vacuum. Generate docs and SDK scaffolding from it.
+- **Public ids** are `<kind>_<22 base62>` (`ten_`, `app_`, `env_`, `key_`, `run_`, `ntf_`) over the internal UUIDv7, using an ASCII-ordered alphabet so ids sort by creation time (`internal/ids`). Clients must treat them as opaque.
 
 ## gRPC (`api/proto/notifex/v1/`)
 ```proto

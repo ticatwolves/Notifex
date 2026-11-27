@@ -1,0 +1,517 @@
+openapi: 3.1.0
+info:
+  title: Notifex API
+  version: 0.1.0-draft
+  summary: Notifications as a service. Trigger workflows and observe every notification.
+  description: |
+    Source of truth for the Notifex REST API (docs/03). Operations marked
+    `x-notifex-status: implemented` are served and contract-tested
+    (internal/transport/http/contract_test.go). Operations marked `draft` are
+    designed but not yet built; they may change until their phase ships.
+
+    **Identifiers** are opaque strings of the form `<kind>_<22 base62 chars>`
+    (`ten_`, `app_`, `env_`, `key_`, `run_`, `ntf_`). Treat them as opaque.
+
+    **Errors** always use the `Error` envelope. Codes are stable strings;
+    messages are for humans and may change.
+
+    **Authentication:** `Authorization: Bearer <api key>`. Every credential
+    problem is the same `401 unauthenticated`; `503 unavailable` means the
+    check could not be completed and is safe to retry.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.notifex.dev
+    description: Production (ap-south-1)
+  - url: http://localhost:8080
+    description: Local (make dev)
+security:
+  - apiKey: []
+tags:
+  - name: ops
+    description: Liveness and readiness.
+  - name: identity
+    description: Caller identity.
+  - name: trigger
+    description: Trigger workflows.
+  - name: runs
+    description: Observe runs and notifications.
+
+paths:
+  /healthz:
+    get:
+      operationId: getHealthz
+      tags: [ops]
+      summary: Liveness
+      description: Process is up. Never checks dependencies.
+      security: []
+      x-notifex-status: implemented
+      responses:
+        "200":
+          description: Alive.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Status" }
+  /readyz:
+    get:
+      operationId: getReadyz
+      tags: [ops]
+      summary: Readiness
+      description: Dependencies are usable. Detail is only available on the internal ops port.
+      security: []
+      x-notifex-status: implemented
+      responses:
+        "200":
+          description: Ready.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Status" }
+        "503":
+          description: Not ready (dependency down or draining).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Status" }
+
+  /v1/whoami:
+    get:
+      operationId: getWhoami
+      tags: [identity]
+      summary: Identify the calling API key
+      description: Connectivity and credential check for SDKs and CLIs.
+      x-notifex-status: implemented
+      responses:
+        "200":
+          description: The caller's tenant, application, environment and key.
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/RequestID" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WhoAmI" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /v1/trigger:
+    post:
+      operationId: trigger
+      tags: [trigger]
+      summary: Trigger a workflow
+      description: |
+        Accepts the trigger and returns `202` with one notification per
+        (action × recipient). Per-action rejections (credential unavailable,
+        daily SMS limit, channel not allowed) are reported per notification;
+        the request fails as a whole only if no notification can be accepted.
+        Retrying with the same `Idempotency-Key` and body returns the original
+        run; a different body returns `409 idempotency_conflict`.
+      x-notifex-status: draft
+      x-notifex-phase: 3
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TriggerRequest" }
+      responses:
+        "202":
+          description: Accepted.
+          headers:
+            X-Request-ID: { $ref: "#/components/headers/RequestID" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TriggerResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /v1/runs:
+    get:
+      operationId: listRuns
+      tags: [runs]
+      summary: List runs
+      description: Runs for the calling application environment, newest first, keyset-paginated.
+      x-notifex-status: draft
+      x-notifex-phase: 5
+      parameters:
+        - { name: workflow, in: query, schema: { type: string, maxLength: 63 } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/RunStatus" } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/After"
+      responses:
+        "200":
+          description: A page of runs, newest first.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RunList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/runs/{run_id}:
+    get:
+      operationId: getRun
+      tags: [runs]
+      summary: Get a run
+      x-notifex-status: draft
+      x-notifex-phase: 3
+      parameters:
+        - $ref: "#/components/parameters/RunID"
+      responses:
+        "200":
+          description: The run and its notifications' current status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Run" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/runs/{run_id}/cancel:
+    post:
+      operationId: cancelRun
+      tags: [runs]
+      summary: Cancel a run's pending notifications
+      x-notifex-status: draft
+      x-notifex-phase: 5
+      parameters:
+        - $ref: "#/components/parameters/RunID"
+      responses:
+        "200":
+          description: Pending notifications canceled; already-sent ones are unaffected.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Run" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /v1/notifications/{notification_id}:
+    get:
+      operationId: getNotification
+      tags: [runs]
+      summary: Get a notification and its timeline
+      x-notifex-status: draft
+      x-notifex-phase: 5
+      parameters:
+        - $ref: "#/components/parameters/NotificationID"
+      responses:
+        "200":
+          description: The notification with its status timeline.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Notification" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/notifications/{notification_id}/replay:
+    post:
+      operationId: replayNotification
+      tags: [runs]
+      summary: Re-dispatch a failed notification from its original snapshot
+      x-notifex-status: draft
+      x-notifex-phase: 5
+      parameters:
+        - $ref: "#/components/parameters/NotificationID"
+      responses:
+        "202":
+          description: Replay accepted as a new attempt chain.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Notification" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`payload_expired`: the payload was purged after the tenant's retention period."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: "nfx_<env>_<prefix>_<secret><checksum>"
+      description: API key for one application environment (docs/03 §API keys).
+
+  headers:
+    RequestID:
+      description: Request id; echo it when contacting support.
+      schema: { type: string, maxLength: 64 }
+    RetryAfter:
+      description: Seconds to wait before retrying.
+      schema: { type: integer, minimum: 0 }
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Unique per logical trigger (UUID recommended); reuse it on retries.
+      schema: { type: string, minLength: 8, maxLength: 128 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    After:
+      name: after
+      in: query
+      description: Cursor from the previous page's `next_cursor`.
+      schema: { type: string, maxLength: 128 }
+    RunID:
+      name: run_id
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/RunID" }
+    NotificationID:
+      name: notification_id
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/NotificationID" }
+
+  responses:
+    BadRequest:
+      description: "`validation_failed` or `schedule_horizon_exceeded`."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthenticated:
+      description: "`unauthenticated`: missing or invalid credentials (one response for every cause)."
+      headers:
+        WWW-Authenticate:
+          description: Always `Bearer realm="notifex"`.
+          schema: { type: string }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: "`channel_not_allowed` or insufficient scope."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: "`not_found` or `workflow_not_found`. Resources of other tenants are indistinguishable from missing ones."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: "`idempotency_conflict`: same Idempotency-Key, different body."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    PayloadTooLarge:
+      description: "`payload_too_large`: body over 1 MiB."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: "`rate_limited`, `quota_exceeded`, or `platform_sms_daily_limit` (when no notification could be accepted)."
+      headers:
+        Retry-After: { $ref: "#/components/headers/RetryAfter" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unavailable:
+      description: "`unavailable`: temporarily unable to serve; retry with backoff (and the same Idempotency-Key)."
+      headers:
+        Retry-After: { $ref: "#/components/headers/RetryAfter" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    TenantID: { type: string, pattern: "^ten_[0-9A-Za-z]{22}$", examples: ["ten_0FXq3c7yH1nBkZ2pR9sLmA"] }
+    ApplicationID: { type: string, pattern: "^app_[0-9A-Za-z]{22}$" }
+    EnvironmentID: { type: string, pattern: "^env_[0-9A-Za-z]{22}$" }
+    APIKeyID: { type: string, pattern: "^key_[0-9A-Za-z]{22}$" }
+    RunID: { type: string, pattern: "^run_[0-9A-Za-z]{22}$" }
+    NotificationID: { type: string, pattern: "^ntf_[0-9A-Za-z]{22}$" }
+
+    Status:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, unavailable] }
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error: { $ref: "#/components/schemas/ErrorDetail" }
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: { $ref: "#/components/schemas/ErrorCode" }
+        message: { type: string }
+        request_id: { type: string, maxLength: 64 }
+        retry_after:
+          type: string
+          format: date-time
+          description: For per-notification limits, when the limit resets.
+    ErrorCode:
+      type: string
+      description: Stable machine-readable error code (docs/03 §Error codes).
+      enum:
+        - validation_failed
+        - schedule_horizon_exceeded
+        - unauthenticated
+        - channel_not_allowed
+        - not_found
+        - workflow_not_found
+        - method_not_allowed
+        - idempotency_conflict
+        - payload_expired
+        - payload_too_large
+        - rate_limited
+        - quota_exceeded
+        - credential_unavailable
+        - platform_sms_daily_limit
+        - internal
+        - unavailable
+
+    EnvironmentName: { type: string, enum: [dev, staging, prod] }
+
+    WhoAmI:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, application_id, environment_id, environment, api_key_id, api_key_prefix, scopes]
+      properties:
+        tenant_id: { $ref: "#/components/schemas/TenantID" }
+        application_id: { $ref: "#/components/schemas/ApplicationID" }
+        environment_id: { $ref: "#/components/schemas/EnvironmentID" }
+        environment: { $ref: "#/components/schemas/EnvironmentName" }
+        api_key_id: { $ref: "#/components/schemas/APIKeyID" }
+        api_key_prefix: { type: string, pattern: "^[a-z0-9]{12}$" }
+        scopes: { type: array, items: { type: string } }
+
+    Channel:
+      type: string
+      enum: [email, sms, push, slack, outlook, whatsapp, webhook]
+    RunStatus:
+      type: string
+      enum: [accepted, processing, completed, partially_failed, failed, canceled]
+    NotificationStatus:
+      type: string
+      enum: [queued, deferred, sending, retrying, sent, delivered, sent_unconfirmed, failed, suppressed, canceled, expired]
+
+    Recipient:
+      type: object
+      additionalProperties: false
+      description: Recipient details are passed inline; Notifex keeps no subscriber model. Raw values are encrypted and purged after the tenant's retention period.
+      properties:
+        id: { type: string, maxLength: 128, description: Caller reference, echoed as recipient_ref. }
+        email: { type: string, format: email, maxLength: 320 }
+        phone: { type: string, pattern: "^\\+[1-9][0-9]{6,14}$", description: E.164 }
+        push_tokens: { type: array, maxItems: 20, items: { type: string, maxLength: 4096 } }
+        slack_user: { type: string, maxLength: 64 }
+        whatsapp: { type: string, pattern: "^\\+[1-9][0-9]{6,14}$" }
+        locale: { type: string, maxLength: 35 }
+        timezone: { type: string, maxLength: 64, description: IANA zone, used by quiet hours. }
+
+    TriggerRequest:
+      type: object
+      additionalProperties: false
+      required: [workflow, recipients]
+      properties:
+        workflow: { type: string, minLength: 1, maxLength: 63, description: Workflow key. }
+        recipients:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items: { $ref: "#/components/schemas/Recipient" }
+        payload: { type: object, description: Validated against the workflow's payload schema, if any. }
+        context: { type: object, description: Caller metadata (not rendered). }
+        channels:
+          type: array
+          description: Narrows the workflow's channels; can never add channels.
+          items: { $ref: "#/components/schemas/Channel" }
+          uniqueItems: true
+        schedule_at:
+          type: string
+          format: date-time
+          description: At most now + 7 days (ADR-006).
+
+    NotificationRef:
+      type: object
+      additionalProperties: false
+      required: [id, channel, status]
+      properties:
+        id: { $ref: "#/components/schemas/NotificationID" }
+        channel: { $ref: "#/components/schemas/Channel" }
+        recipient_ref: { type: string }
+        status: { $ref: "#/components/schemas/NotificationStatus" }
+        error: { $ref: "#/components/schemas/ErrorDetail" }
+
+    TriggerResponse:
+      type: object
+      additionalProperties: false
+      required: [run_id, status, notifications]
+      properties:
+        run_id: { $ref: "#/components/schemas/RunID" }
+        status: { $ref: "#/components/schemas/RunStatus" }
+        notifications:
+          type: array
+          items: { $ref: "#/components/schemas/NotificationRef" }
+
+    Run:
+      type: object
+      additionalProperties: false
+      required: [id, workflow, status, source, created_at, notifications]
+      properties:
+        id: { $ref: "#/components/schemas/RunID" }
+        workflow: { type: string }
+        status: { $ref: "#/components/schemas/RunStatus" }
+        source: { type: string, description: "rest | grpc | connect | mcp | terraform | cli | webhook | sdk:<lang>" }
+        created_at: { type: string, format: date-time }
+        schedule_at: { type: [string, "null"], format: date-time }
+        notifications:
+          type: array
+          items: { $ref: "#/components/schemas/NotificationRef" }
+    RunList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Run" }
+        next_cursor: { type: [string, "null"] }
+
+    Notification:
+      type: object
+      additionalProperties: false
+      required: [id, run_id, channel, status, recipient_masked, attempt, payload_expired, events]
+      properties:
+        id: { $ref: "#/components/schemas/NotificationID" }
+        run_id: { $ref: "#/components/schemas/RunID" }
+        channel: { $ref: "#/components/schemas/Channel" }
+        status: { $ref: "#/components/schemas/NotificationStatus" }
+        recipient_masked: { type: string, examples: ["a***@e***.com"] }
+        attempt: { type: integer, minimum: 0 }
+        last_error: { $ref: "#/components/schemas/ErrorDetail" }
+        payload_expired:
+          type: boolean
+          description: True once the payload was purged; replay is no longer possible.
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/NotificationEvent" }
+    NotificationEvent:
+      type: object
+      additionalProperties: false
+      required: [type, at]
+      properties:
+        type: { type: string }
+        at: { type: string, format: date-time }
+        detail: { type: object, description: Redacted; never contains payload or raw recipients. }
+

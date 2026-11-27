@@ -16,7 +16,7 @@ Think "New Relic for notifications": a standalone, singleton, horizontally scala
 2. `docs/02-architecture.md` — system design, dispatch pipeline (SQS + outbox), scaling, tenancy
 3. `docs/03-domain-and-api.md` — entities, API/gRPC/SDK contracts, statuses, error codes
 4. `docs/04-roadmap-and-prompts.md` — phased build plan with ready-to-use prompts
-5. `docs/05-test-strategy.md`, `docs/06-security-testing.md`, `docs/07-load-testing.md` — quality, security, performance plans
+5. `docs/05-test-strategy.md`, `docs/06-security-testing.md`, `docs/07-load-testing.md`, `docs/threat-model.md` — quality, security, performance plans; threat model (update it when adding a surface)
 6. `docs/08-launch-plan.md`, `docs/09-competitive-landscape.md` — go-to-market and market context
 7. `docs/10-aws-architecture.md`, `docs/11-polyglot-services.md` — AWS deployment, costs, Go/Python/Next.js boundaries
 8. `docs/12-access-protocols-and-integrations.md` — protocols, MCP server for AI tools, Terraform actions, credentials and guardrails

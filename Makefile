@@ -7,6 +7,7 @@ GOLANGCI_LINT_VERSION := v2.15.0
 GOVULNCHECK_VERSION   := v1.10.0
 BUF_VERSION           := v1.75.0
 SQUAWK_VERSION        := 2.74.0
+VACUUM_VERSION        := v0.43.0
 LOCAL_DATABASE_URL    ?= postgres://notifex:notifex@localhost:54320/notifex?sslmode=disable
 # Pepper and local master key default to public dev values when NOTIFEX_ENV=local.
 LOCAL_ENV := NOTIFEX_ENV=local LOG_FORMAT=text DATABASE_URL=$(LOCAL_DATABASE_URL)
@@ -19,6 +20,7 @@ SERVICES := api dispatcher scheduler migrate healthcheck seed
 GOLANGCI_LINT := $(BIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 GOVULNCHECK   := $(BIN)/govulncheck-$(GOVULNCHECK_VERSION)
 BUF           := $(BIN)/buf-$(BUF_VERSION)
+VACUUM        := $(BIN)/vacuum-$(VACUUM_VERSION)
 
 .PHONY: help
 help: ## Show targets
@@ -82,8 +84,12 @@ vuln: $(GOVULNCHECK) ## govulncheck
 buf-lint: $(BUF) ## Lint protobuf contracts
 	cd api/proto && $(BUF) lint
 
+.PHONY: api-lint
+api-lint: $(VACUUM) ## Lint the OpenAPI spec (vacuum, Spectral-compatible rules)
+	$(VACUUM) lint --ruleset api/vacuum-ruleset.yaml --details --errors api/openapi.yaml
+
 .PHONY: check
-check: lint test vuln buf-lint migrate-check ## Everything CI runs on Go code
+check: lint test vuln buf-lint api-lint migrate-check ## Everything CI runs on Go code
 
 ## ---- codegen / db ----
 .PHONY: generate
@@ -121,6 +127,11 @@ $(GOVULNCHECK):
 	@mkdir -p $(BIN)
 	GOBIN=$(BIN) go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 	mv $(BIN)/govulncheck $@
+
+$(VACUUM):
+	@mkdir -p $(BIN)
+	GOBIN=$(BIN) go install github.com/daveshanley/vacuum@$(VACUUM_VERSION)
+	mv $(BIN)/vacuum $@
 
 $(BUF):
 	@mkdir -p $(BIN)

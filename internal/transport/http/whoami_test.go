@@ -24,6 +24,7 @@ import (
 	"github.com/ticatwolves/notifex/internal/crypto"
 	"github.com/ticatwolves/notifex/internal/devseed"
 	"github.com/ticatwolves/notifex/internal/health"
+	"github.com/ticatwolves/notifex/internal/ids"
 	"github.com/ticatwolves/notifex/internal/observability"
 	"github.com/ticatwolves/notifex/internal/store"
 	"github.com/ticatwolves/notifex/internal/store/entstore"
@@ -69,9 +70,10 @@ func TestWhoAmIEndToEnd(t *testing.T) {
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 		var body whoamiResponse
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
-		assert.Equal(t, seed.Tenant.ID.String(), body.TenantID)
-		assert.Equal(t, seed.Application.ID.String(), body.ApplicationID)
-		assert.Equal(t, seed.Environment.ID.String(), body.EnvironmentID)
+		assert.Equal(t, ids.Format(ids.Tenant, seed.Tenant.ID.UUID()), body.TenantID)
+		assert.Equal(t, ids.Format(ids.Application, seed.Application.ID), body.ApplicationID)
+		assert.Equal(t, ids.Format(ids.Environment, seed.Environment.ID), body.EnvironmentID)
+		assert.Equal(t, ids.Format(ids.APIKey, seed.APIKey.Key.ID), body.APIKeyID)
 		assert.Equal(t, "dev", body.Environment)
 		assert.Equal(t, seed.APIKey.Key.Prefix, body.APIKeyPrefix)
 		assert.NotNil(t, body.Scopes)
