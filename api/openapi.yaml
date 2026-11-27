@@ -10,7 +10,7 @@ info:
     designed but not yet built; they may change until their phase ships.
 
     **Identifiers** are opaque strings of the form `<kind>_<22 base62 chars>`
-    (`ten_`, `app_`, `env_`, `key_`, `run_`, `ntf_`). Treat them as opaque.
+    (`ten_`, `app_`, `env_`, `key_`, `run_`, `ntf_`, `wfl_`, `act_`, `crd_`). Treat them as opaque.
 
     **Errors** always use the `Error` envelope. Codes are stable strings;
     messages are for humans and may change.
@@ -56,6 +56,12 @@ tags:
     description: API key lifecycle.
   - name: audit
     description: Audit trail.
+  - name: workflows
+    description: Workflows, channel actions, templates and preview (ADR-012).
+  - name: brand-policy
+    description: Brand profiles and policies, per tenant with application overrides.
+  - name: credentials
+    description: Channel credentials, platform and BYO (ADR-005, ADR-013). Secrets are write-only.
   - name: operator
     description: Platform operator realm (separate accounts, TOTP, fully audited).
 
@@ -1077,6 +1083,718 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  # ---------------------------------------------------------------- Phase 2: brand and policy (docs/03, ADR-006)
+  /v1/admin/tenants/{tenant_id}/brand:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+    get:
+      operationId: getTenantBrand
+      tags: [brand-policy]
+      summary: Get the tenant brand profile (any member)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "200":
+          description: The tenant brand (defaults if never set).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Brand" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    put:
+      operationId: putTenantBrand
+      tags: [brand-policy]
+      summary: Replace the tenant brand profile (admin, owner)
+      description: Full replacement; omitted optional fields are cleared. Audited.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BrandInput" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Brand" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/brand:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/ApplicationIDPath"
+    get:
+      operationId: getApplicationBrand
+      tags: [brand-policy]
+      summary: Get the application brand override and the effective brand (any member)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "200":
+          description: The override (fields that are null inherit from the tenant) and the merged result.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandOverrideView" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    put:
+      operationId: putApplicationBrand
+      tags: [brand-policy]
+      summary: Replace the application brand override (admin, owner)
+      description: Null or omitted fields inherit from the tenant brand. Audited.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BrandOverrideInput" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandOverrideView" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteApplicationBrand
+      tags: [brand-policy]
+      summary: Remove the application brand override (admin, owner)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "204": { description: Removed; the application now uses the tenant brand. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/admin/tenants/{tenant_id}/policy:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+    get:
+      operationId: getTenantPolicy
+      tags: [brand-policy]
+      summary: Get the tenant policy (any member)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "200":
+          description: The tenant policy (defaults if never set).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Policy" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    put:
+      operationId: putTenantPolicy
+      tags: [brand-policy]
+      summary: Replace the tenant policy (admin, owner)
+      description: Full replacement. Changes to `payload_retention_days` apply to notifications that reach a terminal state afterwards. Audited.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PolicyInput" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Policy" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/policy:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/ApplicationIDPath"
+    get:
+      operationId: getApplicationPolicy
+      tags: [brand-policy]
+      summary: Get the application policy override and the effective policy (any member)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "200":
+          description: The override and the merged result.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PolicyOverrideView" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    put:
+      operationId: putApplicationPolicy
+      tags: [brand-policy]
+      summary: Replace the application policy override (admin, owner)
+      description: Null or omitted fields inherit from the tenant policy. Retention is tenant-level only (ADR-006). Audited.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PolicyOverrideInput" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PolicyOverrideView" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteApplicationPolicy
+      tags: [brand-policy]
+      summary: Remove the application policy override (admin, owner)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "204": { description: Removed; the application now uses the tenant policy. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  # ---------------------------------------------------------------- Phase 2: workflows, actions, templates (ADR-012)
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/workflows:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/ApplicationIDPath"
+    get:
+      operationId: listWorkflows
+      tags: [workflows]
+      summary: List workflows (any member)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      parameters:
+        - { name: status, in: query, description: Filter by status., schema: { $ref: "#/components/schemas/WorkflowStatus" } }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/After"
+      responses:
+        "200":
+          description: A page of workflows (actions included).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkflowList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createWorkflow
+      tags: [workflows]
+      summary: Create a workflow (developer, admin, owner)
+      description: New workflows start as `draft`. A `payload_schema` must be a valid JSON Schema (2020-12, no remote `$ref`, at most 64 KiB).
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkflowCreate" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workflow" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/workflows/{workflow_id}:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/ApplicationIDPath"
+      - $ref: "#/components/parameters/WorkflowIDPath"
+    get:
+      operationId: getWorkflow
+      tags: [workflows]
+      summary: Get a workflow with its actions (any member)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "200":
+          description: The workflow.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workflow" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateWorkflow
+      tags: [workflows]
+      summary: Update a workflow (developer, admin, owner)
+      description: |
+        `key` can't change (triggers reference it). Setting `status: active` requires at least one
+        enabled action, and every enabled action needs at least one template; otherwise
+        `400 validation_failed`. In-flight runs are unaffected (snapshot at accept).
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WorkflowPatch" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Workflow" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteWorkflow
+      tags: [workflows]
+      summary: Delete a workflow with its actions and templates (developer, admin, owner)
+      description: Runs already accepted keep their snapshot and are unaffected.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/workflows/{workflow_id}/actions:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/ApplicationIDPath"
+      - $ref: "#/components/parameters/WorkflowIDPath"
+    post:
+      operationId: createAction
+      tags: [workflows]
+      summary: Add a channel action (developer, admin, owner)
+      description: One action per channel per workflow (`409 conflict` otherwise). Phase 2 channels are email, sms, slack and webhook.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ActionCreate" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Action" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/workflows/{workflow_id}/actions/{action_id}:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/ApplicationIDPath"
+      - $ref: "#/components/parameters/WorkflowIDPath"
+      - $ref: "#/components/parameters/ActionIDPath"
+    patch:
+      operationId: updateAction
+      tags: [workflows]
+      summary: Enable or disable an action (developer, admin, owner)
+      description: Disabling the last enabled action of an active workflow is `409 conflict` (archive the workflow instead).
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ActionPatch" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Action" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteAction
+      tags: [workflows]
+      summary: Delete an action and its templates (developer, admin, owner)
+      description: Same rule as disabling for the last enabled action of an active workflow.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/workflows/{workflow_id}/actions/{action_id}/templates:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/ApplicationIDPath"
+      - $ref: "#/components/parameters/WorkflowIDPath"
+      - $ref: "#/components/parameters/ActionIDPath"
+    get:
+      operationId: listTemplates
+      tags: [workflows]
+      summary: List an action's templates, one per locale (any member)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "200":
+          description: All templates of the action (at most 50 locales).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TemplateList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/workflows/{workflow_id}/actions/{action_id}/templates/{locale}:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/ApplicationIDPath"
+      - $ref: "#/components/parameters/WorkflowIDPath"
+      - $ref: "#/components/parameters/ActionIDPath"
+      - $ref: "#/components/parameters/LocalePath"
+    get:
+      operationId: getTemplate
+      tags: [workflows]
+      summary: Get the template for a locale (any member)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "200":
+          description: The template.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Template" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    put:
+      operationId: putTemplate
+      tags: [workflows]
+      summary: Create or replace the template for a locale (developer, admin, owner)
+      description: |
+        Fields used depend on the action's channel (ADR-012 §3); fields for other channels are
+        `400 validation_failed`. Syntax errors and channel limit violations are
+        `400 template_invalid` with `details` (field, line, column).
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TemplateInput" }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Template" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteTemplate
+      tags: [workflows]
+      summary: Delete the template for a locale (developer, admin, owner)
+      description: Deleting the last template of an enabled action in an active workflow is `409 conflict`.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/admin/tenants/{tenant_id}/applications/{application_id}/templates/preview:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/ApplicationIDPath"
+    post:
+      operationId: previewTemplate
+      tags: [workflows]
+      summary: Render an unsaved template with sample data (developer, admin, owner)
+      description: |
+        Renders with the application's effective brand. Nothing is stored or logged.
+        Render failures (syntax, budgets, channel limits) are `400 template_invalid` with `details`.
+        The console must show the HTML in a sandboxed iframe (docs/11).
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PreviewRequest" }
+      responses:
+        "200":
+          description: Rendered output.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreviewResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  # ---------------------------------------------------------------- Phase 2: channel credentials (ADR-005, ADR-013)
+  /v1/admin/channel-providers:
+    get:
+      operationId: listChannelProviders
+      tags: [credentials]
+      summary: The provider catalogue (any signed-in user)
+      description: Static. Describes each provider's config and secret fields so the console can draw forms.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "200":
+          description: Providers by channel.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChannelProviderList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /v1/admin/tenants/{tenant_id}/channel-credentials:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+    get:
+      operationId: listChannelCredentials
+      tags: [credentials]
+      summary: List credential metadata (developer, admin, owner)
+      description: Secrets are never returned.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      parameters:
+        - { name: channel, in: query, description: Filter by channel., schema: { $ref: "#/components/schemas/Channel" } }
+        - { name: application_id, in: query, description: Filter by application scope., schema: { $ref: "#/components/schemas/ApplicationID" } }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/After"
+      responses:
+        "200":
+          description: A page of credentials.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChannelCredentialList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    post:
+      operationId: createChannelCredential
+      tags: [credentials]
+      summary: Add a credential (admin, owner)
+      description: |
+        Scope is the tenant, an application, or an application environment. At most one
+        non-disabled credential per scope and channel (`409 conflict`). For `webhook/signing`
+        the secret is generated and returned once in `generated_secret`. Audited (never the secret).
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChannelCredentialCreate" }
+      responses:
+        "201":
+          description: Created (status `pending`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChannelCredentialCreated" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/admin/tenants/{tenant_id}/channel-credentials/resolve:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+    get:
+      operationId: resolveChannelCredential
+      tags: [credentials]
+      summary: Which credential a send would use (developer, admin, owner)
+      description: The same resolution as trigger acceptance (ADR-013 §5). `200` with `available:false` and the reason when none applies.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      parameters:
+        - { name: channel, in: query, required: true, description: Channel., schema: { $ref: "#/components/schemas/Channel" } }
+        - { name: application_id, in: query, required: true, description: Application., schema: { $ref: "#/components/schemas/ApplicationID" } }
+        - { name: environment_id, in: query, required: true, description: Environment of that application., schema: { $ref: "#/components/schemas/EnvironmentID" } }
+      responses:
+        "200":
+          description: The resolution result.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CredentialResolution" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/admin/tenants/{tenant_id}/channel-credentials/{credential_id}:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/CredentialIDPath"
+    get:
+      operationId: getChannelCredential
+      tags: [credentials]
+      summary: Get credential metadata (developer, admin, owner)
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "200":
+          description: The credential (never the secret).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChannelCredential" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    patch:
+      operationId: updateChannelCredential
+      tags: [credentials]
+      summary: Rename, change config, or enable/disable (admin, owner)
+      description: Changing `config` does not touch the secret. Re-enabling while another credential is active in the same scope and channel is `409 conflict`. Audited.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChannelCredentialPatch" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChannelCredential" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+    delete:
+      operationId: deleteChannelCredential
+      tags: [credentials]
+      summary: Delete a credential (admin, owner)
+      description: Permanent; the encrypted secret is removed. Notifications already accepted with this credential fail permanently at dispatch. Audited.
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /v1/admin/tenants/{tenant_id}/channel-credentials/{credential_id}/rotate:
+    parameters:
+      - $ref: "#/components/parameters/TenantIDPath"
+      - $ref: "#/components/parameters/CredentialIDPath"
+    post:
+      operationId: rotateChannelCredential
+      tags: [credentials]
+      summary: Replace the secret (admin, owner)
+      description: |
+        Takes effect immediately, including for notifications already accepted. For
+        `webhook/signing` send no body; the new secret is returned once in `generated_secret`.
+        Providers without a secret are `400 validation_failed`. Audited (never the secret).
+      security: [{ consoleSession: [] }]
+      x-notifex-status: draft
+      x-notifex-phase: 2
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChannelCredentialRotate" }
+      responses:
+        "200":
+          description: Rotated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChannelCredentialCreated" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
   # ---------------------------------------------------------------- Phase 1: operator realm (ADR-011 §5)
   /v1/operator/auth/login:
     post:
@@ -1273,9 +1991,34 @@ components:
       description: OAuth provider.
       schema: { type: string, enum: [google, microsoft, github] }
 
+    WorkflowIDPath:
+      name: workflow_id
+      in: path
+      required: true
+      description: Workflow id.
+      schema: { $ref: "#/components/schemas/WorkflowID" }
+    ActionIDPath:
+      name: action_id
+      in: path
+      required: true
+      description: Action id.
+      schema: { $ref: "#/components/schemas/ActionID" }
+    LocalePath:
+      name: locale
+      in: path
+      required: true
+      description: BCP 47 locale (`en`, `en-IN`, `hi`).
+      schema: { $ref: "#/components/schemas/Locale" }
+    CredentialIDPath:
+      name: credential_id
+      in: path
+      required: true
+      description: Channel credential id.
+      schema: { $ref: "#/components/schemas/CredentialID" }
+
   responses:
     BadRequest:
-      description: "`validation_failed`, `invalid_token` (expired or used email/reset/invitation token), or `schedule_horizon_exceeded`."
+      description: "`validation_failed`, `template_invalid` (syntax, render budget or channel limit; see `details`), `invalid_token` (expired or used email/reset/invitation token), or `schedule_horizon_exceeded`."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -1361,11 +2104,16 @@ components:
           type: string
           format: date-time
           description: For per-notification limits, when the limit resets.
+        details:
+          type: array
+          description: "For `template_invalid`: where each problem is."
+          items: { $ref: "#/components/schemas/TemplateWarning" }
     ErrorCode:
       type: string
       description: Stable machine-readable error code (docs/03 §Error codes).
       enum:
         - validation_failed
+        - template_invalid
         - schedule_horizon_exceeded
         - unauthenticated
         - invalid_credentials
@@ -1421,14 +2169,14 @@ components:
       additionalProperties: false
       description: Recipient details are passed inline; Notifex keeps no subscriber model. Raw values are encrypted and purged after the tenant's retention period.
       properties:
-        id: { type: string, maxLength: 128, description: Caller reference, echoed as recipient_ref. }
+        id: { type: string, maxLength: 128, description: "Caller reference, echoed as recipient_ref." }
         email: { type: string, format: email, maxLength: 320 }
         phone: { type: string, pattern: "^\\+[1-9][0-9]{6,14}$", description: E.164 }
         push_tokens: { type: array, maxItems: 20, items: { type: string, maxLength: 4096 } }
         slack_user: { type: string, maxLength: 64 }
         whatsapp: { type: string, pattern: "^\\+[1-9][0-9]{6,14}$" }
         locale: { type: string, maxLength: 35 }
-        timezone: { type: string, maxLength: 64, description: IANA zone, used by quiet hours. }
+        timezone: { type: string, maxLength: 64, description: "IANA zone, used by quiet hours." }
 
     TriggerRequest:
       type: object
@@ -1441,7 +2189,7 @@ components:
           minItems: 1
           maxItems: 1000
           items: { $ref: "#/components/schemas/Recipient" }
-        payload: { type: object, description: Validated against the workflow's payload schema, if any. }
+        payload: { type: object, description: "Validated against the workflow's payload schema, if any." }
         context: { type: object, description: Caller metadata (not rendered). }
         channels:
           type: array
@@ -1543,7 +2291,7 @@ components:
       description: Single-use token from an email link.
     Role: { type: string, enum: [owner, admin, developer, viewer] }
     TenantStatus: { type: string, enum: [active, suspended, deleted] }
-    NextCursor: { type: [string, "null"], description: Pass as `after` for the next page; null on the last page. }
+    NextCursor: { type: [string, "null"], description: "Pass as `after` for the next page; null on the last page." }
 
     SignupRequest:
       type: object
@@ -1746,7 +2494,7 @@ components:
       properties:
         id: { $ref: "#/components/schemas/ApplicationID" }
         name: { type: string }
-        key: { type: string, description: Stable slug, unique per tenant. }
+        key: { type: string, description: "Stable slug, unique per tenant." }
         description: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
@@ -1802,7 +2550,7 @@ components:
         id: { $ref: "#/components/schemas/APIKeyID" }
         environment_id: { $ref: "#/components/schemas/EnvironmentID" }
         name: { type: string }
-        prefix: { type: string, pattern: "^[a-z0-9]{12}$", description: Public part of the key, for identification. }
+        prefix: { type: string, pattern: "^[a-z0-9]{12}$", description: "Public part of the key, for identification." }
         scopes: { type: array, items: { type: string } }
         expires_at: { type: [string, "null"], format: date-time }
         last_used_at: { type: [string, "null"], format: date-time, description: Updated at most once a minute. }
@@ -1911,7 +2659,7 @@ components:
       required: [reason]
       description: At least one change plus a reason.
       properties:
-        status: { type: string, enum: [active, suspended], description: Deletion is owner-only (crypto-shred), not an operator action. }
+        status: { type: string, enum: [active, suspended], description: "Deletion is owner-only (crypto-shred), not an operator action." }
         plan: { type: string, minLength: 1, maxLength: 64 }
         sandbox: { type: boolean }
         platform_sms_daily_limit: { type: integer, minimum: 0 }
@@ -1924,3 +2672,380 @@ components:
       properties:
         data: { type: array, items: { $ref: "#/components/schemas/OperatorTenant" } }
         next_cursor: { $ref: "#/components/schemas/NextCursor" }
+
+    # ---- Phase 2 (ADR-012, ADR-013)
+    WorkflowID: { type: string, pattern: "^wfl_[0-9A-Za-z]{22}$" }
+    ActionID: { type: string, pattern: "^act_[0-9A-Za-z]{22}$" }
+    CredentialID: { type: string, pattern: "^crd_[0-9A-Za-z]{22}$" }
+    Locale: { type: string, pattern: "^[a-z]{2,3}(-[A-Z]{2}|-[A-Za-z]{4}|-[0-9]{3})?$", maxLength: 16, examples: ["en", "en-IN", "hi"] }
+    HexColor: { type: string, pattern: "^#[0-9a-fA-F]{6}$" }
+    HttpsURL: { type: string, format: uri, pattern: "^https://", maxLength: 2048 }
+    ClockTime: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$", description: "Local time, 24 h (`22:00`)." }
+    TimeZone: { type: string, maxLength: 64, description: "IANA time zone name (`Asia/Kolkata`).", examples: ["Asia/Kolkata"] }
+
+    BrandColors:
+      type: object
+      additionalProperties: false
+      properties:
+        primary: { $ref: "#/components/schemas/HexColor" }
+        secondary: { $ref: "#/components/schemas/HexColor" }
+        background: { $ref: "#/components/schemas/HexColor" }
+        text: { $ref: "#/components/schemas/HexColor" }
+    BrandEmail:
+      type: object
+      additionalProperties: false
+      properties:
+        from_name: { type: string, maxLength: 100, description: Display name; the address comes from the credential. }
+        reply_to: { type: string, format: email, maxLength: 254 }
+    BrandInput:
+      type: object
+      additionalProperties: false
+      properties:
+        display_name: { type: string, maxLength: 100 }
+        logo_url: { $ref: "#/components/schemas/HttpsURL" }
+        colors: { $ref: "#/components/schemas/BrandColors" }
+        email: { $ref: "#/components/schemas/BrandEmail" }
+        footer_text: { type: string, maxLength: 2000 }
+        legal_text: { type: string, maxLength: 4000 }
+        support_url: { $ref: "#/components/schemas/HttpsURL" }
+        default_locale: { $ref: "#/components/schemas/Locale" }
+    Brand:
+      type: object
+      additionalProperties: false
+      description: A brand profile. `default_locale` is always set (default `en`).
+      required: [default_locale, updated_at]
+      properties:
+        display_name: { type: string, maxLength: 100 }
+        logo_url: { $ref: "#/components/schemas/HttpsURL" }
+        colors: { $ref: "#/components/schemas/BrandColors" }
+        email: { $ref: "#/components/schemas/BrandEmail" }
+        footer_text: { type: string, maxLength: 2000 }
+        legal_text: { type: string, maxLength: 4000 }
+        support_url: { $ref: "#/components/schemas/HttpsURL" }
+        default_locale: { $ref: "#/components/schemas/Locale" }
+        updated_at: { type: [string, "null"], format: date-time, description: Null when never saved. }
+    BrandOverrideInput:
+      type: object
+      additionalProperties: false
+      description: Same fields as the tenant brand; omitted means inherit.
+      properties:
+        display_name: { type: string, maxLength: 100 }
+        logo_url: { $ref: "#/components/schemas/HttpsURL" }
+        colors: { $ref: "#/components/schemas/BrandColors" }
+        email: { $ref: "#/components/schemas/BrandEmail" }
+        footer_text: { type: string, maxLength: 2000 }
+        legal_text: { type: string, maxLength: 4000 }
+        support_url: { $ref: "#/components/schemas/HttpsURL" }
+        default_locale: { $ref: "#/components/schemas/Locale" }
+    BrandOverrideView:
+      type: object
+      additionalProperties: false
+      required: [override, effective]
+      properties:
+        override: { oneOf: [{ $ref: "#/components/schemas/BrandOverrideInput" }, { type: "null" }], description: Null when the application has no override. }
+        effective: { $ref: "#/components/schemas/Brand" }
+
+    QuietHours:
+      type: object
+      additionalProperties: false
+      required: [start, end, timezone]
+      description: Sends in this window are deferred to its end (Phase 3). `start` after `end` spans midnight.
+      properties:
+        start: { $ref: "#/components/schemas/ClockTime" }
+        end: { $ref: "#/components/schemas/ClockTime" }
+        timezone: { $ref: "#/components/schemas/TimeZone" }
+        use_recipient_timezone: { type: boolean, description: Use the recipient's timezone when the trigger gives one. }
+        channels: { type: array, items: { $ref: "#/components/schemas/Channel" }, uniqueItems: true, description: Channels it applies to; empty means all. }
+    PolicyInput:
+      type: object
+      additionalProperties: false
+      properties:
+        allowed_channels: { type: array, items: { $ref: "#/components/schemas/Channel" }, uniqueItems: true, description: Empty or omitted means every channel. }
+        quiet_hours: { oneOf: [{ $ref: "#/components/schemas/QuietHours" }, { type: "null" }] }
+        rate_limits_per_minute:
+          type: object
+          description: Per-channel sends per minute for this tenant (or application).
+          propertyNames: { $ref: "#/components/schemas/Channel" }
+          additionalProperties: { type: integer, minimum: 1, maximum: 100000 }
+        max_attempts: { type: integer, minimum: 1, maximum: 10, description: "Delivery attempts per notification (default 5)." }
+        payload_retention_days: { type: integer, minimum: 1, maximum: 7, description: "Tenant policy only (ADR-006). Default 7." }
+    Policy:
+      type: object
+      additionalProperties: false
+      required: [allowed_channels, quiet_hours, rate_limits_per_minute, max_attempts, payload_retention_days, updated_at]
+      properties:
+        allowed_channels: { type: array, items: { $ref: "#/components/schemas/Channel" }, uniqueItems: true, description: Empty or omitted means every channel. }
+        quiet_hours: { oneOf: [{ $ref: "#/components/schemas/QuietHours" }, { type: "null" }] }
+        rate_limits_per_minute:
+          type: object
+          description: Per-channel sends per minute for this tenant (or application).
+          propertyNames: { $ref: "#/components/schemas/Channel" }
+          additionalProperties: { type: integer, minimum: 1, maximum: 100000 }
+        max_attempts: { type: integer, minimum: 1, maximum: 10, description: "Delivery attempts per notification (default 5)." }
+        payload_retention_days: { type: integer, minimum: 1, maximum: 7, description: "Tenant policy only (ADR-006). Default 7." }
+        updated_at: { type: [string, "null"], format: date-time, description: Null when never saved. }
+    PolicyOverrideInput:
+      description: Same fields as the tenant policy except `payload_retention_days`; null or omitted means inherit.
+      type: object
+      additionalProperties: false
+      properties:
+        allowed_channels: { type: array, items: { $ref: "#/components/schemas/Channel" }, uniqueItems: true }
+        quiet_hours: { oneOf: [{ $ref: "#/components/schemas/QuietHours" }, { type: "null" }] }
+        rate_limits_per_minute:
+          type: object
+          propertyNames: { $ref: "#/components/schemas/Channel" }
+          additionalProperties: { type: integer, minimum: 1, maximum: 100000 }
+        max_attempts: { type: integer, minimum: 1, maximum: 10 }
+    PolicyOverrideView:
+      type: object
+      additionalProperties: false
+      required: [override, effective]
+      properties:
+        override: { oneOf: [{ $ref: "#/components/schemas/PolicyOverrideInput" }, { type: "null" }] }
+        effective: { $ref: "#/components/schemas/Policy" }
+
+    WorkflowStatus: { type: string, enum: [draft, active, archived] }
+    WorkflowKey: { type: string, pattern: "^[a-z0-9](?:[a-z0-9_-]{0,61}[a-z0-9])?$", description: Stable slug used by triggers; unique per application. }
+    Workflow:
+      type: object
+      additionalProperties: false
+      required: [id, application_id, key, name, description, status, payload_schema, actions, created_at, updated_at]
+      properties:
+        id: { $ref: "#/components/schemas/WorkflowID" }
+        application_id: { $ref: "#/components/schemas/ApplicationID" }
+        key: { $ref: "#/components/schemas/WorkflowKey" }
+        name: { type: string }
+        description: { type: string }
+        status: { $ref: "#/components/schemas/WorkflowStatus" }
+        payload_schema: { type: [object, "null"], description: "JSON Schema (2020-12) the trigger payload must satisfy, or null." }
+        actions: { type: array, items: { $ref: "#/components/schemas/Action" } }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    WorkflowCreate:
+      type: object
+      additionalProperties: false
+      required: [key, name]
+      properties:
+        key: { $ref: "#/components/schemas/WorkflowKey" }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        payload_schema: { type: [object, "null"] }
+    WorkflowPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        status: { $ref: "#/components/schemas/WorkflowStatus" }
+        payload_schema: { type: [object, "null"], description: Null removes the schema. }
+    WorkflowList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Workflow" } }
+        next_cursor: { $ref: "#/components/schemas/NextCursor" }
+    Action:
+      type: object
+      additionalProperties: false
+      required: [id, channel, enabled, locales, created_at, updated_at]
+      properties:
+        id: { $ref: "#/components/schemas/ActionID" }
+        channel: { $ref: "#/components/schemas/Channel" }
+        enabled: { type: boolean }
+        locales: { type: array, items: { $ref: "#/components/schemas/Locale" }, description: Locales that have a template. }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ActionCreate:
+      type: object
+      additionalProperties: false
+      required: [channel]
+      properties:
+        channel: { $ref: "#/components/schemas/Channel" }
+        enabled: { type: boolean, default: true }
+    ActionPatch:
+      type: object
+      additionalProperties: false
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+
+    TemplateContent:
+      type: object
+      additionalProperties: false
+      description: |
+        Which fields apply depends on the channel (ADR-012 §3):
+        email `subject` (required), `html` and/or `text`, `layout`;
+        sms `text`; slack `text` and/or `blocks`; webhook `body`.
+      properties:
+        subject: { type: string, maxLength: 65536 }
+        html: { type: string, maxLength: 65536 }
+        text: { type: string, maxLength: 65536 }
+        layout: { type: string, enum: [default, none], description: "Email only: wrap in the brand layout (default)." }
+        blocks: { type: array, maxItems: 50, items: { type: object }, description: Slack Block Kit; string leaves are templates. }
+        body: { description: "Webhook JSON body; string leaves are templates.", type: [object, array, string, number, boolean, "null"] }
+    TemplateInput:
+      $ref: "#/components/schemas/TemplateContent"
+    Template:
+      type: object
+      additionalProperties: false
+      required: [locale, channel, updated_at]
+      properties:
+        locale: { $ref: "#/components/schemas/Locale" }
+        channel: { $ref: "#/components/schemas/Channel" }
+        subject: { type: string, maxLength: 65536 }
+        html: { type: string, maxLength: 65536 }
+        text: { type: string, maxLength: 65536 }
+        layout: { type: string, enum: [default, none], description: "Email only: wrap in the brand layout (default)." }
+        blocks: { type: array, maxItems: 50, items: { type: object }, description: Slack Block Kit; string leaves are templates. }
+        body: { description: "Webhook JSON body; string leaves are templates.", type: [object, array, string, number, boolean, "null"] }
+        updated_at: { type: string, format: date-time }
+    TemplateList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Template" } }
+    PreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [channel, template]
+      properties:
+        channel: { $ref: "#/components/schemas/Channel" }
+        template: { $ref: "#/components/schemas/TemplateContent" }
+        payload: { type: object, description: Sample trigger payload. }
+        recipient: { type: object, description: "Sample recipient fields (`locale`, `timezone`, …)." }
+        workflow_id: { $ref: "#/components/schemas/WorkflowID" }
+    TemplateWarning:
+      type: object
+      additionalProperties: false
+      required: [field, message]
+      properties:
+        field: { type: string }
+        line: { type: integer, minimum: 1 }
+        column: { type: integer, minimum: 1 }
+        message: { type: string }
+    PreviewResult:
+      type: object
+      additionalProperties: false
+      required: [channel, warnings]
+      properties:
+        channel: { $ref: "#/components/schemas/Channel" }
+        subject: { type: string }
+        html: { type: string, description: Sanitized and wrapped in the brand layout. Display only in a sandboxed iframe. }
+        text: { type: string }
+        blocks: { type: array, items: { type: object } }
+        body: { type: [object, array, string, number, boolean, "null"] }
+        sms:
+          type: object
+          additionalProperties: false
+          required: [encoding, segments, units]
+          properties:
+            encoding: { type: string, enum: [gsm7, ucs2] }
+            segments: { type: integer, minimum: 0, maximum: 3 }
+            units: { type: integer, minimum: 0, description: Septets (GSM-7) or UTF-16 units (UCS-2). }
+            ucs2_characters: { type: array, items: { type: string }, description: Characters that forced UCS-2. }
+        warnings: { type: array, items: { $ref: "#/components/schemas/TemplateWarning" }, description: "For example, references to paths the payload schema doesn't define." }
+
+    CredentialMode: { type: string, enum: [platform, byo] }
+    CredentialStatus: { type: string, enum: [pending, verified, disabled], description: "`pending` and `verified` are both usable (ADR-013 §6)." }
+    ChannelCredential:
+      type: object
+      additionalProperties: false
+      required: [id, channel, provider, mode, name, application_id, environment_id, config, has_secret, status, created_at, updated_at]
+      properties:
+        id: { $ref: "#/components/schemas/CredentialID" }
+        channel: { $ref: "#/components/schemas/Channel" }
+        provider: { type: string }
+        mode: { $ref: "#/components/schemas/CredentialMode" }
+        name: { type: string }
+        application_id: { oneOf: [{ $ref: "#/components/schemas/ApplicationID" }, { type: "null" }] }
+        environment_id: { oneOf: [{ $ref: "#/components/schemas/EnvironmentID" }, { type: "null" }] }
+        config: { type: object, description: Non-secret settings. }
+        has_secret: { type: boolean }
+        secret_hint: { type: string, description: "Last 4 characters of the secret (`…a1b2`)." }
+        status: { $ref: "#/components/schemas/CredentialStatus" }
+        verified_at: { type: [string, "null"], format: date-time }
+        rotated_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ChannelCredentialCreated:
+      type: object
+      additionalProperties: false
+      required: [credential]
+      properties:
+        credential: { $ref: "#/components/schemas/ChannelCredential" }
+        generated_secret: { type: string, description: "Only for `webhook/signing`: shown once." }
+    ChannelCredentialCreate:
+      type: object
+      additionalProperties: false
+      required: [channel, provider, name]
+      properties:
+        channel: { $ref: "#/components/schemas/Channel" }
+        provider: { type: string, maxLength: 32 }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        application_id: { $ref: "#/components/schemas/ApplicationID" }
+        environment_id: { $ref: "#/components/schemas/EnvironmentID" }
+        config: { type: object, description: Validated against the provider's config fields. }
+        secret: { type: object, writeOnly: true, description: Validated against the provider's secret fields. At most 16 KiB. Never returned. }
+    ChannelCredentialPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        config: { type: object }
+        enabled: { type: boolean, description: "False sets `disabled`; true sets `pending`." }
+    ChannelCredentialRotate:
+      type: object
+      additionalProperties: false
+      required: [secret]
+      properties:
+        secret: { type: object, writeOnly: true }
+    ChannelCredentialList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/ChannelCredential" } }
+        next_cursor: { $ref: "#/components/schemas/NextCursor" }
+    CredentialResolution:
+      type: object
+      additionalProperties: false
+      required: [available, channel]
+      properties:
+        available: { type: boolean }
+        channel: { $ref: "#/components/schemas/Channel" }
+        mode: { $ref: "#/components/schemas/CredentialMode" }
+        provider: { type: string }
+        credential_id: { oneOf: [{ $ref: "#/components/schemas/CredentialID" }, { type: "null" }], description: Null for the implicit platform credential. }
+        scope: { type: string, enum: [environment, application, tenant, platform_default] }
+        reason: { type: string, description: "When unavailable: why (`credential_unavailable`)." }
+    ProviderField:
+      type: object
+      additionalProperties: false
+      required: [name, type, required]
+      properties:
+        name: { type: string }
+        type: { type: string, enum: [string, integer, enum] }
+        required: { type: boolean }
+        values: { type: array, items: { type: string } }
+        description: { type: string }
+    ChannelProvider:
+      type: object
+      additionalProperties: false
+      required: [channel, provider, mode, config_fields, secret_fields, secret_generated]
+      properties:
+        channel: { $ref: "#/components/schemas/Channel" }
+        provider: { type: string }
+        mode: { $ref: "#/components/schemas/CredentialMode" }
+        config_fields: { type: array, items: { $ref: "#/components/schemas/ProviderField" } }
+        secret_fields: { type: array, items: { $ref: "#/components/schemas/ProviderField" } }
+        secret_generated: { type: boolean, description: Notifex generates the secret (webhook signing). }
+    ChannelProviderList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/ChannelProvider" } }

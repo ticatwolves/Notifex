@@ -100,7 +100,7 @@ type VendorClient interface { /* per-channel vendor call */ }
 - Shared schema, `tenant_id` on every tenant-owned table; ent privacy rules + store layer enforce scoping. Postgres Row-Level Security as defense in depth.
 - Per-tenant: quotas, rate limits, platform-SMS daily limit, brand, policy, credentials, payload retention (1–7 days), data encryption key.
 - **Fairness:** SQS fair queues within each channel queue; per-tenant concurrency caps in the consumer as a second line; separate queues per channel.
-- **Brand injection:** renderer exposes `{{brand.*}}` (logo_url, primary_color, sender_name, footer, legal) merged from tenant → application override. Email layouts wrap content with brand automatically.
+- **Brand injection:** renderer exposes `{{brand.*}}` (display_name, logo_url, colors, email from_name, footer_text, legal_text, support_url) merged field by field from tenant → application override. Email layouts wrap content with brand automatically unless the template sets `layout: none` (ADR-012).
 - **Policy engine:** pure function `Evaluate(policy, notification, now) → Allow | Defer(until) | Deny(reason)`.
 - Platform operator has a separate auth realm and access path; every access is audited.
 

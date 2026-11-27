@@ -25,6 +25,7 @@ Work in phases. Each phase ends with a demo-able, tested slice. Start every phas
 - Workflow, Action, Template CRUD; payload schema validation; template renderer with brand injection; preview endpoint.
 - Brand profile and policy CRUD (incl. `payload_retention_days` 1–7).
 - **ChannelCredential** CRUD with platform/BYO modes and resolution order (ADR-005); BYO secrets encrypted via KeyProvider.
+- **Plan approved 2026-11-27** (ADR-012, ADR-013). Slices: 1 contract + ADRs · 2 renderer · 3 brand + policy · 4 workflows, actions, templates, preview · 5 channel credentials · 6 sweep + docs. Deferred: action `conditions`, workflow exposure flags, real credential verification (Phase 3/4).
 
 > **Prompt:** "Implement the sandboxed template renderer and the preview endpoint. Include brand variables, per-channel validation (SMS ≤ 3 segments, push size, Slack blocks), and fuzz tests for the renderer. Then plan the ChannelCredential model and resolution (env BYO → app BYO → tenant BYO → platform) per ADR-005; wait for approval before the schema."
 

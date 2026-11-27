@@ -10,15 +10,15 @@ All tenant-owned entities carry `tenant_id`, `created_at`, `updated_at`. Ids are
 | `Tenant` | id (caller-generated, ADR-010), name, slug, status, plan, quotas (JSON), `platform_sms_daily_limit`, `sandbox` (bool, default true; lifted by operator), `dek_wrapped` (NULL after crypto-shred), `dek_key_id`, `dek_version` |
 | `User` | email, password_hash?, oauth identities, status |
 | `Membership` | tenant_id, user_id, role (`owner/admin/developer/viewer`) |
-| `BrandProfile` | tenant_id, application_id?, logo_url, colors (JSON), sender identities per channel, footer, legal_text, default_locale |
-| `Policy` | tenant_id, application_id?, quiet_hours, timezone, rate_limits, allowed_channels, max_attempts, `payload_retention_days` (1–7, default 7), pii_masking |
+| `BrandProfile` | tenant_id, application_id? (override; null fields inherit), display_name, logo_url (https), colors (JSON), email from_name / reply_to, footer_text, legal_text, support_url, default_locale. One per scope |
+| `Policy` | tenant_id, application_id? (override; null fields inherit), quiet_hours (start, end, timezone, use_recipient_timezone, channels), rate_limits_per_minute (per channel), allowed_channels, max_attempts (1–10, default 5), `payload_retention_days` (1–7, default 7; **tenant policy only**). One per scope. Masking of recipients is always on, not a setting |
 | `Application` | tenant_id, name, key (slug), description |
 | `Environment` | tenant_id, application_id, name (`dev/staging/prod`); composite FK (tenant_id, application_id) |
 | `ApiKey` | tenant_id, application_id, environment_id, name, prefix, hash, scopes, expires_at, last_used_at (throttled to 1/min), revoked_at; composite FK (tenant_id, application_id, environment_id) |
-| `ChannelCredential` | tenant_id, application_id?, environment?, channel, provider, `mode` (`platform/byo`), `secret_ciphertext` 🔒 (BYO only), status (`pending/verified/disabled`), verified_at |
-| `Workflow` | application_id, key (stable slug), name, payload_schema (JSON schema, optional), status (`draft/active/archived`), exposure flags (MCP/Terraform, doc 12) |
-| `Action` | workflow_id, channel, order/config, enabled, conditions (JSON) |
-| `Template` | action_id, channel, locale, subject?, body, extra (bcc, cc, buttons, blocks…) |
+| `ChannelCredential` | tenant_id, application_id?, environment_id? (composite FKs), channel, provider, `mode` (`platform/byo`), name, config (non-secret JSON), `secret_ciphertext` 🔒 (per provider), secret_hint, status (`pending/verified/disabled`; pending and verified are usable), verified_at, rotated_at. At most one non-disabled per scope and channel. ADR-013 |
+| `Workflow` | tenant_id, application_id, key (stable slug, unique per application), name, description, payload_schema (JSON Schema 2020-12, optional, ≤ 64 KiB, no remote `$ref`), status (`draft/active/archived`). Exposure flags (MCP/Terraform, doc 12) are added with those features |
+| `Action` | tenant_id, workflow_id, channel (one action per channel per workflow), enabled. `conditions` are added when they are evaluated (not before Phase 3) |
+| `Template` | tenant_id, action_id, locale (unique per action), content by channel: email subject/html/text/layout, sms text, slack text/blocks, webhook body (ADR-012) |
 | `Run` | tenant_id, application_id, environment, workflow_key, snapshot (JSONB: workflow, templates, brand, policy, credential refs), `payload` 🔒⏳, context (JSONB), idempotency_key, source, actor, status, schedule_at |
 | `Notification` | tenant_id, run_id, channel, `recipient` 🔒⏳, recipient_masked, recipient_hash (keyed HMAC), status, attempt, `lease_until`, last_error_code, last_error (redacted), vendor_message_id, `credential_id`, `credential_mode`, `billing_basis` (`delivered/sent`), `rendered_content` 🔒⏳, `vendor_response` 🔒⏳, terminal_at, purged_at. **Partitioned daily on created_at.** |
 | `NotificationEvent` | tenant_id, notification_id, type, at, detail (redacted) — the timeline. Partitioned daily. |
@@ -96,6 +96,7 @@ Response `202`:
 |---|---|---|
 | 400 | `validation_failed` | payload/recipient/schema invalid |
 | 400 | `schedule_horizon_exceeded` | `schedule_at` > now + 7 days |
+| 400 | `template_invalid` | template syntax, render budget or channel limit (console; `details` gives field, line, column) |
 | 401 | `unauthenticated` | bad/missing API key |
 | 403 | `channel_not_allowed` | policy disallows channel |
 | 404 | `workflow_not_found` | |
@@ -118,10 +119,10 @@ Response `202`:
 - `GET /v1/runs/{id}`, `GET /v1/notifications/{id}` (timeline; payload fields shown only if not purged and caller has rights), `GET /v1/runs?workflow=&status=&from=&to=`
 - `POST /v1/notifications/{id}/replay` (409 `payload_expired` if purged), `POST /v1/runs/{id}/cancel`
 - Control plane under `/v1/admin/...`: tenants, members, applications, environments, api-keys, workflows, actions, templates, brand, policies, **channel-credentials** (create/rotate/verify/disable; secrets write-only), audit-events, metrics, **usage** (daily usage, daily SMS remaining).
-- `POST /v1/templates/preview` — render a template with sample payload + brand (SMS shows segment count).
+- `POST /v1/admin/tenants/{tid}/applications/{aid}/templates/preview` — render an unsaved template with a sample payload and the application's effective brand (SMS shows encoding and segment count). Console session, developer and up. Nothing stored or logged.
 - Vendor callbacks: `POST /callbacks/{provider}` (signature verified, idempotent).
 - OpenAPI 3.1 spec is the source of truth: `api/openapi.yaml`. Each operation is marked `x-notifex-status: implemented | draft`. Implemented operations are contract-tested against real responses, and a drift test fails if the router and spec disagree (`internal/transport/http/contract_test.go`). `make api-lint` runs vacuum. Generate docs and SDK scaffolding from it.
-- **Public ids** are `<kind>_<22 base62>` (`ten_`, `app_`, `env_`, `key_`, `run_`, `ntf_`) over the internal UUIDv7, using an ASCII-ordered alphabet so ids sort by creation time (`internal/ids`). Clients must treat them as opaque.
+- **Public ids** are `<kind>_<22 base62>` (`ten_`, `app_`, `env_`, `key_`, `run_`, `ntf_`, `usr_`, `mem_`, `inv_`, `ses_`, `evt_`, `wfl_`, `act_`, `crd_`) over the internal UUIDv7, using an ASCII-ordered alphabet so ids sort by creation time (`internal/ids`). Clients must treat them as opaque.
 
 ## gRPC (`api/proto/notifex/v1/`)
 ```proto
@@ -158,7 +159,7 @@ run, err := client.Trigger(ctx, notifex.TriggerInput{
 Requirements: automatic idempotency key generation if absent (reused across retries), retries with jittered backoff on `429/503/5xx`, typed errors (including per-notification errors), context/timeout support, optional gRPC transport, sandbox mode (`mock` vendors).
 
 ## Template language
-- Handlebars-style (`{{payload.order_id}}`, `{{#if}}`, `{{#each}}`, `{{brand.primary_color}}`, `{{recipient.locale}}`).
+- Handlebars subset, defined in ADR-012 (`{{payload.order_id}}`, `{{#if}}`, `{{#each}}`, `{{#with}}`, `{{brand.colors.primary}}`, `{{recipient.locale}}`). No helpers, partials or triple-stash.
 - Rendering is sandboxed: no function calls, no I/O, execution time and output size limits.
 - HTML email is sanitized; plain-text part auto-generated.
 - Per-channel limits validated (SMS ≤ 3 segments, push payload size, Slack block schema, WhatsApp approved-template variables).
