@@ -12,6 +12,8 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY cmd ./cmd
 COPY internal ./internal
+COPY ent ./ent
+COPY migrations ./migrations
 # Cross-compile natively on the build host; the runtime stage has no RUN steps,
 # so building linux/arm64 on an amd64 runner needs no QEMU.
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
@@ -25,4 +27,7 @@ FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c
 COPY --from=build /out/ /app/
 USER nonroot:nonroot
 EXPOSE 8080 9090 9100
-ENTRYPOINT ["/app/api"]
+# CMD, not ENTRYPOINT: ECS task definitions and compose replace `command` with
+# the binary to run (/app/dispatcher, /app/migrate up, ...). With an ENTRYPOINT
+# that command would be passed to /app/api as arguments and silently ignored.
+CMD ["/app/api"]

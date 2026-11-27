@@ -3,18 +3,18 @@
 > Updated 2026-11-27 for ADR-004 to ADR-008.
 
 ## Entities (ent schemas — start with these, refine as needed)
-All tenant-owned entities carry `tenant_id`, `created_at`, `updated_at`. 🔒 = envelope-encrypted column (per-tenant DEK, ADR-006). ⏳ = purged at tenant payload retention.
+All tenant-owned entities carry `tenant_id`, `created_at`, `updated_at`. Ids are UUIDv7. Scoping and foreign keys: ADR-010. 🔒 = envelope-encrypted column (per-tenant DEK, ADR-006). ⏳ = purged at tenant payload retention.
 
 | Entity | Key fields |
 |---|---|
-| `Tenant` | name, slug, status, plan, quotas (JSON), `platform_sms_daily_limit`, `sandbox` (bool), `dek_wrapped`, `dek_key_id` |
+| `Tenant` | id (caller-generated, ADR-010), name, slug, status, plan, quotas (JSON), `platform_sms_daily_limit`, `sandbox` (bool, default true; lifted by operator), `dek_wrapped` (NULL after crypto-shred), `dek_key_id`, `dek_version` |
 | `User` | email, password_hash?, oauth identities, status |
 | `Membership` | tenant_id, user_id, role (`owner/admin/developer/viewer`) |
 | `BrandProfile` | tenant_id, application_id?, logo_url, colors (JSON), sender identities per channel, footer, legal_text, default_locale |
 | `Policy` | tenant_id, application_id?, quiet_hours, timezone, rate_limits, allowed_channels, max_attempts, `payload_retention_days` (1–7, default 7), pii_masking |
 | `Application` | tenant_id, name, key (slug), description |
-| `Environment` | application_id, name (`dev/staging/prod`) |
-| `ApiKey` | application_id, environment, prefix, hash, scopes, last_used_at, revoked_at |
+| `Environment` | tenant_id, application_id, name (`dev/staging/prod`); composite FK (tenant_id, application_id) |
+| `ApiKey` | tenant_id, application_id, environment_id, name, prefix, hash, scopes, expires_at, last_used_at (throttled to 1/min), revoked_at; composite FK (tenant_id, application_id, environment_id) |
 | `ChannelCredential` | tenant_id, application_id?, environment?, channel, provider, `mode` (`platform/byo`), `secret_ciphertext` 🔒 (BYO only), status (`pending/verified/disabled`), verified_at |
 | `Workflow` | application_id, key (stable slug), name, payload_schema (JSON schema, optional), status (`draft/active/archived`), exposure flags (MCP/Terraform, doc 12) |
 | `Action` | workflow_id, channel, order/config, enabled, conditions (JSON) |
@@ -26,7 +26,7 @@ All tenant-owned entities carry `tenant_id`, `created_at`, `updated_at`. 🔒 = 
 | `ScheduledDispatch` | tenant_id, notification_id, due_at, reason (`scheduled/deferred/backoff`), attempt |
 | `PlatformSmsUsage` | tenant_id, day (UTC date), count — PK (tenant_id, day) |
 | `IdempotencyRecord` | tenant_id, key, request_hash, run_id, expires_at |
-| `AuditEvent` | tenant_id?, actor, action, entity, before/after (redacted), at |
+| `AuditEvent` | tenant_id?, actor_type, actor_id, action, entity_type, entity_id, before/after (redacted), request_id, created_at |
 | `UsageRecord` | tenant_id, `notification_id` (UNIQUE), channel, credential_mode, billing_basis, country, billable_at, unit_price_ref |
 | `UsageDaily` | tenant_id, day, channel, credential_mode, country, count |
 

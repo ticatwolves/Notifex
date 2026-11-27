@@ -15,6 +15,16 @@ curl localhost:9100/readyz   # ops port: readiness detail + /metrics
 make down
 ```
 
+## Schema changes
+
+```bash
+# edit ent/schema/*.go (and ent/schema/constraints.go for foreign keys)
+make generate                     # regenerate ent code
+make migration name=add_widgets   # write migrations/<ts>_add_widgets.up.sql (needs Docker)
+make migrate                      # apply to the local compose database
+```
+Review generated SQL like code. See ADR-010.
+
 ## Gates (same targets run in CI)
 
 ```bash
@@ -22,6 +32,8 @@ make lint       # go vet + golangci-lint
 make test       # go test -race ./...
 make vuln       # govulncheck
 make buf-lint   # protobuf contract lint
+make migrate-check  # ent/schema and migrations/ in sync
+make migrate-lint   # squawk: unsafe migration operations
 make image      # linux/arm64 core image
 ```
 

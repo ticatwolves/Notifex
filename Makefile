@@ -6,6 +6,8 @@ SHELL := /bin/bash
 GOLANGCI_LINT_VERSION := v2.15.0
 GOVULNCHECK_VERSION   := v1.10.0
 BUF_VERSION           := v1.75.0
+SQUAWK_VERSION        := 2.74.0
+LOCAL_DATABASE_URL    ?= postgres://notifex:notifex@localhost:5432/notifex?sslmode=disable
 
 BIN     := $(CURDIR)/bin
 VERSION ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo dev)
@@ -61,8 +63,10 @@ lint: $(GOLANGCI_LINT) vet ## golangci-lint + go vet
 	$(GOLANGCI_LINT) run
 
 .PHONY: test
-test: ## Unit + integration tests with the race detector
+test: ## Unit + integration tests with the race detector (integration tests need Docker)
 	go test -race -count=1 -coverprofile=coverage.out ./...
+	@grep -v -E '/ent/(apikey|application|auditevent|environment|membership|tenant|user|enttest|hook|intercept|migrate|predicate|runtime)/|/ent/[a-z_]+\.go:' coverage.out > coverage.handwritten.out
+	@printf 'coverage (excluding generated ent code): '; go tool cover -func=coverage.handwritten.out | tail -1 | awk '{print $$NF}'
 
 .PHONY: test-short
 test-short: ## Fast tests only (skips container-backed integration tests)
@@ -77,16 +81,29 @@ buf-lint: $(BUF) ## Lint protobuf contracts
 	cd api/proto && $(BUF) lint
 
 .PHONY: check
-check: lint test vuln buf-lint ## Everything CI runs on Go code
+check: lint test vuln buf-lint migrate-check ## Everything CI runs on Go code
 
-## ---- codegen / db (filled in by later slices) ----
+## ---- codegen / db ----
 .PHONY: generate
-generate: ## Run code generators (ent in slice 3, protobuf in Phase 4)
+generate: ## Run code generators (ent; protobuf from Phase 4)
 	go generate ./...
 
+.PHONY: migration
+migration: ## Generate a migration from ent/schema changes: make migration name=add_widgets
+	@test -n "$(name)" || { echo "usage: make migration name=<snake_case>"; exit 2; }
+	go run -mod=mod ./ent/migrate/main.go -name $(name)
+
+.PHONY: migrate-check
+migrate-check: ## Fail if ent/schema changed without a migration (needs Docker)
+	go run -mod=mod ./ent/migrate/main.go -check
+
+.PHONY: migrate-lint
+migrate-lint: ## Lint migrations for unsafe operations (squawk; needs Node)
+	npx -y squawk-cli@$(SQUAWK_VERSION) --pg-version 18 migrations/*.up.sql
+
 .PHONY: migrate
-migrate: ## Apply migrations (slice 3)
-	go run ./cmd/migrate up
+migrate: ## Apply migrations to the local compose database
+	DATABASE_URL=$(LOCAL_DATABASE_URL) go run ./cmd/migrate up
 
 ## ---- tools ----
 $(GOLANGCI_LINT):

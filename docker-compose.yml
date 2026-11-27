@@ -23,8 +23,8 @@ x-core: &core
     AWS_ACCESS_KEY_ID: local       # ElasticMQ ignores credentials
     AWS_SECRET_ACCESS_KEY: local
   depends_on:
-    postgres:
-      condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
     elasticmq:
       condition: service_started
   healthcheck:
@@ -55,6 +55,17 @@ services:
     ports: ["9324:9324", "9325:9325"]  # SQS API, stats UI
     volumes:
       - ./deploy/docker/elasticmq.conf:/opt/elasticmq.conf:ro
+
+  # One-shot: applies migrations, then exits. Mirrors the pre-deploy ECS task.
+  migrate:
+    <<: *core
+    command: ["/app/migrate", "up"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    restart: "no"
 
   api:
     <<: *core
