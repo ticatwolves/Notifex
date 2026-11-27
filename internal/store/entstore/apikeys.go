@@ -9,6 +9,7 @@ import (
 
 	"github.com/ticatwolves/notifex/ent"
 	"github.com/ticatwolves/notifex/ent/apikey"
+	"github.com/ticatwolves/notifex/ent/predicate"
 	"github.com/ticatwolves/notifex/internal/store"
 	"github.com/ticatwolves/notifex/internal/store/tenantscope"
 )
@@ -68,24 +69,57 @@ func (k apiKeys) List(ctx context.Context, tid store.TenantID, appID uuid.UUID, 
 
 func (k apiKeys) Revoke(ctx context.Context, tid store.TenantID, id uuid.UUID, at time.Time) error {
 	ctx = scoped(ctx, tid)
-	n, err := k.c.APIKey.Update().
-		Where(apikey.TenantID(tid.UUID()), apikey.ID(id), apikey.RevokedAtIsNil()).
+	_, err := k.c.APIKey.Update().
+		Where(apikey.TenantID(tid.UUID()), apikey.ID(id), apikey.Or(apikey.RevokedAtIsNil(), apikey.RevokedAtGT(at))).
 		SetRevokedAt(at).
 		Save(ctx)
 	if err != nil {
 		return fmt.Errorf("api_keys.revoke: %w", mapErr(err, opWrite))
 	}
-	if n == 0 {
-		// Already revoked (idempotent) or not in this tenant.
-		exists, err := k.c.APIKey.Query().Where(apikey.TenantID(tid.UUID()), apikey.ID(id)).Exist(ctx)
-		if err != nil {
-			return fmt.Errorf("api_keys.revoke: %w", mapErr(err, opRead))
-		}
-		if !exists {
-			return fmt.Errorf("api_keys.revoke: %w", store.ErrNotFound)
-		}
+	// Zero rows: already revoked earlier (idempotent) or not in this tenant.
+	exists, err := k.c.APIKey.Query().Where(apikey.TenantID(tid.UUID()), apikey.ID(id)).Exist(ctx)
+	if err != nil {
+		return fmt.Errorf("api_keys.revoke: %w", mapErr(err, opRead))
+	}
+	if !exists {
+		return fmt.Errorf("api_keys.revoke: %w", store.ErrNotFound)
 	}
 	return nil
+}
+
+func (k apiKeys) Get(ctx context.Context, tid store.TenantID, id uuid.UUID) (store.APIKey, error) {
+	row, err := k.c.APIKey.Query().Where(apikey.TenantID(tid.UUID()), apikey.ID(id)).Only(scoped(ctx, tid))
+	if err != nil {
+		return store.APIKey{}, fmt.Errorf("api_keys.get: %w", mapErr(err, opRead))
+	}
+	return toAPIKey(row), nil
+}
+
+func activeAt(now time.Time) predicate.APIKey {
+	return apikey.And(
+		apikey.Or(apikey.RevokedAtIsNil(), apikey.RevokedAtGT(now)),
+		apikey.Or(apikey.ExpiresAtIsNil(), apikey.ExpiresAtGT(now)),
+	)
+}
+
+func (k apiKeys) CountActiveForEnvironment(ctx context.Context, tid store.TenantID, envID uuid.UUID, now time.Time) (int, error) {
+	n, err := k.c.APIKey.Query().
+		Where(apikey.TenantID(tid.UUID()), apikey.EnvironmentID(envID), activeAt(now)).
+		Count(scoped(ctx, tid))
+	if err != nil {
+		return 0, fmt.Errorf("api_keys.count_active: %w", mapErr(err, opRead))
+	}
+	return n, nil
+}
+
+func (k apiKeys) DeleteInactiveForEnvironment(ctx context.Context, tid store.TenantID, envID uuid.UUID, now time.Time) (int, error) {
+	n, err := k.c.APIKey.Delete().
+		Where(apikey.TenantID(tid.UUID()), apikey.EnvironmentID(envID), apikey.Not(activeAt(now))).
+		Exec(scoped(ctx, tid))
+	if err != nil {
+		return 0, fmt.Errorf("api_keys.delete_inactive: %w", mapErr(err, opDelete))
+	}
+	return n, nil
 }
 
 func (k apiKeys) TouchLastUsed(ctx context.Context, tid store.TenantID, id uuid.UUID, at time.Time) error {
@@ -109,4 +143,15 @@ func toAPIKey(r *ent.APIKey) store.APIKey {
 		Scopes: r.Scopes, ExpiresAt: r.ExpiresAt, LastUsedAt: r.LastUsedAt, RevokedAt: r.RevokedAt,
 		CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 	}
+}
+
+func (k apiKeys) RevokeAllForTenant(ctx context.Context, tid store.TenantID, at time.Time) (int, error) {
+	n, err := k.c.APIKey.Update().
+		Where(apikey.TenantID(tid.UUID()), apikey.RevokedAtIsNil()).
+		SetRevokedAt(at).
+		Save(scoped(ctx, tid))
+	if err != nil {
+		return 0, fmt.Errorf("api_keys.revoke_all_for_tenant: %w", mapErr(err, opWrite))
+	}
+	return n, nil
 }

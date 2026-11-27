@@ -12,8 +12,11 @@ import (
 	"github.com/ticatwolves/notifex/ent/auththrottle"
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
+	"github.com/ticatwolves/notifex/ent/invitation"
 	"github.com/ticatwolves/notifex/ent/membership"
 	"github.com/ticatwolves/notifex/ent/oauthstate"
+	"github.com/ticatwolves/notifex/ent/operator"
+	"github.com/ticatwolves/notifex/ent/operatorsession"
 	"github.com/ticatwolves/notifex/ent/schema"
 	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/tenant"
@@ -288,6 +291,41 @@ func init() {
 	environmentDescID := environmentMixinFields0[0].Descriptor()
 	// environment.DefaultID holds the default value on creation for the id field.
 	environment.DefaultID = environmentDescID.Default.(func() uuid.UUID)
+	invitationMixin := schema.Invitation{}.Mixin()
+	invitationMixinHooks1 := invitationMixin[1].Hooks()
+	invitation.Hooks[0] = invitationMixinHooks1[0]
+	invitationMixinInters1 := invitationMixin[1].Interceptors()
+	invitation.Interceptors[0] = invitationMixinInters1[0]
+	invitationMixinFields0 := invitationMixin[0].Fields()
+	_ = invitationMixinFields0
+	invitationFields := schema.Invitation{}.Fields()
+	_ = invitationFields
+	// invitationDescEmail is the schema descriptor for email field.
+	invitationDescEmail := invitationFields[0].Descriptor()
+	// invitation.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	invitation.EmailValidator = func() func(string) error {
+		validators := invitationDescEmail.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(email string) error {
+			for _, fn := range fns {
+				if err := fn(email); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// invitationDescTokenHash is the schema descriptor for token_hash field.
+	invitationDescTokenHash := invitationFields[2].Descriptor()
+	// invitation.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	invitation.TokenHashValidator = invitationDescTokenHash.Validators[0].(func([]byte) error)
+	// invitationDescID is the schema descriptor for id field.
+	invitationDescID := invitationMixinFields0[0].Descriptor()
+	// invitation.DefaultID holds the default value on creation for the id field.
+	invitation.DefaultID = invitationDescID.Default.(func() uuid.UUID)
 	membershipMixin := schema.Membership{}.Mixin()
 	membershipMixinHooks1 := membershipMixin[1].Hooks()
 	membership.Hooks[0] = membershipMixinHooks1[0]
@@ -352,6 +390,104 @@ func init() {
 	oauthstateDescID := oauthstateMixinFields0[0].Descriptor()
 	// oauthstate.DefaultID holds the default value on creation for the id field.
 	oauthstate.DefaultID = oauthstateDescID.Default.(func() uuid.UUID)
+	operatorMixin := schema.Operator{}.Mixin()
+	operatorMixinFields0 := operatorMixin[0].Fields()
+	_ = operatorMixinFields0
+	operatorMixinFields1 := operatorMixin[1].Fields()
+	_ = operatorMixinFields1
+	operatorFields := schema.Operator{}.Fields()
+	_ = operatorFields
+	// operatorDescCreatedAt is the schema descriptor for created_at field.
+	operatorDescCreatedAt := operatorMixinFields1[0].Descriptor()
+	// operator.DefaultCreatedAt holds the default value on creation for the created_at field.
+	operator.DefaultCreatedAt = operatorDescCreatedAt.Default.(func() time.Time)
+	// operatorDescUpdatedAt is the schema descriptor for updated_at field.
+	operatorDescUpdatedAt := operatorMixinFields1[1].Descriptor()
+	// operator.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	operator.DefaultUpdatedAt = operatorDescUpdatedAt.Default.(func() time.Time)
+	// operator.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	operator.UpdateDefaultUpdatedAt = operatorDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// operatorDescEmail is the schema descriptor for email field.
+	operatorDescEmail := operatorFields[0].Descriptor()
+	// operator.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	operator.EmailValidator = func() func(string) error {
+		validators := operatorDescEmail.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(email string) error {
+			for _, fn := range fns {
+				if err := fn(email); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// operatorDescName is the schema descriptor for name field.
+	operatorDescName := operatorFields[1].Descriptor()
+	// operator.DefaultName holds the default value on creation for the name field.
+	operator.DefaultName = operatorDescName.Default.(string)
+	// operator.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	operator.NameValidator = operatorDescName.Validators[0].(func(string) error)
+	// operatorDescPasswordHash is the schema descriptor for password_hash field.
+	operatorDescPasswordHash := operatorFields[2].Descriptor()
+	// operator.PasswordHashValidator is a validator for the "password_hash" field. It is called by the builders before save.
+	operator.PasswordHashValidator = operatorDescPasswordHash.Validators[0].(func(string) error)
+	// operatorDescTotpWrappedKey is the schema descriptor for totp_wrapped_key field.
+	operatorDescTotpWrappedKey := operatorFields[3].Descriptor()
+	// operator.TotpWrappedKeyValidator is a validator for the "totp_wrapped_key" field. It is called by the builders before save.
+	operator.TotpWrappedKeyValidator = operatorDescTotpWrappedKey.Validators[0].(func([]byte) error)
+	// operatorDescTotpKeyID is the schema descriptor for totp_key_id field.
+	operatorDescTotpKeyID := operatorFields[4].Descriptor()
+	// operator.TotpKeyIDValidator is a validator for the "totp_key_id" field. It is called by the builders before save.
+	operator.TotpKeyIDValidator = func() func(string) error {
+		validators := operatorDescTotpKeyID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(totp_key_id string) error {
+			for _, fn := range fns {
+				if err := fn(totp_key_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// operatorDescTotpCiphertext is the schema descriptor for totp_ciphertext field.
+	operatorDescTotpCiphertext := operatorFields[5].Descriptor()
+	// operator.TotpCiphertextValidator is a validator for the "totp_ciphertext" field. It is called by the builders before save.
+	operator.TotpCiphertextValidator = operatorDescTotpCiphertext.Validators[0].(func([]byte) error)
+	// operatorDescTotpLastStep is the schema descriptor for totp_last_step field.
+	operatorDescTotpLastStep := operatorFields[6].Descriptor()
+	// operator.DefaultTotpLastStep holds the default value on creation for the totp_last_step field.
+	operator.DefaultTotpLastStep = operatorDescTotpLastStep.Default.(int64)
+	// operatorDescID is the schema descriptor for id field.
+	operatorDescID := operatorMixinFields0[0].Descriptor()
+	// operator.DefaultID holds the default value on creation for the id field.
+	operator.DefaultID = operatorDescID.Default.(func() uuid.UUID)
+	operatorsessionMixin := schema.OperatorSession{}.Mixin()
+	operatorsessionMixinFields0 := operatorsessionMixin[0].Fields()
+	_ = operatorsessionMixinFields0
+	operatorsessionFields := schema.OperatorSession{}.Fields()
+	_ = operatorsessionFields
+	// operatorsessionDescTokenHash is the schema descriptor for token_hash field.
+	operatorsessionDescTokenHash := operatorsessionFields[1].Descriptor()
+	// operatorsession.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	operatorsession.TokenHashValidator = operatorsessionDescTokenHash.Validators[0].(func([]byte) error)
+	// operatorsessionDescUserAgent is the schema descriptor for user_agent field.
+	operatorsessionDescUserAgent := operatorsessionFields[6].Descriptor()
+	// operatorsession.DefaultUserAgent holds the default value on creation for the user_agent field.
+	operatorsession.DefaultUserAgent = operatorsessionDescUserAgent.Default.(string)
+	// operatorsession.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
+	operatorsession.UserAgentValidator = operatorsessionDescUserAgent.Validators[0].(func(string) error)
+	// operatorsessionDescID is the schema descriptor for id field.
+	operatorsessionDescID := operatorsessionMixinFields0[0].Descriptor()
+	// operatorsession.DefaultID holds the default value on creation for the id field.
+	operatorsession.DefaultID = operatorsessionDescID.Default.(func() uuid.UUID)
 	sessionMixin := schema.Session{}.Mixin()
 	sessionMixinFields0 := sessionMixin[0].Fields()
 	_ = sessionMixinFields0

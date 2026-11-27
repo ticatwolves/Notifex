@@ -22,6 +22,7 @@ import (
 	"github.com/ticatwolves/notifex/internal/observability"
 	"github.com/ticatwolves/notifex/internal/ratelimit"
 	"github.com/ticatwolves/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/tenant"
 )
 
 // ConsoleAccounts is what the console routes need from internal/auth.
@@ -56,14 +57,17 @@ type Limits struct {
 	Login      *ratelimit.Limiter // login, reauth
 	Credential *ratelimit.Limiter // signup, forgot, reset, verify
 	APIKeyFail *ratelimit.Limiter // failed API-key authentications
+	// OperatorLogin is separate from console login (ADR-011 §5).
+	OperatorLogin *ratelimit.Limiter
 }
 
 // DefaultLimits follow ADR-011 §2.
 func DefaultLimits() Limits {
 	return Limits{
-		Login:      ratelimit.New(20, 20, 100_000),
-		Credential: ratelimit.New(10, 10, 100_000),
-		APIKeyFail: ratelimit.New(20, 20, 100_000),
+		Login:         ratelimit.New(20, 20, 100_000),
+		Credential:    ratelimit.New(10, 10, 100_000),
+		APIKeyFail:    ratelimit.New(20, 20, 100_000),
+		OperatorLogin: ratelimit.New(5, 5, 10_000),
 	}
 }
 
@@ -412,10 +416,30 @@ func consoleError(c *gin.Context, err error) {
 		writeError(c, http.StatusBadRequest, "validation_failed", strings.TrimPrefix(err.Error(), "auth: "))
 	case errors.Is(err, auth.ErrInvalidEmail):
 		writeError(c, http.StatusBadRequest, "validation_failed", "email address is not valid")
+	case errors.Is(err, tenant.ErrReauthRequired):
+		writeError(c, http.StatusForbidden, "reauth_required", "confirm your password to continue")
+	case errors.Is(err, tenant.ErrEmailNotVerified):
+		writeError(c, http.StatusForbidden, "email_not_verified", "verify your email address first")
+	case errors.Is(err, tenant.ErrTenantLimit):
+		writeError(c, http.StatusForbidden, "tenant_limit_reached", "you already own the maximum number of tenants")
+	case errors.Is(err, tenant.ErrInviteEmail):
+		writeError(c, http.StatusForbidden, "forbidden", "this invitation was sent to a different email address")
+	case errors.Is(err, tenant.ErrForbidden):
+		writeError(c, http.StatusForbidden, "forbidden", "your role does not allow this")
+	case errors.Is(err, tenant.ErrLastOwner):
+		writeError(c, http.StatusConflict, "conflict", "a tenant must keep at least one owner")
+	case errors.Is(err, tenant.ErrKeyInactive):
+		writeError(c, http.StatusConflict, "conflict", "this API key is already revoked or rotated")
+	case errors.Is(err, tenant.ErrAlreadyMember):
+		writeError(c, http.StatusConflict, "conflict", "already a member of this tenant")
+	case errors.Is(err, tenant.ErrInvalidToken):
+		writeError(c, http.StatusBadRequest, "invalid_token", "the invitation is invalid, expired or already used")
+	case errors.Is(err, store.ErrInvalid):
+		writeError(c, http.StatusBadRequest, "validation_failed", "invalid input")
 	case errors.Is(err, store.ErrNotFound):
 		writeError(c, http.StatusNotFound, "not_found", "not found")
 	case errors.Is(err, store.ErrConflict):
-		writeError(c, http.StatusConflict, "conflict", "conflict")
+		writeError(c, http.StatusConflict, "conflict", "conflict: the resource already exists or is still in use")
 	case errors.Is(err, auth.ErrUnavailable):
 		c.Header("Retry-After", "1")
 		writeError(c, http.StatusServiceUnavailable, "unavailable", "temporarily unavailable")

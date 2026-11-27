@@ -538,7 +538,7 @@ paths:
       summary: Accept an invitation
       description: The session's user email must match the invited email; accepting verifies it.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -554,6 +554,10 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/RateLimited" }
 
   # ---------------------------------------------------------------- Phase 1: tenant control plane
   /v1/admin/tenants:
@@ -563,7 +567,7 @@ paths:
       summary: Create a tenant; the caller becomes its owner
       description: Requires a verified email. At most 5 tenants per user. New tenants are sandboxed.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -580,6 +584,8 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
   /v1/admin/tenants/{tenant_id}:
     parameters:
       - $ref: "#/components/parameters/TenantIDPath"
@@ -588,7 +594,7 @@ paths:
       tags: [tenants]
       summary: Get a tenant (any member)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "200":
@@ -598,12 +604,13 @@ paths:
               schema: { $ref: "#/components/schemas/Tenant" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
     patch:
       operationId: updateTenant
       tags: [tenants]
       summary: Rename a tenant (admin, owner)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -620,19 +627,22 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
     delete:
       operationId: deleteTenant
       tags: [tenants]
       summary: Delete a tenant and crypto-shred its data (owner, recent re-auth)
       description: Irreversible. Sets status deleted, destroys the tenant DEK, revokes all API keys. `403 reauth_required` without a re-authentication in the last 10 minutes.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "202": { description: Deleted; encrypted data is unreadable. }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
 
   /v1/admin/tenants/{tenant_id}/members:
     parameters:
@@ -642,7 +652,7 @@ paths:
       tags: [members]
       summary: List members (any member)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - $ref: "#/components/parameters/Limit"
@@ -655,6 +665,8 @@ paths:
               schema: { $ref: "#/components/schemas/MemberList" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "400": { $ref: "#/components/responses/BadRequest" }
   /v1/admin/tenants/{tenant_id}/members/{user_id}:
     parameters:
       - $ref: "#/components/parameters/TenantIDPath"
@@ -665,7 +677,7 @@ paths:
       summary: Change a member's role
       description: Admins cannot change owners or grant above their own role; promoting to owner requires an owner with recent re-auth; the last owner cannot be demoted.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -682,13 +694,16 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "400": { $ref: "#/components/responses/BadRequest" }
     delete:
       operationId: removeMember
       tags: [members]
       summary: Remove a member (or leave, for yourself)
       description: The last owner cannot be removed. Access ends on the member's next request.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "204": { description: Removed. }
@@ -696,6 +711,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/admin/tenants/{tenant_id}/invitations:
     parameters:
       - $ref: "#/components/parameters/TenantIDPath"
@@ -704,7 +720,7 @@ paths:
       tags: [members]
       summary: List pending invitations (admin, owner)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "200":
@@ -715,13 +731,14 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
     post:
       operationId: createInvitation
       tags: [members]
       summary: Invite someone by email (admin, owner)
-      description: Nobody can invite above their own role; only owners invite owners. Emails a single-use token valid for 7 days.
+      description: Nobody can invite above their own role; only owners invite owners. Emails a single-use token valid for 7 days. Re-inviting an email replaces its pending invitation (the old link stops working); `409 conflict` if the person is already a member.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -739,13 +756,15 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
   /v1/admin/tenants/{tenant_id}/invitations/{invitation_id}:
     delete:
       operationId: revokeInvitation
       tags: [members]
       summary: Revoke a pending invitation (admin, owner)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - $ref: "#/components/parameters/TenantIDPath"
@@ -755,6 +774,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
 
   /v1/admin/tenants/{tenant_id}/applications:
     parameters:
@@ -764,7 +784,7 @@ paths:
       tags: [applications]
       summary: List applications (any member)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - $ref: "#/components/parameters/Limit"
@@ -777,12 +797,14 @@ paths:
               schema: { $ref: "#/components/schemas/ApplicationList" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "400": { $ref: "#/components/responses/BadRequest" }
     post:
       operationId: createApplication
       tags: [applications]
       summary: Create an application (developer, admin, owner)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -800,6 +822,8 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
   /v1/admin/tenants/{tenant_id}/applications/{application_id}:
     parameters:
       - $ref: "#/components/parameters/TenantIDPath"
@@ -809,7 +833,7 @@ paths:
       tags: [applications]
       summary: Get an application (any member)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "200":
@@ -819,12 +843,13 @@ paths:
               schema: { $ref: "#/components/schemas/Application" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
     patch:
       operationId: updateApplication
       tags: [applications]
       summary: Update an application (developer, admin, owner)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -841,13 +866,15 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
     delete:
       operationId: deleteApplication
       tags: [applications]
       summary: Delete an application (admin, owner)
-      description: "`409 conflict` while environments or API keys still reference it."
+      description: "`409 conflict` while it still has environments (delete them first)."
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "204": { description: Deleted. }
@@ -855,6 +882,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/admin/tenants/{tenant_id}/applications/{application_id}/environments:
     parameters:
       - $ref: "#/components/parameters/TenantIDPath"
@@ -864,7 +892,7 @@ paths:
       tags: [applications]
       summary: List environments (any member)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "200":
@@ -874,12 +902,13 @@ paths:
               schema: { $ref: "#/components/schemas/EnvironmentList" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
     post:
       operationId: createEnvironment
       tags: [applications]
       summary: Add an environment (developer, admin, owner)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -897,14 +926,16 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
   /v1/admin/tenants/{tenant_id}/applications/{application_id}/environments/{environment_id}:
     delete:
       operationId: deleteEnvironment
       tags: [applications]
       summary: Delete an environment (admin, owner)
-      description: "`409 conflict` while API keys still reference it."
+      description: "`409 conflict` while it has active API keys. Revoked and expired key records are removed with it (their history stays in the audit log)."
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - $ref: "#/components/parameters/TenantIDPath"
@@ -916,6 +947,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/Unavailable" }
 
   /v1/admin/tenants/{tenant_id}/applications/{application_id}/api-keys:
     parameters:
@@ -926,7 +958,7 @@ paths:
       tags: [api-keys]
       summary: List API keys (developer, admin, owner); secrets are never returned
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - $ref: "#/components/parameters/Limit"
@@ -940,13 +972,15 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "400": { $ref: "#/components/responses/BadRequest" }
     post:
       operationId: createAPIKey
       tags: [api-keys]
       summary: Create an API key; the secret is returned once
       description: Developers may create keys for non-prod environments only; admins and owners for any.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -963,13 +997,15 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
   /v1/admin/tenants/{tenant_id}/applications/{application_id}/api-keys/{api_key_id}/revoke:
     post:
       operationId: revokeAPIKey
       tags: [api-keys]
-      summary: Revoke an API key immediately (idempotent)
+      summary: Revoke an API key immediately (idempotent; developers non-prod only)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - $ref: "#/components/parameters/TenantIDPath"
@@ -980,13 +1016,20 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
   /v1/admin/tenants/{tenant_id}/applications/{application_id}/api-keys/{api_key_id}/rotate:
     post:
       operationId: rotateAPIKey
       tags: [api-keys]
       summary: Issue a replacement key and revoke the old one after a grace period
+      description: |
+        The new key has the same environment, name, scopes and expiry and works
+        immediately; the old key keeps working until `old_key_revoked_at`.
+        Revoking the old key during the grace period takes effect at once.
+        `409 conflict` if the key is already revoked or rotated. Developers may
+        rotate non-prod keys only.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - $ref: "#/components/parameters/TenantIDPath"
@@ -1006,6 +1049,10 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/admin/tenants/{tenant_id}/audit-events:
     get:
@@ -1013,7 +1060,7 @@ paths:
       tags: [audit]
       summary: List the tenant's audit trail, newest first (admin, owner)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - $ref: "#/components/parameters/TenantIDPath"
@@ -1025,6 +1072,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuditEventList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -1036,7 +1084,7 @@ paths:
       tags: [operator]
       summary: Operator login (password + TOTP)
       security: []
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -1049,6 +1097,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SessionCreated" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "429": { $ref: "#/components/responses/RateLimited" }
   /v1/operator/auth/logout:
@@ -1057,7 +1106,7 @@ paths:
       tags: [operator]
       summary: Revoke the current operator session
       security: [{ operatorSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "204": { description: Logged out. }
@@ -1068,7 +1117,7 @@ paths:
       tags: [operator]
       summary: Search tenants (audited)
       security: [{ operatorSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       parameters:
         - { name: q, in: query, description: Slug or name prefix., schema: { type: string, maxLength: 63 } }
@@ -1081,6 +1130,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/OperatorTenantList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
   /v1/operator/tenants/{tenant_id}:
     parameters:
@@ -1090,7 +1140,7 @@ paths:
       tags: [operator]
       summary: Inspect a tenant (audited)
       security: [{ operatorSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       responses:
         "200":
@@ -1105,7 +1155,7 @@ paths:
       tags: [operator]
       summary: Change status, plan, sandbox and limits (audited)
       security: [{ operatorSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 1
       requestBody:
         required: true
@@ -1807,7 +1857,7 @@ components:
       properties:
         id: { $ref: "#/components/schemas/AuditEventID" }
         actor_type: { type: string, enum: [user, api_key, operator, system] }
-        actor_id: { type: string }
+        actor_id: { type: string, description: "Public id of the actor (`usr_…`, `key_…`), `system`, or `notifex` for Notifex staff (operator identities are not disclosed)." }
         action: { type: string, examples: ["api_key.create"] }
         entity_type: { type: string }
         entity_id: { type: string }
@@ -1857,14 +1907,16 @@ components:
     OperatorTenantPatch:
       type: object
       additionalProperties: false
-      minProperties: 1
+      minProperties: 2
+      required: [reason]
+      description: At least one change plus a reason.
       properties:
         status: { type: string, enum: [active, suspended], description: Deletion is owner-only (crypto-shred), not an operator action. }
         plan: { type: string, minLength: 1, maxLength: 64 }
         sandbox: { type: boolean }
         platform_sms_daily_limit: { type: integer, minimum: 0 }
         quotas: { type: object, additionalProperties: { type: integer, minimum: 0 } }
-        reason: { type: string, maxLength: 500, description: Recorded in the audit event. }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Why the change is made; recorded in the audit event. }
     OperatorTenantList:
       type: object
       additionalProperties: false

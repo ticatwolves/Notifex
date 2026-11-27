@@ -1,0 +1,8 @@
+# gitleaks false positives, one fingerprint per line (commit:file:rule:line).
+# Each entry needs a reason. Prefer changing the code; ignore only findings
+# already in pushed history.
+
+# RFC 6238 published TOTP test key ("12345678901234567890" in base32) in a
+# test assertion. The test now computes the value; this covers the commit
+# where it was a literal.
+985f54ea78403cf9e6435fac9e29247b1a156e44:internal/operator/totp_test.go:generic-api-key:45

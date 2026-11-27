@@ -30,6 +30,10 @@ type Deps struct {
 	Sessions SessionAuthenticator
 	// OAuth enables provider sign-in and identity linking (optional).
 	OAuth ConsoleOAuth
+	// Tenants enables /v1/admin/tenants and invitation acceptance.
+	Tenants TenantAdmin
+	// Operators enables the operator realm (/v1/operator).
+	Operators OperatorRealm
 	// Limits are per-IP limits; zero value means DefaultLimits.
 	Limits Limits
 	// TrustedProxies are CIDRs whose X-Forwarded-For is believed (the ALB).
@@ -81,6 +85,12 @@ func NewRouter(d Deps) http.Handler {
 	}
 	if d.Accounts != nil && d.Sessions != nil {
 		registerConsole(r, d)
+	}
+	if d.Tenants != nil && d.Sessions != nil {
+		registerAdmin(r, d)
+	}
+	if d.Operators != nil {
+		registerOperator(r, d)
 	}
 
 	return r

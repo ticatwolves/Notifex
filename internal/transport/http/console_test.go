@@ -22,12 +22,15 @@ import (
 
 	"github.com/ticatwolves/notifex/internal/auth"
 	"github.com/ticatwolves/notifex/internal/config"
+	"github.com/ticatwolves/notifex/internal/crypto"
 	"github.com/ticatwolves/notifex/internal/health"
 	"github.com/ticatwolves/notifex/internal/mail"
 	"github.com/ticatwolves/notifex/internal/observability"
+	"github.com/ticatwolves/notifex/internal/operator"
 	"github.com/ticatwolves/notifex/internal/ratelimit"
 	"github.com/ticatwolves/notifex/internal/store/entstore"
 	"github.com/ticatwolves/notifex/internal/store/storetest"
+	"github.com/ticatwolves/notifex/internal/tenant"
 )
 
 const (
@@ -36,6 +39,8 @@ const (
 )
 
 type consoleEnv struct {
+	st   *entstore.Store
+	ops  *operator.Service
 	h    http.Handler
 	mail *mail.Recorder
 	logs *bytes.Buffer
@@ -65,8 +70,20 @@ func newConsoleEnvWith(t *testing.T, limits Limits, trusted []string, mk func(*a
 	if mk != nil {
 		deps.OAuth = mk(accounts)
 	}
+	mk2 := make([]byte, 32)
+	_, _ = rand.Read(mk2)
+	kp, err := crypto.NewLocal(mk2)
+	require.NoError(t, err)
+	ts := tenant.NewService(st, kp, rec, log, "https://console.test", tenant.DefaultPolicy)
+	pepper := make([]byte, 32)
+	_, _ = rand.Read(pepper)
+	ts.KeyHasher, err = auth.NewHasher(base64.StdEncoding.EncodeToString(pepper))
+	require.NoError(t, err)
+	deps.Tenants = ts
+	ops := operator.NewService(st, kp, auth.NewPasswordHasher(4), log, operator.DefaultPolicy)
+	deps.Operators = ops
 	h := NewRouter(deps)
-	return consoleEnv{h: h, mail: rec, logs: &logs, v: specValidator(t), t: t}
+	return consoleEnv{st: st, ops: ops, h: h, mail: rec, logs: &logs, v: specValidator(t), t: t}
 }
 
 type call struct {

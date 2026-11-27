@@ -30,9 +30,25 @@ type Event struct {
 	RequestID  string
 }
 
+type requestIDKey struct{}
+
+// WithRequestID attaches the transport's request id so every event recorded
+// under ctx carries it (correlates the audit trail with logs and traces).
+func WithRequestID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, requestIDKey{}, id)
+}
+
+func requestIDFrom(ctx context.Context) string {
+	id, _ := ctx.Value(requestIDKey{}).(string)
+	return id
+}
+
 // Record appends e for actor using st, which should be the transaction-bound
 // store of the mutation it describes.
 func Record(ctx context.Context, st store.Store, actor Actor, e Event) error {
+	if e.RequestID == "" {
+		e.RequestID = requestIDFrom(ctx)
+	}
 	_, err := st.Audit().Append(ctx, store.AuditEvent{
 		TenantID: e.TenantID, ActorType: actor.Type, ActorID: actor.ID,
 		Action: e.Action, EntityType: e.EntityType, EntityID: e.EntityID,

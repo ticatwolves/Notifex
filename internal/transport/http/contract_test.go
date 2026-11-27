@@ -182,7 +182,8 @@ func TestSpecAndRouterDoNotDrift(t *testing.T) {
 	// Every optional route group enabled, so the router serves everything it can.
 	r := NewRouter(Deps{Service: "api", Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Metrics: prometheus.NewRegistry(), Health: health.NewRegistry(time.Second), APIKeys: unavailableAuth{},
-		Accounts: stubAccounts{}, Sessions: stubSessions{}, OAuth: stubOAuth{}})
+		Accounts: stubAccounts{}, Sessions: stubSessions{}, OAuth: stubOAuth{}, Tenants: stubTenants{},
+		Operators: stubOperators{}})
 	param := regexp.MustCompile(`:([a-z_]+)`)
 	served := map[string]bool{}
 	for _, rt := range r.(*gin.Engine).Routes() {
@@ -213,3 +214,7 @@ type stubAccounts struct{ ConsoleAccounts }
 type stubSessions struct{ SessionAuthenticator }
 
 type stubOAuth struct{ ConsoleOAuth }
+
+type stubTenants struct{ TenantAdmin }
+
+type stubOperators struct{ OperatorRealm }

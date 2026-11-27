@@ -15,7 +15,7 @@ LOCAL_ENV := NOTIFEX_ENV=local LOG_FORMAT=text DATABASE_URL=$(LOCAL_DATABASE_URL
 BIN     := $(CURDIR)/bin
 VERSION ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo dev)
 IMAGE   ?= notifex-core
-SERVICES := api dispatcher scheduler migrate healthcheck seed
+SERVICES := api dispatcher scheduler migrate healthcheck seed operator
 
 GOLANGCI_LINT := $(BIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 GOVULNCHECK   := $(BIN)/govulncheck-$(GOVULNCHECK_VERSION)

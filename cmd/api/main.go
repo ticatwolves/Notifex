@@ -5,16 +5,20 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
 	"github.com/ticatwolves/notifex/internal/app"
 	"github.com/ticatwolves/notifex/internal/auth"
+	"github.com/ticatwolves/notifex/internal/crypto"
 	"github.com/ticatwolves/notifex/internal/db"
 	"github.com/ticatwolves/notifex/internal/lifecycle"
 	"github.com/ticatwolves/notifex/internal/mail"
+	"github.com/ticatwolves/notifex/internal/operator"
 	"github.com/ticatwolves/notifex/internal/store/entstore"
+	"github.com/ticatwolves/notifex/internal/tenant"
 	grpctransport "github.com/ticatwolves/notifex/internal/transport/grpc"
 	httptransport "github.com/ticatwolves/notifex/internal/transport/http"
 )
@@ -41,12 +45,20 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 	if err != nil {
 		return nil, err
 	}
-	accounts := auth.NewAccounts(st, auth.NewPasswordHasher(rt.Config.PasswordHashConcurrency), mailer, rt.Logger,
+	// One hasher, so console and operator logins share the argon2 memory bound.
+	pw := auth.NewPasswordHasher(rt.Config.PasswordHashConcurrency)
+	accounts := auth.NewAccounts(st, pw, mailer, rt.Logger,
 		rt.Config.ConsoleURL, auth.DefaultSessionPolicy)
 	if err := auth.ValidateRedirectURIs(rt.Config.OAuthRedirectURIs); err != nil {
 		return nil, err
 	}
 	oauth := auth.NewOAuth(accounts, oauthProviders(ctx, rt), rt.Config.OAuthRedirectURIs)
+	keys, err := keyProvider(rt)
+	if err != nil {
+		return nil, err
+	}
+	tenants := tenant.NewService(st, keys, mailer, rt.Logger, rt.Config.ConsoleURL, tenant.DefaultPolicy)
+	tenants.KeyHasher = hasher
 
 	rest := lifecycle.NewHTTPServer("http", rt.Config.HTTPAddr, httptransport.NewRouter(httptransport.Deps{
 		Service:        rt.Config.Service,
@@ -57,6 +69,8 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 		Accounts:       accounts,
 		Sessions:       auth.NewSessionAuthenticator(st, rt.Logger, auth.DefaultSessionPolicy),
 		OAuth:          oauth,
+		Tenants:        tenants,
+		Operators:      operator.NewService(st, keys, pw, rt.Logger, operator.DefaultPolicy),
 		TrustedProxies: rt.Config.TrustedProxies,
 	}), rt.Logger)
 	if err := rest.Listen(ctx); err != nil {
@@ -112,4 +126,33 @@ func oauthProviders(ctx context.Context, rt *app.Runtime) []auth.Provider {
 	}
 	rt.Logger.Info("oauth providers", slog.Any("enabled", names))
 	return ps
+}
+
+// keyProvider wraps tenant DEKs: the local master key in local runs; KMS
+// (Phase 8) everywhere else. Until KMS exists, deployed environments get a
+// provider that refuses to create DEKs, so tenant creation fails there while
+// the rest of the API keeps working. Never fall back to the local key.
+func keyProvider(rt *app.Runtime) (crypto.KeyProvider, error) {
+	if rt.Config.Deployed() {
+		rt.Logger.Warn("no KMS KeyProvider yet (Phase 8): tenant creation is disabled in this environment")
+		return noKMS{}, nil
+	}
+	kp, err := crypto.NewLocalFromBase64(rt.Config.LocalMasterKey)
+	if err != nil {
+		return nil, fmt.Errorf("NOTIFEX_LOCAL_MASTER_KEY: %w", err)
+	}
+	return kp, nil
+}
+
+// noKMS refuses every key operation (deployed environments before Phase 8).
+type noKMS struct{}
+
+var errNoKMS = errors.New("tenant encryption keys are unavailable: KMS KeyProvider not configured (Phase 8)")
+
+func (noKMS) GenerateDataKey(context.Context, crypto.EncryptionContext) (crypto.DataKey, error) {
+	return crypto.DataKey{}, errNoKMS
+}
+
+func (noKMS) Unwrap(context.Context, []byte, string, crypto.EncryptionContext) ([]byte, error) {
+	return nil, errNoKMS
 }

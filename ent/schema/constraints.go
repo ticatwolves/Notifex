@@ -9,13 +9,13 @@ type ForeignKey struct {
 	Columns    []string
 	RefTable   string
 	RefColumns []string
-	// OnDelete is RESTRICT unless stated: deleting a parent with children
-	// fails, and the store reports a conflict.
+	// OnDelete is RESTRICT unless stated ("CASCADE" or "SET NULL"):
+	// deleting a parent with children fails, and the store reports a conflict.
 	OnDelete string
 }
 
 // tenantOwned lists tables whose tenant_id must reference tenants(id).
-var tenantOwned = []string{"memberships", "applications", "environments", "api_keys"}
+var tenantOwned = []string{"memberships", "applications", "environments", "api_keys", "invitations"}
 
 // ForeignKeys returns every foreign key in the core schema.
 func ForeignKeys() []ForeignKey {
@@ -61,6 +61,21 @@ func ForeignKeys() []ForeignKey {
 		ForeignKey{
 			Name: "oauth_states_link_user_fk", Table: "oauth_states",
 			Columns: []string{"link_user_id"}, RefTable: "users", RefColumns: []string{"id"},
+			OnDelete: "CASCADE",
+		},
+		ForeignKey{
+			Name: "invitations_invited_by_fk", Table: "invitations",
+			Columns: []string{"invited_by"}, RefTable: "users", RefColumns: []string{"id"},
+			OnDelete: "SET NULL", // keep the invitation record if the inviter is deleted
+		},
+		ForeignKey{
+			Name: "invitations_accepted_by_fk", Table: "invitations",
+			Columns: []string{"accepted_by"}, RefTable: "users", RefColumns: []string{"id"},
+			OnDelete: "SET NULL",
+		},
+		ForeignKey{
+			Name: "operator_sessions_operator_fk", Table: "operator_sessions",
+			Columns: []string{"operator_id"}, RefTable: "operators", RefColumns: []string{"id"},
 			OnDelete: "CASCADE",
 		},
 		ForeignKey{

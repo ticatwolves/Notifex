@@ -56,7 +56,7 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 | Threat | Example | Built | Planned |
 |---|---|---|---|
 | **S**poofing | Forged or guessed API key | 256-bit secret, HMAC with pepper, constant-time compare (`internal/auth/apikey.go`). Prefix-binding test. One 401 for every failure, and a dummy HMAC on unknown prefixes, so neither error text nor timing reveals what failed (`authenticator.go`, `TestAuthenticateRejections`). **Per-IP limit on failed API-key attempts** (20/min, 429 + Retry-After), counting the client IP from `X-Forwarded-For` only when it arrives from a trusted proxy (`TestPerIPRateLimits`, `TestTrustedProxyForwardedFor`, mutation-tested) | WAF rate rule as a shared layer across tasks. OAuth for console and MCP (Phase 1 slice 3, doc 12) |
-| **S** | Revoked or expired key still works | Checked on every request (`TestAuthenticateRejections`, the HTTP "revoked key is 401 immediately" test). No auth cache yet, so revocation is instant | If an auth cache is added for performance (Phase 3), bound its TTL so revocation lands in ≤ 30 s (docs/05) |
+| **S** | Revoked or expired key still works | Checked on every request (`TestAuthenticateRejections`, the HTTP "revoked key is 401 immediately" test). No auth cache yet, so revocation is instant. A rotation grace period can always be cut short by revoking (`TestRevokeCutsGracePeriodShort`, mutation-tested). Developers can't touch prod keys (mutation-tested) | If an auth cache is added for performance (Phase 3), bound its TTL so revocation lands in ≤ 30 s (docs/05) |
 | **S** | A dev key used against prod | The key text carries its environment, and it must match the stored environment record (mutation-tested) | Scope and workflow allowlists per key (doc 12, Phase 3) |
 | **T**ampering | Request smuggling, oversized bodies | 1 MiB body cap on REST, also enforced while reading a streamed body; 1 MiB gRPC messages; header and read timeouts (`lifecycle.NewHTTPServer`) | WAF managed rules (doc 10) |
 | **R**epudiation | Tenant denies triggering | Request ids. Correlation fields (`tenant_id`, `api_key_id`) on every authenticated log line and span | `source` + `actor` on every run (Phase 3) |
@@ -78,10 +78,11 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 | Token leakage via links | Emailed tokens travel in the URL fragment (never sent to servers or logged); single use, atomic consume; a new reset invalidates older links | — |
 | Mail bombing | At most 3 reset emails per address per hour, applied silently | Per-IP signup mail cap (Phase 1 slice 4 with invitations) |
 | Email header injection | CR/LF in To/Subject/From rejected before sending (`TestHeaderInjectionRejected`) | — |
+| Audit trail tampering or leakage | Append-only store (no update/delete methods); tenant trail readable by admin/owner only (`audit.view`), keyset-paginated, public ids only; operator actions show as `notifex`, never the staff account id; every event carries the request id | Export to tamper-evident storage (S3 Object Lock) in Phase 7 |
 | Mass assignment / unexpected fields | Strict JSON decoding rejects unknown fields (mutation-tested) | — |
 | OAuth account takeover | PKCE S256 + single-use, provider-bound `state` (10 min) + `nonce`; exact-match redirect allowlist; ID token signature, issuer, audience, expiry and nonce verified; Microsoft keyed on `tid:oid` with per-tenant issuer check, email trusted only with `xms_edov` (nOAuth); GitHub primary *verified* email only; unverified provider emails never looked up; auto-link only when both sides are verified; linking requires the session that started it (linking CSRF). Each rule covered by a failing-on-mutation test against a fake IdP (`oauth_test.go`) | Real-provider smoke test in staging |
 | XSS through tenant content | — | Template preview in a sandboxed iframe with strict CSP (docs/11) |
-| BOLA across tenants | — | Slice 4 RBAC + B3 below |
+| BOLA across tenants | Path-scoped `/v1/admin/tenants/{id}`: anything but a live membership is `404`, including malformed and nil ids (`TestTenantAdminBOLA` sweeps every tenant endpoint as a member of another tenant). Capabilities enforced in the service layer from a literal role × capability matrix test. Last-owner and tenant-cap invariants hold under concurrency (row locks, mutation-tested). Invitations are email-bound, single use and expiring, and a wrong-account accept doesn't consume the link. **Route-driven sweep (slice 7):** `TestBOLASweep` enumerates every route the router serves under `/v1/admin/tenants/:tenant_id` and calls each, as the owner of another tenant, in three shapes (foreign tenant path; own tenant path with foreign object ids; own tenant and app with foreign deeper ids and foreign ids in bodies). All must be `404` and the victim's state and audit trail must be unchanged. A route without a sweep entry fails the test, so new routes can't skip it. Mutation-checked: removing both tenant guards from one store read fails the sweep | Extend the sweep's route prefix to `/v1` data-plane routes (runs, notifications) as they ship |
 
 ### B3: services → Postgres / SQS (tenant isolation)
 
@@ -116,10 +117,14 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 
 ### B6: platform operator → tenant data (Phase 1+)
 
-| Threat | Mitigation (planned) |
-|---|---|
-| Insider reading payloads | Separate realm and auth; every access audited (actor type `operator` exists in the schema); payload decryption requires KMS permissions held only by the dispatcher role, never by operators |
-| Silent config changes | Plan, limit and sandbox changes all audited; two-person review for platform SMS cap changes |
+| Threat | Built (Phase 1 slice 6) | Planned |
+|---|---|---|
+| Insider reading payloads | Separate realm: `operators` and `operator_sessions` tables, `nfo_` tokens accepted only on `/v1/operator` (and rejected everywhere else; tested). Operators have no payload, template or credential endpoints at all | Payload decryption requires KMS permissions held only by the dispatcher role, never operators (Phase 8 IAM) |
+| Operator account takeover | Password (argon2id) **and** TOTP on every login; a TOTP code is single use (atomic `totp_last_step` advance; 8 concurrent logins with one code → exactly one session, tested); uniform `401` for every failed factor; per-account backoff plus 5/min per IP; sessions idle 30 min, absolute 8 h; `disable` revokes every session at once | WAF IP allowlist or VPN for `/v1/operator` (Stage 2); WebAuthn |
+| Rogue operator account | No signup endpoint: accounts are created only by `cmd/operator` from a trusted terminal. The TOTP secret is shown once and stored sealed (AES-256-GCM, platform key via `KeyProvider`, context bound to the operator id) | Two-person approval for `operator create` (Stage 2) |
+| Snooping without trace | **Every** operator request is audited with actor type `operator`, reads included, and misses on unknown tenant ids too. A read whose audit write fails returns no data | Audit-log export and alert on unusual operator volume (Phase 7) |
+| Silent config changes | Status, plan, sandbox, `platform_sms_daily_limit` and quota changes require a `reason`; the audit event stores before, after and reason in the same transaction. Operators cannot delete a tenant (owner-only crypto-shred) or change a deleted one | Two-person review for platform SMS cap changes |
+| CLI output leaking the TOTP secret | `cmd/operator` prints it to the operator's terminal only; documented: never run it as an ECS task (CloudWatch would keep it) | — |
 
 ### B7: CI/CD → production
 

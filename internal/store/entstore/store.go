@@ -64,6 +64,15 @@ func (s *Store) Throttle() store.ThrottleStore { return throttle{s.client} }
 // Identities implements store.Store.
 func (s *Store) Identities() store.IdentityStore { return identities{s.client} }
 
+// Operators implements store.Store.
+func (s *Store) Operators() store.OperatorStore { return operators{s.client} }
+
+// OperatorSessions implements store.Store.
+func (s *Store) OperatorSessions() store.OperatorSessionStore { return operatorSessions{s.client} }
+
+// Invitations implements store.Store.
+func (s *Store) Invitations() store.InvitationStore { return invitations{s.client} }
+
 // OAuthStates implements store.Store.
 func (s *Store) OAuthStates() store.OAuthStateStore { return oauthStates{s.client} }
 

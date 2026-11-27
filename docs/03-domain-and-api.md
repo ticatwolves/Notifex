@@ -110,6 +110,7 @@ Response `202`:
 - **Stored** as `HMAC-SHA256(API_KEY_PEPPER, "nfx-api-key-v1\0" | prefix | ":" | secret)`, compared in constant time. The plaintext key is shown once. Rotating the pepper invalidates every key.
 - **Auth:** `Authorization: Bearer <key>`. Every credential failure (malformed, unknown, wrong secret, revoked, expired, environment mismatch, inactive tenant) returns the same `401 unauthenticated` with `WWW-Authenticate: Bearer realm="notifex"`. If authentication can't be decided (e.g. the database is down), the response is `503 unavailable` with `Retry-After`, never 401.
 - `last_used_at` is updated at most once per minute per key.
+- **Lifecycle (console):** developers manage keys for non-prod environments only; admins and owners manage all keys. The permission is checked per key on create, revoke and rotate. **Rotation** issues a replacement with the same environment, name, scopes and expiry, and schedules the old key's revocation after a grace period (0–7 days, default 24 h). Both keys work during the grace period. **Revocation** takes effect immediately, including during a grace period (the earliest revocation time wins). Keys can expire (≤ 2 years). Deleting an environment is refused while it has active keys; revoked and expired key records are removed with it, and their history stays in the audit log.
 
 `GET /v1/whoami` returns the caller's identity: `{tenant_id, application_id, environment_id, environment, api_key_id, api_key_prefix, scopes}`. Useful for SDK connectivity checks.
 
