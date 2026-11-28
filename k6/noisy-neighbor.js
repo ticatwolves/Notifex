@@ -2,7 +2,7 @@
 // Usage: k6 run -e BASE_URL=... -e KEY_A=... -e KEY_B=... k6/noisy-neighbor.js
 import http from 'k6/http';
 import { check } from 'k6';
-import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
+import { uuid4 } from './lib.js';
 import { Trend } from 'k6/metrics';
 
 const BASE = __ENV.BASE_URL || 'http://localhost:8080';
@@ -22,9 +22,9 @@ export const options = {
 function trigger(key, tag) {
   return http.post(`${BASE}/v1/trigger`, JSON.stringify({
     workflow: 'order_shipped',
-    recipients: [{ id: 'r1', email: 'u@example.test' }],
+    recipients: [{ id: 'r1', email: 'u@example.test', phone: '+919876543210' }],
     payload: { order_id: tag },
-  }), { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, 'Idempotency-Key': uuidv4() } });
+  }), { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, 'Idempotency-Key': uuid4() } });
 }
 export function flood() { trigger(__ENV.KEY_A, 'A'); }
 export function steady() {

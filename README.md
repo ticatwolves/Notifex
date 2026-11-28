@@ -10,8 +10,11 @@ Requires Go (version in `go.mod`), Docker, and GNU make.
 
 ```bash
 make dev        # postgres, elasticmq, migrate (one-shot), api, dispatcher, scheduler
-make seed       # local tenant + app + env; prints a fresh API key and a curl command
+make seed       # local tenant + app + env + active "order_shipped" workflow; prints a fresh API key
 curl -s -H "Authorization: Bearer <key>" localhost:8080/v1/whoami
+curl -s -H "Authorization: Bearer <key>" -H 'Content-Type: application/json' localhost:8080/v1/trigger \
+  -d '{"workflow":"order_shipped","recipients":[{"email":"a@example.test","phone":"+919876543210"}],"payload":{"order_id":"A1","tracking_url":"https://example.test/t"}}'
+make load-smoke # k6: 50 triggers/s for 1 min, then checks every notification was sent and billed once
 curl localhost:9100/readyz   # ops port: readiness detail + /metrics
 make down
 ```
@@ -21,6 +24,7 @@ make down
 - **Phase 0:** scaffold, CI, store with tenant scoping, migrations, envelope encryption, partition helpers, API-key auth (`/v1/whoami`).
 - **Phase 1:** console API (signup, login, sessions, OAuth, tenants, members, invitations, RBAC, applications, environments, API keys, audit log) and the operator realm (`cmd/operator`, TOTP).
 - **Phase 2:** workflows, channel actions and templates with a sandboxed Handlebars-subset renderer and preview (ADR-012); brand profiles and sending policies; channel credentials, platform and BYO, with write-only encrypted secrets (ADR-013).
+- **Phase 3:** trigger intake (`POST /v1/trigger`, idempotency, config snapshots, encrypted payloads, atomic platform-SMS reservation, one-transaction accept with the outbox); SQS queues with the outbox relay and a leader-elected scheduler; the dispatcher (claim with lease, quiet hours and rate limits, retries with backoff, billing in the same transaction); channel adapters for SES, SNS, SendGrid, SMTP, Twilio, Slack and signed webhooks behind an SSRF-guarded dialer (ADR-014). Locally the dispatcher sends to the mock vendor (`DISPATCH_VENDORS=mock`).
 
 The contract is [api/openapi.yaml](api/openapi.yaml): operations marked `implemented` are served and contract-tested; `draft` ones are designed for later phases.
 

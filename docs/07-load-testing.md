@@ -32,7 +32,7 @@ Define from beta forecasts, then multiply:
 ## Scenarios
 | Scenario | Shape | Purpose | Pass criteria |
 |---|---|---|---|
-| **Smoke** | 5 VUs, 1 min | Script sanity, CI gate | 0 errors, p99 within SLO |
+| **Smoke** | 50 triggers/s (arrival rate) for 1 min, local stack with the mock vendor: `make load-smoke` | Script sanity, end-to-end correctness, CI gate | 0 errors, accept p99 within SLO, every notification `sent`/`delivered`, every billable send has exactly one usage record (`k6/verify.sql`) |
 | **Load** | ramp to expected peak, hold 30 min | Validate SLOs at normal peak | All SLOs met |
 | **Stress** | step up 25% every 10 min until failure | Find limits and failure mode | Degrades gracefully: 429s/backpressure, no data loss, no crash loops |
 | **Spike** | 0 → 10× in 30 s, hold 5 min, drop | Burst absorption and autoscale response | Accept errors < 0.1%; queue age returns to SLO within target time |
@@ -82,4 +82,6 @@ Define from beta forecasts, then multiply:
 ## Reporting template
 Scenario, date, commit, environment, workload, results vs SLO (table), bottleneck analysis with graphs, changes made, residual risk, recommended capacity and next test.
 
-See `k6/trigger-load.js` and `k6/noisy-neighbor.js`. The noisy-neighbor script should target a single channel so fair-queue behavior is what's measured.
+See `k6/trigger-load.js` and `k6/noisy-neighbor.js` (both trigger the seeded `order_shipped` workflow; no remote imports, so a run never fetches code). `make load-smoke` runs the smoke locally and verifies the database afterwards; `make load-test BASE_URL=... API_KEYS=... SCENARIO=load|stress|spike|soak` runs the others against a target. The k6 image is pinned by digest in the Makefile. The noisy-neighbor script should target a single channel so fair-queue behavior is what's measured.
+
+Local numbers are a regression baseline, not capacity: everything shares one laptop (load generator, API, dispatcher, Postgres, ElasticMQ). Capacity numbers come from staging (Phase 8).

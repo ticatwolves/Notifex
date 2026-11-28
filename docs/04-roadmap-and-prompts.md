@@ -34,6 +34,10 @@ Work in phases. Each phase ends with a demo-able, tested slice. Start every phas
 
 ## Phase 3 — Trigger and dispatch (the critical path)
 - **Plan approved 2026-11-28** (ADR-014). Slices: 1 contract + ADR-014 · 2 data model (partitioned notifications, config snapshots) · 3 trigger intake · 4 JobQueue, sqsqueue, outbox relay, scheduler · 5 dispatcher core · 6 channel adapters · 7 load smoke + docs.
+- **Built 2026-11-28** (branch `feat/phase3`): everything below, with the decisions as built recorded in ADR-014's slice amendments. Webhook endpoints live in the `webhook/signing` credential (`config.url`). Local load smoke: `make load-smoke` (results in `docs/perf/`).
+- **Handed to Phase 4:** delivery receipts (SES events, SNS SMS logs, Twilio and SendGrid callbacks) to move email and SMS from `sent` to `delivered` and bill BYO email/SMS (ADR-014 §6); the `sent_unconfirmed` sweeper; push, Outlook and WhatsApp adapters behind the same `channel.Sender` registry.
+- **Handed to Phase 5:** run status rollup (runs stay `accepted`/`failed` until then), payload purge and partition drop, the timeline read model over `notification_events`.
+- **Handed to Phase 8:** egress allowlist proxy behind `netguard`; shared (cross-task) rate limits if load tests show the need; dispatcher IAM per the ADR-014 slice 6 amendment; per-endpoint circuit breaking for slow webhook endpoints (threat model R14).
 - Trigger intake (REST first): auth, idempotency, quota, credential resolution, **atomic platform-SMS daily reservation**, snapshot, encrypted payload, **single-transaction write of run + notifications + outbox / scheduled_dispatch**, fast-path publish.
 - `JobQueue` with `sqsqueue` and `inmem` impls; outbox relay and scheduled_dispatch mover in the scheduler (leader lease).
 - Dispatcher: per-channel SQS consumers, conditional claim with lease, visibility heartbeat, policy engine (defer/deny), jittered backoff via delay re-publish or scheduled_dispatch, retryable vs permanent classification, business dead-letter, poison DLQ.
