@@ -118,7 +118,7 @@ Response `202`:
 ## Other REST endpoints (v1)
 - `GET /v1/runs/{id}`, `GET /v1/notifications/{id}` (timeline; payload fields shown only if not purged and caller has rights), `GET /v1/runs?workflow=&status=&from=&to=`
 - `POST /v1/notifications/{id}/replay` (409 `payload_expired` if purged), `POST /v1/runs/{id}/cancel`
-- Control plane under `/v1/admin/...`: tenants, members, applications, environments, api-keys, workflows, actions, templates, brand, policies, **channel-credentials** (create/rotate/verify/disable; secrets write-only), audit-events, metrics, **usage** (daily usage, daily SMS remaining).
+- Control plane under `/v1/admin/...`: tenants, members, applications, environments, api-keys, workflows, actions, templates, brand, policies, **channel-credentials** (create, rotate, enable/disable, delete, resolve; secrets write-only; vendor verification arrives in Phase 3/4, ADR-013 §6), audit-events, metrics, **usage** (daily usage, daily SMS remaining).
 - `POST /v1/admin/tenants/{tid}/applications/{aid}/templates/preview` — render an unsaved template with a sample payload and the application's effective brand (SMS shows encoding and segment count). Console session, developer and up. Nothing stored or logged.
 - Vendor callbacks: `POST /callbacks/{provider}` (signature verified, idempotent).
 - OpenAPI 3.1 spec is the source of truth: `api/openapi.yaml`. Each operation is marked `x-notifex-status: implemented | draft`. Implemented operations are contract-tested against real responses, and a drift test fails if the router and spec disagree (`internal/transport/http/contract_test.go`). `make api-lint` runs vacuum. Generate docs and SDK scaffolding from it.

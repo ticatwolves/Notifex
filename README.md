@@ -16,6 +16,14 @@ curl localhost:9100/readyz   # ops port: readiness detail + /metrics
 make down
 ```
 
+## What's built
+
+- **Phase 0:** scaffold, CI, store with tenant scoping, migrations, envelope encryption, partition helpers, API-key auth (`/v1/whoami`).
+- **Phase 1:** console API (signup, login, sessions, OAuth, tenants, members, invitations, RBAC, applications, environments, API keys, audit log) and the operator realm (`cmd/operator`, TOTP).
+- **Phase 2:** workflows, channel actions and templates with a sandboxed Handlebars-subset renderer and preview (ADR-012); brand profiles and sending policies; channel credentials, platform and BYO, with write-only encrypted secrets (ADR-013).
+
+The contract is [api/openapi.yaml](api/openapi.yaml): operations marked `implemented` are served and contract-tested; `draft` ones are designed for later phases.
+
 ## Schema changes
 
 ```bash

@@ -26,6 +26,9 @@ Work in phases. Each phase ends with a demo-able, tested slice. Start every phas
 - Brand profile and policy CRUD (incl. `payload_retention_days` 1–7).
 - **ChannelCredential** CRUD with platform/BYO modes and resolution order (ADR-005); BYO secrets encrypted via KeyProvider.
 - **Plan approved 2026-11-27** (ADR-012, ADR-013). Slices: 1 contract + ADRs · 2 renderer · 3 brand + policy · 4 workflows, actions, templates, preview · 5 channel credentials · 6 sweep + docs. Deferred: action `conditions`, workflow exposure flags, real credential verification (Phase 3/4).
+- **Built 2026-11-28** (branch `feat/phase2-contract`): every Phase 2 operation in the OpenAPI spec is implemented and contract-tested. The BOLA sweep covers every tenant-scoped admin route at every id depth, plus ids in query strings and bodies (52 routes, 111 calls).
+- **Handed to Phase 3** (built here, used there): `tenant.Service.EffectiveBrand` / `EffectivePolicy` and `credential.Service.Resolve` for the snapshot at accept; `credential.Service.Secret` for dispatch; `workflow.CompileSchema` for payload validation (compile once per workflow, cache); the renderer's locale order (ADR-012 §7, `template_missing`).
+- **Phase 3 must add:** the dialer-level check on resolved addresses for SMTP and webhooks (`credential.PublicAddr`, DNS rebinding); the policy engine (quiet hours, rate limits, allowed channels) over the stored policy; content guardrails for platform senders (ADR-005).
 
 > **Prompt:** "Implement the sandboxed template renderer and the preview endpoint. Include brand variables, per-channel validation (SMS ≤ 3 segments, push size, Slack blocks), and fuzz tests for the renderer. Then plan the ChannelCredential model and resolution (env BYO → app BYO → tenant BYO → platform) per ADR-005; wait for approval before the schema."
 
