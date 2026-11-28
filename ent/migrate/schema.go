@@ -228,6 +228,69 @@ var (
 			},
 		},
 	}
+	// ConfigSnapshotsColumns holds the columns for the "config_snapshots" table.
+	ConfigSnapshotsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "hash", Type: field.TypeBytes},
+		{Name: "doc", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// ConfigSnapshotsTable holds the schema information for the "config_snapshots" table.
+	ConfigSnapshotsTable = &schema.Table{
+		Name:       "config_snapshots",
+		Columns:    ConfigSnapshotsColumns,
+		PrimaryKey: []*schema.Column{ConfigSnapshotsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "configsnapshot_tenant_id_hash",
+				Unique:  true,
+				Columns: []*schema.Column{ConfigSnapshotsColumns[1], ConfigSnapshotsColumns[2]},
+			},
+		},
+	}
+	// DispatchOutboxColumns holds the columns for the "dispatch_outbox" table.
+	DispatchOutboxColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "notification_id", Type: field.TypeUUID},
+		{Name: "run_id", Type: field.TypeUUID},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"email", "sms", "push", "slack", "outlook", "whatsapp", "webhook"}},
+		{Name: "delay_s", Type: field.TypeInt, Default: 0},
+		{Name: "attempt", Type: field.TypeInt, Default: 1},
+		{Name: "traceparent", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "published_at", Type: field.TypeTime, Nullable: true},
+	}
+	// DispatchOutboxTable holds the schema information for the "dispatch_outbox" table.
+	DispatchOutboxTable = &schema.Table{
+		Name:       "dispatch_outbox",
+		Columns:    DispatchOutboxColumns,
+		PrimaryKey: []*schema.Column{DispatchOutboxColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "dispatch_outbox_unpublished",
+				Unique:  false,
+				Columns: []*schema.Column{DispatchOutboxColumns[0]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "published_at IS NULL",
+				},
+			},
+			{
+				Name:    "dispatch_outbox_published",
+				Unique:  false,
+				Columns: []*schema.Column{DispatchOutboxColumns[9]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "published_at IS NOT NULL",
+				},
+			},
+			{
+				Name:    "dispatchoutbox_tenant_id_notification_id",
+				Unique:  false,
+				Columns: []*schema.Column{DispatchOutboxColumns[1], DispatchOutboxColumns[2]},
+			},
+		},
+	}
 	// EmailTokensColumns holds the columns for the "email_tokens" table.
 	EmailTokensColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -285,6 +348,34 @@ var (
 				Name:    "environment_tenant_id_application_id_id",
 				Unique:  true,
 				Columns: []*schema.Column{EnvironmentsColumns[1], EnvironmentsColumns[4], EnvironmentsColumns[0]},
+			},
+		},
+	}
+	// IdempotencyRecordsColumns holds the columns for the "idempotency_records" table.
+	IdempotencyRecordsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "key", Type: field.TypeString, Size: 128},
+		{Name: "request_hash", Type: field.TypeBytes},
+		{Name: "run_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "expires_at", Type: field.TypeTime},
+	}
+	// IdempotencyRecordsTable holds the schema information for the "idempotency_records" table.
+	IdempotencyRecordsTable = &schema.Table{
+		Name:       "idempotency_records",
+		Columns:    IdempotencyRecordsColumns,
+		PrimaryKey: []*schema.Column{IdempotencyRecordsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "idempotencyrecord_tenant_id_key",
+				Unique:  true,
+				Columns: []*schema.Column{IdempotencyRecordsColumns[1], IdempotencyRecordsColumns[2]},
+			},
+			{
+				Name:    "idempotencyrecord_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{IdempotencyRecordsColumns[6]},
 			},
 		},
 	}
@@ -440,6 +531,122 @@ var (
 			},
 		},
 	}
+	// PlatformSmsTotalsColumns holds the columns for the "platform_sms_totals" table.
+	PlatformSmsTotalsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "day", Type: field.TypeTime, Unique: true, SchemaType: map[string]string{"postgres": "date"}},
+		{Name: "count", Type: field.TypeInt, Default: 0},
+	}
+	// PlatformSmsTotalsTable holds the schema information for the "platform_sms_totals" table.
+	PlatformSmsTotalsTable = &schema.Table{
+		Name:       "platform_sms_totals",
+		Columns:    PlatformSmsTotalsColumns,
+		PrimaryKey: []*schema.Column{PlatformSmsTotalsColumns[0]},
+	}
+	// PlatformSmsUsageColumns holds the columns for the "platform_sms_usage" table.
+	PlatformSmsUsageColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "day", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "date"}},
+		{Name: "count", Type: field.TypeInt, Default: 0},
+	}
+	// PlatformSmsUsageTable holds the schema information for the "platform_sms_usage" table.
+	PlatformSmsUsageTable = &schema.Table{
+		Name:       "platform_sms_usage",
+		Columns:    PlatformSmsUsageColumns,
+		PrimaryKey: []*schema.Column{PlatformSmsUsageColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "platformsmsusage_tenant_id_day",
+				Unique:  true,
+				Columns: []*schema.Column{PlatformSmsUsageColumns[1], PlatformSmsUsageColumns[2]},
+			},
+		},
+	}
+	// RunsColumns holds the columns for the "runs" table.
+	RunsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "application_id", Type: field.TypeUUID},
+		{Name: "environment_id", Type: field.TypeUUID},
+		{Name: "workflow_id", Type: field.TypeUUID},
+		{Name: "workflow_key", Type: field.TypeString, Size: 63},
+		{Name: "snapshot_hash", Type: field.TypeBytes},
+		{Name: "payload", Type: field.TypeBytes, Nullable: true},
+		{Name: "context", Type: field.TypeJSON, Nullable: true},
+		{Name: "idempotency_key", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "source", Type: field.TypeString, Size: 32},
+		{Name: "actor_type", Type: field.TypeString, Size: 16},
+		{Name: "actor_id", Type: field.TypeString, Size: 64},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"accepted", "processing", "completed", "partially_failed", "failed", "canceled"}, Default: "accepted"},
+		{Name: "schedule_at", Type: field.TypeTime, Nullable: true},
+		{Name: "terminal_at", Type: field.TypeTime, Nullable: true},
+		{Name: "purged_at", Type: field.TypeTime, Nullable: true},
+	}
+	// RunsTable holds the schema information for the "runs" table.
+	RunsTable = &schema.Table{
+		Name:       "runs",
+		Columns:    RunsColumns,
+		PrimaryKey: []*schema.Column{RunsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "run_tenant_id_id",
+				Unique:  true,
+				Columns: []*schema.Column{RunsColumns[1], RunsColumns[0]},
+			},
+			{
+				Name:    "run_tenant_id_application_id_environment_id_id",
+				Unique:  false,
+				Columns: []*schema.Column{RunsColumns[1], RunsColumns[4], RunsColumns[5], RunsColumns[0]},
+			},
+		},
+	}
+	// ScheduledDispatchColumns holds the columns for the "scheduled_dispatch" table.
+	ScheduledDispatchColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "notification_id", Type: field.TypeUUID},
+		{Name: "run_id", Type: field.TypeUUID},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"email", "sms", "push", "slack", "outlook", "whatsapp", "webhook"}},
+		{Name: "due_at", Type: field.TypeTime},
+		{Name: "reason", Type: field.TypeEnum, Enums: []string{"scheduled", "deferred", "backoff"}},
+		{Name: "attempt", Type: field.TypeInt, Default: 1},
+		{Name: "traceparent", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// ScheduledDispatchTable holds the schema information for the "scheduled_dispatch" table.
+	ScheduledDispatchTable = &schema.Table{
+		Name:       "scheduled_dispatch",
+		Columns:    ScheduledDispatchColumns,
+		PrimaryKey: []*schema.Column{ScheduledDispatchColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "scheduleddispatch_due_at",
+				Unique:  false,
+				Columns: []*schema.Column{ScheduledDispatchColumns[5]},
+			},
+			{
+				Name:    "scheduleddispatch_tenant_id_notification_id",
+				Unique:  false,
+				Columns: []*schema.Column{ScheduledDispatchColumns[1], ScheduledDispatchColumns[2]},
+			},
+		},
+	}
+	// SchedulerLeasesColumns holds the columns for the "scheduler_leases" table.
+	SchedulerLeasesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString, Unique: true, Size: 64},
+		{Name: "holder", Type: field.TypeString, Size: 128},
+		{Name: "expires_at", Type: field.TypeTime},
+	}
+	// SchedulerLeasesTable holds the schema information for the "scheduler_leases" table.
+	SchedulerLeasesTable = &schema.Table{
+		Name:       "scheduler_leases",
+		Columns:    SchedulerLeasesColumns,
+		PrimaryKey: []*schema.Column{SchedulerLeasesColumns[0]},
+	}
 	// PoliciesColumns holds the columns for the "policies" table.
 	PoliciesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -554,6 +761,31 @@ var (
 		Columns:    TenantsColumns,
 		PrimaryKey: []*schema.Column{TenantsColumns[0]},
 	}
+	// UsageRecordsColumns holds the columns for the "usage_records" table.
+	UsageRecordsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "notification_id", Type: field.TypeUUID, Unique: true},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"email", "sms", "push", "slack", "outlook", "whatsapp", "webhook"}},
+		{Name: "credential_mode", Type: field.TypeString, Size: 16},
+		{Name: "billing_basis", Type: field.TypeString, Size: 16},
+		{Name: "country", Type: field.TypeString, Size: 2, Default: ""},
+		{Name: "billable_at", Type: field.TypeTime},
+		{Name: "unit_price_ref", Type: field.TypeString, Size: 64, Default: ""},
+	}
+	// UsageRecordsTable holds the schema information for the "usage_records" table.
+	UsageRecordsTable = &schema.Table{
+		Name:       "usage_records",
+		Columns:    UsageRecordsColumns,
+		PrimaryKey: []*schema.Column{UsageRecordsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "usagerecord_tenant_id_billable_at",
+				Unique:  false,
+				Columns: []*schema.Column{UsageRecordsColumns[1], UsageRecordsColumns[7]},
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -639,17 +871,26 @@ var (
 		AuthThrottlesTable,
 		BrandProfilesTable,
 		ChannelCredentialsTable,
+		ConfigSnapshotsTable,
+		DispatchOutboxTable,
 		EmailTokensTable,
 		EnvironmentsTable,
+		IdempotencyRecordsTable,
 		InvitationsTable,
 		MembershipsTable,
 		OauthStatesTable,
 		OperatorsTable,
 		OperatorSessionsTable,
+		PlatformSmsTotalsTable,
+		PlatformSmsUsageTable,
+		RunsTable,
+		ScheduledDispatchTable,
+		SchedulerLeasesTable,
 		PoliciesTable,
 		SessionsTable,
 		TemplatesTable,
 		TenantsTable,
+		UsageRecordsTable,
 		UsersTable,
 		UserIdentitiesTable,
 		WorkflowsTable,
@@ -666,6 +907,27 @@ func init() {
 		"channel_credentials_config_object": "jsonb_typeof(config) = 'object'",
 		"channel_credentials_env_needs_app": "environment_id IS NULL OR application_id IS NOT NULL",
 		"channel_credentials_secret_size":   "secret_ciphertext IS NULL OR octet_length(secret_ciphertext) <= 20000",
+	}
+	DispatchOutboxTable.Annotation = &entsql.Annotation{
+		Table: "dispatch_outbox",
+	}
+	DispatchOutboxTable.Annotation.Checks = map[string]string{
+		"dispatch_outbox_delay_range": "delay_s BETWEEN 0 AND 900",
+	}
+	PlatformSmsTotalsTable.Annotation = &entsql.Annotation{
+		Table: "platform_sms_totals",
+	}
+	PlatformSmsTotalsTable.Annotation.Checks = map[string]string{
+		"platform_sms_totals_count_nonneg": "count >= 0",
+	}
+	PlatformSmsUsageTable.Annotation = &entsql.Annotation{
+		Table: "platform_sms_usage",
+	}
+	PlatformSmsUsageTable.Annotation.Checks = map[string]string{
+		"platform_sms_usage_count_nonneg": "count >= 0",
+	}
+	ScheduledDispatchTable.Annotation = &entsql.Annotation{
+		Table: "scheduled_dispatch",
 	}
 	PoliciesTable.Annotation = &entsql.Annotation{
 		Table: "policies",

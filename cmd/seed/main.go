@@ -32,6 +32,7 @@ func run() int {
 	appKey := flag.String("app", "shop", "application key")
 	env := flag.String("env", "dev", "environment: dev | staging | prod")
 	apiURL := flag.String("api", "http://localhost:8080", "API base URL for the printed curl command")
+	keyOnly := flag.Bool("key-only", false, "print only the API key (for scripts such as make load-smoke)")
 	flag.Parse()
 
 	cfg, err := config.Load("seed", app.Version)
@@ -74,7 +75,12 @@ func run() int {
 	log.Info("seeded",
 		slog.String("tenant_id", res.Tenant.ID.String()), slog.String("tenant_slug", res.Tenant.Slug),
 		slog.String("application_id", res.Application.ID.String()), slog.String("environment", string(res.Environment.Name)),
-		slog.String("api_key_id", res.APIKey.Key.ID.String()), slog.String("api_key_prefix", res.APIKey.Key.Prefix))
+		slog.String("api_key_id", res.APIKey.Key.ID.String()), slog.String("api_key_prefix", res.APIKey.Key.Prefix),
+		slog.String("workflow", res.Workflow.Key))
+	if *keyOnly {
+		fmt.Println(res.APIKey.Plaintext)
+		return 0
+	}
 
 	fmt.Printf("API key (shown once): %s\n\n", res.APIKey.Plaintext)
 	fmt.Printf("curl -s -H 'Authorization: Bearer %s' %s/v1/whoami\n", res.APIKey.Plaintext, *apiURL)

@@ -56,6 +56,16 @@ func (w workflows) Get(ctx context.Context, tid store.TenantID, appID, id uuid.U
 	return toWorkflow(row), nil
 }
 
+func (w workflows) GetByKey(ctx context.Context, tid store.TenantID, appID uuid.UUID, key string) (store.Workflow, error) {
+	row, err := w.c.Workflow.Query().
+		Where(workflow.TenantID(tid.UUID()), workflow.ApplicationID(appID), workflow.Key(key)).
+		Only(scoped(ctx, tid))
+	if err != nil {
+		return store.Workflow{}, fmt.Errorf("workflows.get_by_key: %w", mapErr(err, opRead))
+	}
+	return toWorkflow(row), nil
+}
+
 func (w workflows) List(ctx context.Context, tid store.TenantID, appID uuid.UUID, status *store.WorkflowStatus, p store.Page) ([]store.Workflow, error) {
 	p = p.Normalize()
 	q := w.c.Workflow.Query().Where(workflow.TenantID(tid.UUID()), workflow.ApplicationID(appID))

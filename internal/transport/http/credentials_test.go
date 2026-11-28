@@ -64,7 +64,7 @@ func TestCredentialsOverHTTP(t *testing.T) {
 	assert.Equal(t, 400, r["code"])
 	assert.Contains(t, r["body"], "secret.api_key")
 
-	hook := e.post(owner, base+"/channel-credentials", map[string]any{"channel": "webhook", "provider": "signing", "name": "Hooks"}, 201)
+	hook := e.post(owner, base+"/channel-credentials", map[string]any{"channel": "webhook", "provider": "signing", "name": "Hooks", "config": map[string]any{"url": "https://hooks.acme.test/notifex"}}, 201)
 	gen := hook["generated_secret"].(string)
 	assert.True(t, strings.HasPrefix(gen, "whsec_"), "generated secret shown once at creation")
 	rec = e.do(call{method: "GET", path: base + "/channel-credentials/" + hook["credential"].(map[string]any)["id"].(string), token: owner})

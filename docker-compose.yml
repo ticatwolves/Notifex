@@ -24,6 +24,7 @@ x-core: &core
     AWS_REGION: ap-south-1
     AWS_ACCESS_KEY_ID: local       # ElasticMQ ignores credentials
     AWS_SECRET_ACCESS_KEY: local
+    PLATFORM_SMS_DAILY_CAP: "1000000"  # local: room for repeated load smokes (mock vendor)
     # API_KEY_PEPPER / NOTIFEX_LOCAL_MASTER_KEY default to public dev values
     # in local (internal/config); set them in .env to override.
   depends_on:
@@ -86,6 +87,10 @@ services:
     <<: *core
     command: ["/app/dispatcher"]
     ports: ["9101:9100"]
+    environment:
+      <<: *core-env  # a service-level environment replaces the anchor's map; merge it back
+      DISPATCH_ENABLED: "true"
+      DISPATCH_VENDORS: mock     # nothing leaves the machine locally
 
   scheduler:
     <<: *core

@@ -1,12 +1,15 @@
 // Package devseed provisions a local development tenant end to end: tenant
-// (with DEK), owner user, application, environment and a fresh API key. It is
-// idempotent apart from the key, which is new on every run. Local only.
+// (with DEK), owner user, application, environment, an active
+// "order_shipped" workflow (email + SMS, platform senders) for trigger
+// smoke and load tests, and a fresh API key. It is idempotent apart from
+// the key, which is new on every run. Local only.
 package devseed
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,8 +17,10 @@ import (
 	"github.com/ticatwolves/notifex/internal/audit"
 	"github.com/ticatwolves/notifex/internal/auth"
 	"github.com/ticatwolves/notifex/internal/crypto"
+	"github.com/ticatwolves/notifex/internal/mail"
 	"github.com/ticatwolves/notifex/internal/store"
 	"github.com/ticatwolves/notifex/internal/tenant"
+	"github.com/ticatwolves/notifex/internal/workflow"
 )
 
 // Options configures Run.
@@ -32,8 +37,15 @@ type Result struct {
 	Application store.Application
 	Environment store.Environment
 	Owner       store.User
+	Workflow    store.Workflow
 	APIKey      auth.Issued
 }
+
+// WorkflowKey is the seeded workflow (k6/trigger-load.js triggers it).
+const WorkflowKey = "order_shipped"
+
+// SeedSMSDailyLimit is the dev tenant's platform-SMS daily limit.
+const SeedSMSDailyLimit = 1_000_000
 
 // Run provisions (or reuses) the seed graph and issues a new API key.
 func Run(ctx context.Context, st store.Store, kp crypto.KeyProvider, h *auth.Hasher, o Options) (Result, error) {
@@ -67,11 +79,59 @@ func Run(ctx context.Context, st store.Store, kp crypto.KeyProvider, h *auth.Has
 		return r, err
 	}
 
+	if r.Workflow, err = ensureWorkflow(ctx, st, kp, t.ID, r.Owner, r.Application.ID); err != nil {
+		return r, err
+	}
+
 	r.APIKey, err = auth.IssueAPIKey(ctx, st, h, actor, t.ID, auth.IssueInput{
 		ApplicationID: r.Application.ID, EnvironmentID: r.Environment.ID,
 		Name: "seed " + time.Now().UTC().Format(time.RFC3339),
 	})
 	return r, err
+}
+
+// ensureWorkflow creates the active order_shipped workflow through the
+// workflow service (validation, audit) and lifts the tenant's platform-SMS
+// limit, which new tenants start at 0.
+func ensureWorkflow(ctx context.Context, st store.Store, kp crypto.KeyProvider, tid store.TenantID, owner store.User, appID uuid.UUID) (store.Workflow, error) {
+	if w, err := st.Workflows().GetByKey(ctx, tid, appID, WorkflowKey); err == nil {
+		return w, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return store.Workflow{}, err
+	}
+	limit := SeedSMSDailyLimit
+	if _, err := st.Tenants().Update(ctx, tid, store.TenantPatch{PlatformSMSDailyLimit: &limit}); err != nil {
+		return store.Workflow{}, fmt.Errorf("sms limit: %w", err)
+	}
+	log := slog.New(slog.DiscardHandler)
+	ts := tenant.NewService(st, kp, &mail.Recorder{}, log, "http://localhost:3000", tenant.DefaultPolicy)
+	ws := workflow.NewService(st, ts, log)
+	a := tenant.Actor{User: tenant.User{ID: owner.ID, Email: owner.Email, EmailVerified: true, ReauthenticatedAt: time.Now()},
+		TenantID: tid, Role: store.RoleOwner}
+	sp := func(s string) *string { return &s }
+	w, err := ws.Create(ctx, a, appID, workflow.CreateInput{Key: WorkflowKey, Name: "Order shipped",
+		PayloadSchema: map[string]any{"type": "object", "properties": map[string]any{
+			"order_id": map[string]any{"type": "string"}, "tracking_url": map[string]any{"type": "string"}}}})
+	if err != nil {
+		return store.Workflow{}, fmt.Errorf("workflow: %w", err)
+	}
+	for ch, c := range map[string]workflow.Content{
+		"email": {Subject: sp("Order {{payload.order_id}} shipped"), Text: sp("Track it: {{payload.tracking_url}}")},
+		"sms":   {Text: sp("Order {{payload.order_id}} shipped: {{payload.tracking_url}}")},
+	} {
+		act, err := ws.CreateAction(ctx, a, appID, w.ID, ch, true)
+		if err != nil {
+			return store.Workflow{}, fmt.Errorf("%s action: %w", ch, err)
+		}
+		if _, err := ws.PutTemplate(ctx, a, appID, w.ID, act.ID, "en", c); err != nil {
+			return store.Workflow{}, fmt.Errorf("%s template: %w", ch, err)
+		}
+	}
+	active := store.WorkflowActive
+	if _, err := ws.Update(ctx, a, appID, w.ID, workflow.Patch{Status: &active}); err != nil {
+		return store.Workflow{}, fmt.Errorf("activate: %w", err)
+	}
+	return st.Workflows().GetByKey(ctx, tid, appID, WorkflowKey)
 }
 
 func ensureOwner(ctx context.Context, tx store.Store, actor audit.Actor, tid store.TenantID, email string) (store.User, error) {

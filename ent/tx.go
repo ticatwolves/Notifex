@@ -28,20 +28,40 @@ type Tx struct {
 	BrandProfile *BrandProfileClient
 	// ChannelCredential is the client for interacting with the ChannelCredential builders.
 	ChannelCredential *ChannelCredentialClient
+	// ConfigSnapshot is the client for interacting with the ConfigSnapshot builders.
+	ConfigSnapshot *ConfigSnapshotClient
+	// DispatchOutbox is the client for interacting with the DispatchOutbox builders.
+	DispatchOutbox *DispatchOutboxClient
 	// EmailToken is the client for interacting with the EmailToken builders.
 	EmailToken *EmailTokenClient
 	// Environment is the client for interacting with the Environment builders.
 	Environment *EnvironmentClient
+	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
+	IdempotencyRecord *IdempotencyRecordClient
 	// Invitation is the client for interacting with the Invitation builders.
 	Invitation *InvitationClient
 	// Membership is the client for interacting with the Membership builders.
 	Membership *MembershipClient
+	// Notification is the client for interacting with the Notification builders.
+	Notification *NotificationClient
+	// NotificationEvent is the client for interacting with the NotificationEvent builders.
+	NotificationEvent *NotificationEventClient
 	// OAuthState is the client for interacting with the OAuthState builders.
 	OAuthState *OAuthStateClient
 	// Operator is the client for interacting with the Operator builders.
 	Operator *OperatorClient
 	// OperatorSession is the client for interacting with the OperatorSession builders.
 	OperatorSession *OperatorSessionClient
+	// PlatformSMSTotal is the client for interacting with the PlatformSMSTotal builders.
+	PlatformSMSTotal *PlatformSMSTotalClient
+	// PlatformSMSUsage is the client for interacting with the PlatformSMSUsage builders.
+	PlatformSMSUsage *PlatformSMSUsageClient
+	// Run is the client for interacting with the Run builders.
+	Run *RunClient
+	// ScheduledDispatch is the client for interacting with the ScheduledDispatch builders.
+	ScheduledDispatch *ScheduledDispatchClient
+	// SchedulerLease is the client for interacting with the SchedulerLease builders.
+	SchedulerLease *SchedulerLeaseClient
 	// SendingPolicy is the client for interacting with the SendingPolicy builders.
 	SendingPolicy *SendingPolicyClient
 	// Session is the client for interacting with the Session builders.
@@ -50,6 +70,8 @@ type Tx struct {
 	Template *TemplateClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
+	// UsageRecord is the client for interacting with the UsageRecord builders.
+	UsageRecord *UsageRecordClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserIdentity is the client for interacting with the UserIdentity builders.
@@ -194,17 +216,28 @@ func (tx *Tx) init() {
 	tx.AuthThrottle = NewAuthThrottleClient(tx.config)
 	tx.BrandProfile = NewBrandProfileClient(tx.config)
 	tx.ChannelCredential = NewChannelCredentialClient(tx.config)
+	tx.ConfigSnapshot = NewConfigSnapshotClient(tx.config)
+	tx.DispatchOutbox = NewDispatchOutboxClient(tx.config)
 	tx.EmailToken = NewEmailTokenClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
+	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
 	tx.Invitation = NewInvitationClient(tx.config)
 	tx.Membership = NewMembershipClient(tx.config)
+	tx.Notification = NewNotificationClient(tx.config)
+	tx.NotificationEvent = NewNotificationEventClient(tx.config)
 	tx.OAuthState = NewOAuthStateClient(tx.config)
 	tx.Operator = NewOperatorClient(tx.config)
 	tx.OperatorSession = NewOperatorSessionClient(tx.config)
+	tx.PlatformSMSTotal = NewPlatformSMSTotalClient(tx.config)
+	tx.PlatformSMSUsage = NewPlatformSMSUsageClient(tx.config)
+	tx.Run = NewRunClient(tx.config)
+	tx.ScheduledDispatch = NewScheduledDispatchClient(tx.config)
+	tx.SchedulerLease = NewSchedulerLeaseClient(tx.config)
 	tx.SendingPolicy = NewSendingPolicyClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.Template = NewTemplateClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
+	tx.UsageRecord = NewUsageRecordClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.UserIdentity = NewUserIdentityClient(tx.config)
 	tx.Workflow = NewWorkflowClient(tx.config)

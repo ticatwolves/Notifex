@@ -60,6 +60,7 @@ type Limits struct {
 	Credential *ratelimit.Limiter // signup, forgot, reset, verify
 	APIKeyFail *ratelimit.Limiter // failed API-key authentications
 	Preview    *ratelimit.Limiter // template previews (CPU-bound renders)
+	Trigger    *ratelimit.Limiter // triggers per API key (ADR-014 §8)
 	// OperatorLogin is separate from console login (ADR-011 §5).
 	OperatorLogin *ratelimit.Limiter
 }
@@ -72,6 +73,7 @@ func DefaultLimits() Limits {
 		APIKeyFail:    ratelimit.New(20, 20, 100_000),
 		OperatorLogin: ratelimit.New(5, 5, 10_000),
 		Preview:       ratelimit.New(120, 30, 100_000),
+		Trigger:       ratelimit.New(6000, 1000, 100_000),
 	}
 }
 

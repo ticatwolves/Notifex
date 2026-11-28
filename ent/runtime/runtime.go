@@ -13,18 +13,29 @@ import (
 	"github.com/ticatwolves/notifex/ent/auththrottle"
 	"github.com/ticatwolves/notifex/ent/brandprofile"
 	"github.com/ticatwolves/notifex/ent/channelcredential"
+	"github.com/ticatwolves/notifex/ent/configsnapshot"
+	"github.com/ticatwolves/notifex/ent/dispatchoutbox"
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
+	"github.com/ticatwolves/notifex/ent/idempotencyrecord"
 	"github.com/ticatwolves/notifex/ent/invitation"
 	"github.com/ticatwolves/notifex/ent/membership"
+	"github.com/ticatwolves/notifex/ent/notification"
+	"github.com/ticatwolves/notifex/ent/notificationevent"
 	"github.com/ticatwolves/notifex/ent/oauthstate"
 	"github.com/ticatwolves/notifex/ent/operator"
 	"github.com/ticatwolves/notifex/ent/operatorsession"
+	"github.com/ticatwolves/notifex/ent/platformsmstotal"
+	"github.com/ticatwolves/notifex/ent/platformsmsusage"
+	"github.com/ticatwolves/notifex/ent/run"
+	"github.com/ticatwolves/notifex/ent/scheduleddispatch"
+	"github.com/ticatwolves/notifex/ent/schedulerlease"
 	"github.com/ticatwolves/notifex/ent/schema"
 	"github.com/ticatwolves/notifex/ent/sendingpolicy"
 	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/template"
 	"github.com/ticatwolves/notifex/ent/tenant"
+	"github.com/ticatwolves/notifex/ent/usagerecord"
 	"github.com/ticatwolves/notifex/ent/user"
 	"github.com/ticatwolves/notifex/ent/useridentity"
 	"github.com/ticatwolves/notifex/ent/workflow"
@@ -374,6 +385,44 @@ func init() {
 	channelcredential.DefaultSecretHint = channelcredentialDescSecretHint.Default.(string)
 	// channelcredential.SecretHintValidator is a validator for the "secret_hint" field. It is called by the builders before save.
 	channelcredential.SecretHintValidator = channelcredentialDescSecretHint.Validators[0].(func(string) error)
+	configsnapshotMixin := schema.ConfigSnapshot{}.Mixin()
+	configsnapshotMixinHooks1 := configsnapshotMixin[1].Hooks()
+	configsnapshot.Hooks[0] = configsnapshotMixinHooks1[0]
+	configsnapshotMixinInters1 := configsnapshotMixin[1].Interceptors()
+	configsnapshot.Interceptors[0] = configsnapshotMixinInters1[0]
+	configsnapshotMixinFields0 := configsnapshotMixin[0].Fields()
+	_ = configsnapshotMixinFields0
+	configsnapshotFields := schema.ConfigSnapshot{}.Fields()
+	_ = configsnapshotFields
+	// configsnapshotDescHash is the schema descriptor for hash field.
+	configsnapshotDescHash := configsnapshotFields[0].Descriptor()
+	// configsnapshot.HashValidator is a validator for the "hash" field. It is called by the builders before save.
+	configsnapshot.HashValidator = configsnapshotDescHash.Validators[0].(func([]byte) error)
+	// configsnapshotDescID is the schema descriptor for id field.
+	configsnapshotDescID := configsnapshotMixinFields0[0].Descriptor()
+	// configsnapshot.DefaultID holds the default value on creation for the id field.
+	configsnapshot.DefaultID = configsnapshotDescID.Default.(func() uuid.UUID)
+	dispatchoutboxMixin := schema.DispatchOutbox{}.Mixin()
+	dispatchoutboxMixinHooks0 := dispatchoutboxMixin[0].Hooks()
+	dispatchoutbox.Hooks[0] = dispatchoutboxMixinHooks0[0]
+	dispatchoutboxMixinInters0 := dispatchoutboxMixin[0].Interceptors()
+	dispatchoutbox.Interceptors[0] = dispatchoutboxMixinInters0[0]
+	dispatchoutboxFields := schema.DispatchOutbox{}.Fields()
+	_ = dispatchoutboxFields
+	// dispatchoutboxDescDelayS is the schema descriptor for delay_s field.
+	dispatchoutboxDescDelayS := dispatchoutboxFields[4].Descriptor()
+	// dispatchoutbox.DefaultDelayS holds the default value on creation for the delay_s field.
+	dispatchoutbox.DefaultDelayS = dispatchoutboxDescDelayS.Default.(int)
+	// dispatchoutboxDescAttempt is the schema descriptor for attempt field.
+	dispatchoutboxDescAttempt := dispatchoutboxFields[5].Descriptor()
+	// dispatchoutbox.DefaultAttempt holds the default value on creation for the attempt field.
+	dispatchoutbox.DefaultAttempt = dispatchoutboxDescAttempt.Default.(int)
+	// dispatchoutboxDescTraceparent is the schema descriptor for traceparent field.
+	dispatchoutboxDescTraceparent := dispatchoutboxFields[6].Descriptor()
+	// dispatchoutbox.DefaultTraceparent holds the default value on creation for the traceparent field.
+	dispatchoutbox.DefaultTraceparent = dispatchoutboxDescTraceparent.Default.(string)
+	// dispatchoutbox.TraceparentValidator is a validator for the "traceparent" field. It is called by the builders before save.
+	dispatchoutbox.TraceparentValidator = dispatchoutboxDescTraceparent.Validators[0].(func(string) error)
 	emailtokenMixin := schema.EmailToken{}.Mixin()
 	emailtokenMixinFields0 := emailtokenMixin[0].Fields()
 	_ = emailtokenMixinFields0
@@ -412,6 +461,41 @@ func init() {
 	environmentDescID := environmentMixinFields0[0].Descriptor()
 	// environment.DefaultID holds the default value on creation for the id field.
 	environment.DefaultID = environmentDescID.Default.(func() uuid.UUID)
+	idempotencyrecordMixin := schema.IdempotencyRecord{}.Mixin()
+	idempotencyrecordMixinHooks1 := idempotencyrecordMixin[1].Hooks()
+	idempotencyrecord.Hooks[0] = idempotencyrecordMixinHooks1[0]
+	idempotencyrecordMixinInters1 := idempotencyrecordMixin[1].Interceptors()
+	idempotencyrecord.Interceptors[0] = idempotencyrecordMixinInters1[0]
+	idempotencyrecordMixinFields0 := idempotencyrecordMixin[0].Fields()
+	_ = idempotencyrecordMixinFields0
+	idempotencyrecordFields := schema.IdempotencyRecord{}.Fields()
+	_ = idempotencyrecordFields
+	// idempotencyrecordDescKey is the schema descriptor for key field.
+	idempotencyrecordDescKey := idempotencyrecordFields[0].Descriptor()
+	// idempotencyrecord.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	idempotencyrecord.KeyValidator = func() func(string) error {
+		validators := idempotencyrecordDescKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(key string) error {
+			for _, fn := range fns {
+				if err := fn(key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// idempotencyrecordDescRequestHash is the schema descriptor for request_hash field.
+	idempotencyrecordDescRequestHash := idempotencyrecordFields[1].Descriptor()
+	// idempotencyrecord.RequestHashValidator is a validator for the "request_hash" field. It is called by the builders before save.
+	idempotencyrecord.RequestHashValidator = idempotencyrecordDescRequestHash.Validators[0].(func([]byte) error)
+	// idempotencyrecordDescID is the schema descriptor for id field.
+	idempotencyrecordDescID := idempotencyrecordMixinFields0[0].Descriptor()
+	// idempotencyrecord.DefaultID holds the default value on creation for the id field.
+	idempotencyrecord.DefaultID = idempotencyrecordDescID.Default.(func() uuid.UUID)
 	invitationMixin := schema.Invitation{}.Mixin()
 	invitationMixinHooks1 := invitationMixin[1].Hooks()
 	invitation.Hooks[0] = invitationMixinHooks1[0]
@@ -472,6 +556,98 @@ func init() {
 	membershipDescID := membershipMixinFields0[0].Descriptor()
 	// membership.DefaultID holds the default value on creation for the id field.
 	membership.DefaultID = membershipDescID.Default.(func() uuid.UUID)
+	notificationMixin := schema.Notification{}.Mixin()
+	notificationMixinHooks0 := notificationMixin[0].Hooks()
+	notification.Hooks[0] = notificationMixinHooks0[0]
+	notificationMixinInters0 := notificationMixin[0].Interceptors()
+	notification.Interceptors[0] = notificationMixinInters0[0]
+	notificationFields := schema.Notification{}.Fields()
+	_ = notificationFields
+	// notificationDescLocale is the schema descriptor for locale field.
+	notificationDescLocale := notificationFields[8].Descriptor()
+	// notification.DefaultLocale holds the default value on creation for the locale field.
+	notification.DefaultLocale = notificationDescLocale.Default.(string)
+	// notification.LocaleValidator is a validator for the "locale" field. It is called by the builders before save.
+	notification.LocaleValidator = notificationDescLocale.Validators[0].(func(string) error)
+	// notificationDescAttempt is the schema descriptor for attempt field.
+	notificationDescAttempt := notificationFields[10].Descriptor()
+	// notification.DefaultAttempt holds the default value on creation for the attempt field.
+	notification.DefaultAttempt = notificationDescAttempt.Default.(int)
+	// notificationDescRecipientMasked is the schema descriptor for recipient_masked field.
+	notificationDescRecipientMasked := notificationFields[14].Descriptor()
+	// notification.DefaultRecipientMasked holds the default value on creation for the recipient_masked field.
+	notification.DefaultRecipientMasked = notificationDescRecipientMasked.Default.(string)
+	// notificationDescRecipientRef is the schema descriptor for recipient_ref field.
+	notificationDescRecipientRef := notificationFields[16].Descriptor()
+	// notification.DefaultRecipientRef holds the default value on creation for the recipient_ref field.
+	notification.DefaultRecipientRef = notificationDescRecipientRef.Default.(string)
+	// notification.RecipientRefValidator is a validator for the "recipient_ref" field. It is called by the builders before save.
+	notification.RecipientRefValidator = notificationDescRecipientRef.Validators[0].(func(string) error)
+	// notificationDescCredentialMode is the schema descriptor for credential_mode field.
+	notificationDescCredentialMode := notificationFields[18].Descriptor()
+	// notification.DefaultCredentialMode holds the default value on creation for the credential_mode field.
+	notification.DefaultCredentialMode = notificationDescCredentialMode.Default.(string)
+	// notification.CredentialModeValidator is a validator for the "credential_mode" field. It is called by the builders before save.
+	notification.CredentialModeValidator = notificationDescCredentialMode.Validators[0].(func(string) error)
+	// notificationDescProvider is the schema descriptor for provider field.
+	notificationDescProvider := notificationFields[19].Descriptor()
+	// notification.DefaultProvider holds the default value on creation for the provider field.
+	notification.DefaultProvider = notificationDescProvider.Default.(string)
+	// notification.ProviderValidator is a validator for the "provider" field. It is called by the builders before save.
+	notification.ProviderValidator = notificationDescProvider.Validators[0].(func(string) error)
+	// notificationDescBillingBasis is the schema descriptor for billing_basis field.
+	notificationDescBillingBasis := notificationFields[20].Descriptor()
+	// notification.DefaultBillingBasis holds the default value on creation for the billing_basis field.
+	notification.DefaultBillingBasis = notificationDescBillingBasis.Default.(string)
+	// notification.BillingBasisValidator is a validator for the "billing_basis" field. It is called by the builders before save.
+	notification.BillingBasisValidator = notificationDescBillingBasis.Validators[0].(func(string) error)
+	// notificationDescSmsReserved is the schema descriptor for sms_reserved field.
+	notificationDescSmsReserved := notificationFields[21].Descriptor()
+	// notification.DefaultSmsReserved holds the default value on creation for the sms_reserved field.
+	notification.DefaultSmsReserved = notificationDescSmsReserved.Default.(bool)
+	// notificationDescLastErrorCode is the schema descriptor for last_error_code field.
+	notificationDescLastErrorCode := notificationFields[22].Descriptor()
+	// notification.DefaultLastErrorCode holds the default value on creation for the last_error_code field.
+	notification.DefaultLastErrorCode = notificationDescLastErrorCode.Default.(string)
+	// notification.LastErrorCodeValidator is a validator for the "last_error_code" field. It is called by the builders before save.
+	notification.LastErrorCodeValidator = notificationDescLastErrorCode.Validators[0].(func(string) error)
+	// notificationDescLastError is the schema descriptor for last_error field.
+	notificationDescLastError := notificationFields[23].Descriptor()
+	// notification.DefaultLastError holds the default value on creation for the last_error field.
+	notification.DefaultLastError = notificationDescLastError.Default.(string)
+	// notification.LastErrorValidator is a validator for the "last_error" field. It is called by the builders before save.
+	notification.LastErrorValidator = notificationDescLastError.Validators[0].(func(string) error)
+	// notificationDescVendorMessageID is the schema descriptor for vendor_message_id field.
+	notificationDescVendorMessageID := notificationFields[24].Descriptor()
+	// notification.DefaultVendorMessageID holds the default value on creation for the vendor_message_id field.
+	notification.DefaultVendorMessageID = notificationDescVendorMessageID.Default.(string)
+	// notification.VendorMessageIDValidator is a validator for the "vendor_message_id" field. It is called by the builders before save.
+	notification.VendorMessageIDValidator = notificationDescVendorMessageID.Validators[0].(func(string) error)
+	notificationeventMixin := schema.NotificationEvent{}.Mixin()
+	notificationeventMixinHooks0 := notificationeventMixin[0].Hooks()
+	notificationevent.Hooks[0] = notificationeventMixinHooks0[0]
+	notificationeventMixinInters0 := notificationeventMixin[0].Interceptors()
+	notificationevent.Interceptors[0] = notificationeventMixinInters0[0]
+	notificationeventFields := schema.NotificationEvent{}.Fields()
+	_ = notificationeventFields
+	// notificationeventDescType is the schema descriptor for type field.
+	notificationeventDescType := notificationeventFields[3].Descriptor()
+	// notificationevent.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	notificationevent.TypeValidator = func() func(string) error {
+		validators := notificationeventDescType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(_type string) error {
+			for _, fn := range fns {
+				if err := fn(_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	oauthstateMixin := schema.OAuthState{}.Mixin()
 	oauthstateMixinFields0 := oauthstateMixin[0].Fields()
 	_ = oauthstateMixinFields0
@@ -609,6 +785,203 @@ func init() {
 	operatorsessionDescID := operatorsessionMixinFields0[0].Descriptor()
 	// operatorsession.DefaultID holds the default value on creation for the id field.
 	operatorsession.DefaultID = operatorsessionDescID.Default.(func() uuid.UUID)
+	platformsmstotalMixin := schema.PlatformSMSTotal{}.Mixin()
+	platformsmstotalMixinFields0 := platformsmstotalMixin[0].Fields()
+	_ = platformsmstotalMixinFields0
+	platformsmstotalFields := schema.PlatformSMSTotal{}.Fields()
+	_ = platformsmstotalFields
+	// platformsmstotalDescCount is the schema descriptor for count field.
+	platformsmstotalDescCount := platformsmstotalFields[1].Descriptor()
+	// platformsmstotal.DefaultCount holds the default value on creation for the count field.
+	platformsmstotal.DefaultCount = platformsmstotalDescCount.Default.(int)
+	// platformsmstotalDescID is the schema descriptor for id field.
+	platformsmstotalDescID := platformsmstotalMixinFields0[0].Descriptor()
+	// platformsmstotal.DefaultID holds the default value on creation for the id field.
+	platformsmstotal.DefaultID = platformsmstotalDescID.Default.(func() uuid.UUID)
+	platformsmsusageMixin := schema.PlatformSMSUsage{}.Mixin()
+	platformsmsusageMixinHooks1 := platformsmsusageMixin[1].Hooks()
+	platformsmsusage.Hooks[0] = platformsmsusageMixinHooks1[0]
+	platformsmsusageMixinInters1 := platformsmsusageMixin[1].Interceptors()
+	platformsmsusage.Interceptors[0] = platformsmsusageMixinInters1[0]
+	platformsmsusageMixinFields0 := platformsmsusageMixin[0].Fields()
+	_ = platformsmsusageMixinFields0
+	platformsmsusageFields := schema.PlatformSMSUsage{}.Fields()
+	_ = platformsmsusageFields
+	// platformsmsusageDescCount is the schema descriptor for count field.
+	platformsmsusageDescCount := platformsmsusageFields[1].Descriptor()
+	// platformsmsusage.DefaultCount holds the default value on creation for the count field.
+	platformsmsusage.DefaultCount = platformsmsusageDescCount.Default.(int)
+	// platformsmsusageDescID is the schema descriptor for id field.
+	platformsmsusageDescID := platformsmsusageMixinFields0[0].Descriptor()
+	// platformsmsusage.DefaultID holds the default value on creation for the id field.
+	platformsmsusage.DefaultID = platformsmsusageDescID.Default.(func() uuid.UUID)
+	runMixin := schema.Run{}.Mixin()
+	runMixinHooks0 := runMixin[0].Hooks()
+	run.Hooks[0] = runMixinHooks0[0]
+	runMixinInters0 := runMixin[0].Interceptors()
+	run.Interceptors[0] = runMixinInters0[0]
+	runMixinFields1 := runMixin[1].Fields()
+	_ = runMixinFields1
+	runFields := schema.Run{}.Fields()
+	_ = runFields
+	// runDescCreatedAt is the schema descriptor for created_at field.
+	runDescCreatedAt := runMixinFields1[0].Descriptor()
+	// run.DefaultCreatedAt holds the default value on creation for the created_at field.
+	run.DefaultCreatedAt = runDescCreatedAt.Default.(func() time.Time)
+	// runDescUpdatedAt is the schema descriptor for updated_at field.
+	runDescUpdatedAt := runMixinFields1[1].Descriptor()
+	// run.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	run.DefaultUpdatedAt = runDescUpdatedAt.Default.(func() time.Time)
+	// run.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	run.UpdateDefaultUpdatedAt = runDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// runDescWorkflowKey is the schema descriptor for workflow_key field.
+	runDescWorkflowKey := runFields[4].Descriptor()
+	// run.WorkflowKeyValidator is a validator for the "workflow_key" field. It is called by the builders before save.
+	run.WorkflowKeyValidator = func() func(string) error {
+		validators := runDescWorkflowKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(workflow_key string) error {
+			for _, fn := range fns {
+				if err := fn(workflow_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// runDescSnapshotHash is the schema descriptor for snapshot_hash field.
+	runDescSnapshotHash := runFields[5].Descriptor()
+	// run.SnapshotHashValidator is a validator for the "snapshot_hash" field. It is called by the builders before save.
+	run.SnapshotHashValidator = runDescSnapshotHash.Validators[0].(func([]byte) error)
+	// runDescIdempotencyKey is the schema descriptor for idempotency_key field.
+	runDescIdempotencyKey := runFields[8].Descriptor()
+	// run.IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
+	run.IdempotencyKeyValidator = runDescIdempotencyKey.Validators[0].(func(string) error)
+	// runDescSource is the schema descriptor for source field.
+	runDescSource := runFields[9].Descriptor()
+	// run.SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	run.SourceValidator = func() func(string) error {
+		validators := runDescSource.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(source string) error {
+			for _, fn := range fns {
+				if err := fn(source); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// runDescActorType is the schema descriptor for actor_type field.
+	runDescActorType := runFields[10].Descriptor()
+	// run.ActorTypeValidator is a validator for the "actor_type" field. It is called by the builders before save.
+	run.ActorTypeValidator = func() func(string) error {
+		validators := runDescActorType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(actor_type string) error {
+			for _, fn := range fns {
+				if err := fn(actor_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// runDescActorID is the schema descriptor for actor_id field.
+	runDescActorID := runFields[11].Descriptor()
+	// run.ActorIDValidator is a validator for the "actor_id" field. It is called by the builders before save.
+	run.ActorIDValidator = func() func(string) error {
+		validators := runDescActorID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(actor_id string) error {
+			for _, fn := range fns {
+				if err := fn(actor_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	scheduleddispatchMixin := schema.ScheduledDispatch{}.Mixin()
+	scheduleddispatchMixinHooks1 := scheduleddispatchMixin[1].Hooks()
+	scheduleddispatch.Hooks[0] = scheduleddispatchMixinHooks1[0]
+	scheduleddispatchMixinInters1 := scheduleddispatchMixin[1].Interceptors()
+	scheduleddispatch.Interceptors[0] = scheduleddispatchMixinInters1[0]
+	scheduleddispatchMixinFields0 := scheduleddispatchMixin[0].Fields()
+	_ = scheduleddispatchMixinFields0
+	scheduleddispatchFields := schema.ScheduledDispatch{}.Fields()
+	_ = scheduleddispatchFields
+	// scheduleddispatchDescAttempt is the schema descriptor for attempt field.
+	scheduleddispatchDescAttempt := scheduleddispatchFields[5].Descriptor()
+	// scheduleddispatch.DefaultAttempt holds the default value on creation for the attempt field.
+	scheduleddispatch.DefaultAttempt = scheduleddispatchDescAttempt.Default.(int)
+	// scheduleddispatchDescTraceparent is the schema descriptor for traceparent field.
+	scheduleddispatchDescTraceparent := scheduleddispatchFields[6].Descriptor()
+	// scheduleddispatch.DefaultTraceparent holds the default value on creation for the traceparent field.
+	scheduleddispatch.DefaultTraceparent = scheduleddispatchDescTraceparent.Default.(string)
+	// scheduleddispatch.TraceparentValidator is a validator for the "traceparent" field. It is called by the builders before save.
+	scheduleddispatch.TraceparentValidator = scheduleddispatchDescTraceparent.Validators[0].(func(string) error)
+	// scheduleddispatchDescID is the schema descriptor for id field.
+	scheduleddispatchDescID := scheduleddispatchMixinFields0[0].Descriptor()
+	// scheduleddispatch.DefaultID holds the default value on creation for the id field.
+	scheduleddispatch.DefaultID = scheduleddispatchDescID.Default.(func() uuid.UUID)
+	schedulerleaseMixin := schema.SchedulerLease{}.Mixin()
+	schedulerleaseMixinFields0 := schedulerleaseMixin[0].Fields()
+	_ = schedulerleaseMixinFields0
+	schedulerleaseFields := schema.SchedulerLease{}.Fields()
+	_ = schedulerleaseFields
+	// schedulerleaseDescName is the schema descriptor for name field.
+	schedulerleaseDescName := schedulerleaseFields[0].Descriptor()
+	// schedulerlease.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	schedulerlease.NameValidator = func() func(string) error {
+		validators := schedulerleaseDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// schedulerleaseDescHolder is the schema descriptor for holder field.
+	schedulerleaseDescHolder := schedulerleaseFields[1].Descriptor()
+	// schedulerlease.HolderValidator is a validator for the "holder" field. It is called by the builders before save.
+	schedulerlease.HolderValidator = func() func(string) error {
+		validators := schedulerleaseDescHolder.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(holder string) error {
+			for _, fn := range fns {
+				if err := fn(holder); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// schedulerleaseDescID is the schema descriptor for id field.
+	schedulerleaseDescID := schedulerleaseMixinFields0[0].Descriptor()
+	// schedulerlease.DefaultID holds the default value on creation for the id field.
+	schedulerlease.DefaultID = schedulerleaseDescID.Default.(func() uuid.UUID)
 	sendingpolicyMixin := schema.SendingPolicy{}.Mixin()
 	sendingpolicyMixinHooks1 := sendingpolicyMixin[1].Hooks()
 	sendingpolicy.Hooks[0] = sendingpolicyMixinHooks1[0]
@@ -807,6 +1180,67 @@ func init() {
 	tenantDescID := tenantMixinFields0[0].Descriptor()
 	// tenant.DefaultID holds the default value on creation for the id field.
 	tenant.DefaultID = tenantDescID.Default.(func() uuid.UUID)
+	usagerecordMixin := schema.UsageRecord{}.Mixin()
+	usagerecordMixinHooks1 := usagerecordMixin[1].Hooks()
+	usagerecord.Hooks[0] = usagerecordMixinHooks1[0]
+	usagerecordMixinInters1 := usagerecordMixin[1].Interceptors()
+	usagerecord.Interceptors[0] = usagerecordMixinInters1[0]
+	usagerecordMixinFields0 := usagerecordMixin[0].Fields()
+	_ = usagerecordMixinFields0
+	usagerecordFields := schema.UsageRecord{}.Fields()
+	_ = usagerecordFields
+	// usagerecordDescCredentialMode is the schema descriptor for credential_mode field.
+	usagerecordDescCredentialMode := usagerecordFields[2].Descriptor()
+	// usagerecord.CredentialModeValidator is a validator for the "credential_mode" field. It is called by the builders before save.
+	usagerecord.CredentialModeValidator = func() func(string) error {
+		validators := usagerecordDescCredentialMode.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(credential_mode string) error {
+			for _, fn := range fns {
+				if err := fn(credential_mode); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// usagerecordDescBillingBasis is the schema descriptor for billing_basis field.
+	usagerecordDescBillingBasis := usagerecordFields[3].Descriptor()
+	// usagerecord.BillingBasisValidator is a validator for the "billing_basis" field. It is called by the builders before save.
+	usagerecord.BillingBasisValidator = func() func(string) error {
+		validators := usagerecordDescBillingBasis.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(billing_basis string) error {
+			for _, fn := range fns {
+				if err := fn(billing_basis); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// usagerecordDescCountry is the schema descriptor for country field.
+	usagerecordDescCountry := usagerecordFields[4].Descriptor()
+	// usagerecord.DefaultCountry holds the default value on creation for the country field.
+	usagerecord.DefaultCountry = usagerecordDescCountry.Default.(string)
+	// usagerecord.CountryValidator is a validator for the "country" field. It is called by the builders before save.
+	usagerecord.CountryValidator = usagerecordDescCountry.Validators[0].(func(string) error)
+	// usagerecordDescUnitPriceRef is the schema descriptor for unit_price_ref field.
+	usagerecordDescUnitPriceRef := usagerecordFields[6].Descriptor()
+	// usagerecord.DefaultUnitPriceRef holds the default value on creation for the unit_price_ref field.
+	usagerecord.DefaultUnitPriceRef = usagerecordDescUnitPriceRef.Default.(string)
+	// usagerecord.UnitPriceRefValidator is a validator for the "unit_price_ref" field. It is called by the builders before save.
+	usagerecord.UnitPriceRefValidator = usagerecordDescUnitPriceRef.Validators[0].(func(string) error)
+	// usagerecordDescID is the schema descriptor for id field.
+	usagerecordDescID := usagerecordMixinFields0[0].Descriptor()
+	// usagerecord.DefaultID holds the default value on creation for the id field.
+	usagerecord.DefaultID = usagerecordDescID.Default.(func() uuid.UUID)
 	userMixin := schema.User{}.Mixin()
 	userMixinFields0 := userMixin[0].Fields()
 	_ = userMixinFields0

@@ -69,7 +69,7 @@ lint: $(GOLANGCI_LINT) vet ## golangci-lint + go vet
 .PHONY: test
 test: ## Unit + integration tests with the race detector (integration tests need Docker)
 	go test -race -count=1 -coverprofile=coverage.out ./...
-	@grep -v -E '/ent/[a-z_]+/|/ent/[a-z_]+\.go:|/internal/auth/oauthtest/|/internal/store/storetest/' coverage.out > coverage.handwritten.out
+	@grep -v -E '/ent/[a-z_]+/|/ent/[a-z_]+\.go:|/internal/auth/oauthtest/|/internal/store/storetest/|/internal/dispatch/sqsqueue/sqstest/' coverage.out > coverage.handwritten.out
 	@printf 'coverage (excluding generated ent code and test helpers): '; go tool cover -func=coverage.handwritten.out | tail -1 | awk '{print $$NF}'
 
 .PHONY: test-short
@@ -102,6 +102,9 @@ migration: ## Generate a migration from ent/schema changes: make migration name=
 	go run -mod=mod ./ent/migrate/main.go -name $(name)
 
 .PHONY: migrate-check
+migration-rehash: ## Rewrite migrations/atlas.sum after adding a hand-written migration (ADR-014 §1)
+	go run -mod=mod ./ent/migrate/main.go -rehash
+
 migrate-check: ## Fail if ent/schema changed without a migration (needs Docker)
 	go run -mod=mod ./ent/migrate/main.go -check
 
@@ -116,6 +119,33 @@ migrate: ## Apply migrations to the local compose database
 .PHONY: seed
 seed: ## Seed a local tenant/app/env and print a fresh API key (stack must be up)
 	@$(LOCAL_ENV) go run ./cmd/seed
+
+K6_IMAGE := grafana/k6:1.4.2@sha256:3656673de3f30424e8ebcfa46acd9558d83b6a43612d0f668ffeac953950c6c7
+SMOKE_RPS ?= 50
+SMOKE_DURATION ?= 1m
+PSQL := docker compose exec -T postgres psql -U notifex -d notifex -X -q
+PENDING_SQL := SELECT count(*) FROM notifications n JOIN tenants t ON t.id = n.tenant_id WHERE t.slug = 'acme-dev' AND n.created_at >= :'since' AND n.status IN ('queued','sending','retrying','deferred')
+
+.PHONY: load-smoke
+load-smoke: ## k6 trigger smoke on the local stack (make dev), then verify every notification was sent and billed once
+	@set -e; since=$$(date -u +%Y-%m-%dT%H:%M:%SZ); \
+	key=$$($(LOCAL_ENV) go run ./cmd/seed -key-only 2>/dev/null) || { echo "seed failed: is the stack up (make dev)?"; exit 1; }; \
+	docker run --rm --network notifex_default -v $(CURDIR)/k6:/k6:ro \
+		-e BASE_URL=http://api:8080 -e API_KEYS="$$key" -e SCENARIO=smoke \
+		-e SMOKE_RPS=$(SMOKE_RPS) -e DURATION=$(SMOKE_DURATION) $(K6_IMAGE) run --quiet /k6/trigger-load.js; \
+	echo "waiting for dispatch to drain..."; \
+	for i in $$(seq 1 60); do \
+		pending=$$(echo "$(PENDING_SQL)" | $(PSQL) -tA -v since="$$since"); \
+		[ "$$pending" = "0" ] && break; sleep 2; \
+	done; \
+	$(PSQL) -v slug=acme-dev -v since="$$since" < k6/verify.sql
+
+.PHONY: load-test
+load-test: ## k6 scenario against a target: make load-test BASE_URL=... API_KEYS=k1,k2 SCENARIO=load PEAK_RPS=500 (docs/07)
+	@test -n "$(BASE_URL)" -a -n "$(API_KEYS)" || { echo "BASE_URL and API_KEYS are required"; exit 1; }
+	docker run --rm --add-host=host.docker.internal:host-gateway -v $(CURDIR)/k6:/k6:ro \
+		-e BASE_URL=$(BASE_URL) -e API_KEYS=$(API_KEYS) -e SCENARIO=$(or $(SCENARIO),load) -e PEAK_RPS=$(or $(PEAK_RPS),500) \
+		$(K6_IMAGE) run /k6/trigger-load.js
 
 ## ---- tools ----
 $(GOLANGCI_LINT):

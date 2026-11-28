@@ -1,6 +1,6 @@
 # Threat Model v1 (STRIDE)
 
-- **Status:** v1, 2026-11-27, written at the end of Phase 0 (Stage 0 exit criterion). Revised for Phase 1 (console, OAuth, RBAC, operator realm) and Phase 2 (templates and rendering, brand and policy, channel credentials), 2026-11-28.
+- **Status:** v1, 2026-11-27, written at the end of Phase 0 (Stage 0 exit criterion). Revised for Phase 1 (console, OAuth, RBAC, operator realm) and Phase 2 (templates and rendering, brand and policy, channel credentials), 2026-11-28, and for Phase 3 (trigger intake, SQS dispatch, channel adapters), 2026-11-28.
 - **Method:** STRIDE per trust boundary, following docs/06 §1. Update on every new surface: Phase 1 (console, OAuth), Phase 3 (trigger and dispatch), Phase 4 (gRPC, vendor callbacks), and the MCP, Terraform and inbound-webhook work (doc 12).
 - **How to read the tables:** "Built" names the code or test that enforces a mitigation today. "Planned" names the phase that delivers it. A mitigation without one of those is a gap and appears under §6, Residual risks.
 
@@ -8,8 +8,9 @@
 
 | Built (Phases 0–2) | Designed but not built (modelled from docs/02, 03, 12) |
 |---|---|
-| REST `/healthz`, `/readyz`, `/v1/whoami`; gRPC health; ops port | Trigger intake, outbox relay, SQS dispatch, channel adapters, vendor callbacks (Phase 3–4) |
-| API key issue, authentication and lifecycle | Webhook channel delivery and its SSRF guard (Phase 3) |
+| REST `/healthz`, `/readyz`, `/v1/whoami`; gRPC health; ops port | Vendor callbacks and delivery receipts (Phase 4) |
+| API key issue, authentication and lifecycle | Egress allowlist proxy behind `netguard` (Phase 8) |
+| Trigger intake (`POST /v1/trigger`, run and notification reads), outbox relay, scheduler, SQS dispatch, dispatcher, channel adapters with the `netguard` SSRF guard (Phase 3) | Push, Outlook, WhatsApp adapters (Phase 4) |
 | Console API: signup, login, sessions, OAuth, tenants, members, invitations, RBAC, audit log (Phase 1) | Console UI (Next.js, Phase 6) |
 | Platform-operator realm with TOTP (Phase 1) | MCP server, Terraform actions, inbound webhooks (doc 12) |
 | Workflows, actions, templates, sandboxed renderer, preview; brand and policy; channel credentials with encrypted BYO secrets (Phase 2) | Vendor credential verification (Phase 3/4) |
@@ -58,14 +59,16 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 |---|---|---|---|
 | **S**poofing | Forged or guessed API key | 256-bit secret, HMAC with pepper, constant-time compare (`internal/auth/apikey.go`). Prefix-binding test. One 401 for every failure, and a dummy HMAC on unknown prefixes, so neither error text nor timing reveals what failed (`authenticator.go`, `TestAuthenticateRejections`). **Per-IP limit on failed API-key attempts** (20/min, 429 + Retry-After), counting the client IP from `X-Forwarded-For` only when it arrives from a trusted proxy (`TestPerIPRateLimits`, `TestTrustedProxyForwardedFor`, mutation-tested) | WAF rate rule as a shared layer across tasks. OAuth for console and MCP (Phase 1 slice 3, doc 12) |
 | **S** | Revoked or expired key still works | Checked on every request (`TestAuthenticateRejections`, the HTTP "revoked key is 401 immediately" test). No auth cache yet, so revocation is instant. A rotation grace period can always be cut short by revoking (`TestRevokeCutsGracePeriodShort`, mutation-tested). Developers can't touch prod keys (mutation-tested) | If an auth cache is added for performance (Phase 3), bound its TTL so revocation lands in ≤ 30 s (docs/05) |
-| **S** | A dev key used against prod | The key text carries its environment, and it must match the stored environment record (mutation-tested) | Scope and workflow allowlists per key (doc 12, Phase 3) |
+| **S** | A dev key used against prod | The key text carries its environment, and it must match the stored environment record (mutation-tested). **Scopes enforced on the data plane (Phase 3):** a scoped key needs `trigger` to trigger and `read` to read runs and notifications | Workflow allowlists per key (doc 12) |
 | **T**ampering | Request smuggling, oversized bodies | 1 MiB body cap on REST, also enforced while reading a streamed body; 1 MiB gRPC messages; header and read timeouts (`lifecycle.NewHTTPServer`) | WAF managed rules (doc 10) |
-| **R**epudiation | Tenant denies triggering | Request ids. Correlation fields (`tenant_id`, `api_key_id`) on every authenticated log line and span | `source` + `actor` on every run (Phase 3) |
+| **R**epudiation | Tenant denies triggering | Request ids. Correlation fields (`tenant_id`, `api_key_id`) on every authenticated log line and span. **Every run records `source` and the API key as `actor` (Phase 3)** | — |
 | **I**nformation disclosure | Error details or stack traces leak | Panics return a generic 500 (test asserts the panic value isn't in the body). Public `/readyz` hides dependency detail, which lives only on the ops port (never behind the ALB). Postgres DETAIL (key values) is kept out of errors (ADR-010) | OpenAPI-driven DAST and fuzzing (docs/06 §2) |
 | **I** | Secrets or PII in logs | Logger redacts `authorization`, `api_key`, `token`, `payload`, `recipient`, … at any depth. Access logs record route templates, never raw paths or queries. Tests assert the key secret never appears in logs (`whoami_test.go`) | PII-grep test over captured logs from the full E2E suite (docs/05) |
-| **D**enial of service | Flood or slowloris | Server timeouts. Malformed keys rejected by checksum without a DB query. Metric labels kept low-cardinality (unknown methods map to `OTHER`) | WAF rate limiting; per-tenant token bucket on trigger (Phase 3); autoscaling (doc 10) |
+| **D**enial of service | Flood or slowloris | Server timeouts. Malformed keys rejected by checksum without a DB query. Metric labels kept low-cardinality (unknown methods map to `OTHER`). **Trigger limits (Phase 3):** per-key token bucket (per task, `TRIGGER_RATE_PER_MINUTE`, 429 + Retry-After), at most 1,000 recipients per trigger (and the 1 MiB body cap), atomic per-tenant and platform-wide daily platform-SMS caps at accept | A per-trigger payload size limit below the 1 MiB body cap (payloads are encrypted and stored per run); WAF rate limiting; shared counters if load tests show per-task limits are too loose; autoscaling (doc 10) |
 | **D** | DB outage turns every client away for good | Auth returns 503 + `Retry-After`, never 401, so clients retry. Liveness stays 200, so ECS doesn't kill every task on a DB blip (verified live) | — |
-| **E**levation | Key used for control-plane actions | Only `/v1/whoami` exists today | RBAC matrix test for every role × capability; API keys never authorize `/v1/admin` (Phase 1) |
+| **E**levation | Key used for control-plane actions | API keys authorize only the data plane (`/v1/whoami`, `/v1/trigger`, `/v1/runs/{id}`, `/v1/notifications/{id}`); console sessions are rejected there and keys are rejected on `/v1/admin` | — |
+| **T** | Replayed or concurrent duplicate triggers | Optional `Idempotency-Key` (24 h): the record is inserted inside the accept transaction, so concurrent duplicates produce one run; a different body under the same key is `409` (Phase 3 slice 3, tested) | — |
+| **I** | One tenant reads another's runs or notifications by id | Run and notification reads are tenant-scoped through the store (404 across tenants, tested); the dispatcher ignores an envelope whose tenant doesn't own the notification (`TestForgedEnvelopeTenant`) | Extend `TestBOLASweep` to data-plane routes |
 
 ### B2: console → api (Phase 1, ADR-011)
 
@@ -93,7 +96,8 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 | **T** cross-tenant references | Tenant B's environment pointing at tenant A's app | Composite FKs reject it at the database, even from raw SQL (`TestDatabaseRejectsCrossTenantReferences`) | — |
 | **T** mass assignment | `tenant_id` in a request body | The store takes the tenant from the authenticated principal, never from input. Scoped creates for another tenant fail | Request DTOs never expose `tenant_id` (Phase 1 review checklist) |
 | **I** stolen DB snapshot or backup | Read payloads | RDS encryption (planned) plus per-tenant AES-256-GCM DEKs. AAD binds tenant, row and **column**, so ciphertexts can't be moved between cells. Wrapped DEK bound to its tenant via encryption context (`internal/crypto` tests, fuzz) | KMS CMK; DEK cache TTL is the cross-instance shred window (5 min) |
-| **I** PII in queue messages | Payload ends up in SQS | Envelope carries ids only (ADR-004, contract) | Envelope schema test rejecting any extra fields (Phase 3) |
+| **I** PII in queue messages | Payload ends up in SQS | Envelope carries ids only (ADR-004). **Built (Phase 3):** strict decoding rejects unknown fields, so nothing can be smuggled through the queue (`TestEnvelopeRules`); undecodable messages go to the DLQ without reaching a handler. Payloads, recipients and rendered content are encrypted per row with AADs bound to tenant, row and column | — |
+| **T** duplicate or lost dispatch | Redelivery, crash mid-send, lost outbox publish | Conditional claim with a lease; a claim held under a valid lease is left for redelivery; outcomes recorded in one transaction conditional on still holding the claim; retries through the outbox; usage unique per notification. Tested: duplicate delivery, crash mid-send, lost claim, relay after API crash, concurrent relays (Phase 3 slices 4–5); `make load-smoke` verifies zero lost and zero double-billed on every run (docs/perf) | Outbox-recovery and failover drills under load (Phase 8) |
 | **R** audit tampering | Erasing history | Append-only store API (no update or delete); audit written in the same tx as the mutation (`TestWithTx`) | Separate DB role with INSERT-only rights on `audit_events`; export to S3 Object Lock (Phase 8) |
 | **D** runaway queries | Unbounded list | Every list is keyset-paginated with a max of 200. Partition DDL runs under `lock_timeout` | Statement timeout per role (Phase 3) |
 | **E** SQL injection | Dynamic DDL | ent parameterizes queries. Partition DDL identifiers are regex-validated and quoted (`TestValidation`) | semgrep rules in CI (docs/06) |
@@ -102,16 +106,17 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 
 | Threat | Mitigation (planned) |
 |---|---|
-| **SSRF** via the webhook channel or logo fetches | Resolve-then-connect allowlist; block RFC1918, loopback, link-local, metadata endpoints and their IPv6 forms; no redirects to internal targets; egress proxy; size and time limits (docs/06 §3) |
+| **SSRF** via the webhook channel or logo fetches | **Built (Phase 3 slice 6, `internal/netguard`):** webhook URLs are checked at save (https, public host by the SMTP host rule, port 443 or 1024–65535, no userinfo) and again at send; every outbound connection (webhook, SMTP, vendor APIs) goes through a dialer that checks each **resolved** address (loopback, RFC 1918, CGNAT, link-local and metadata, NAT64, IPv4-mapped forms refused; tested with names that resolve to loopback); redirects are never followed; proxy environment variables ignored; 15 s timeout, responses read to 64 KiB. Still planned: an egress allowlist proxy (defence in depth) and logo fetches (none today) |
 | **Spoofing our identity** (spam or phishing through platform SES/SNS) | Sandbox tenants by default (built: new tenants are always sandboxed, and only an operator can lift it). Verified sender domains, bounce and complaint auto-suspension, per-tenant daily SMS limit enforced atomically at accept (ADR-005) |
 | **SMS toll fraud / pumping** | Country allow/deny lists, per-tenant daily caps plus a platform cap below the AWS spend quota, velocity alerts |
-| **Credential leakage** | BYO secrets envelope-encrypted, decrypted only in the dispatcher at send time, never logged, write-only in the API (ADR-005) |
+| **Credential leakage** | BYO secrets envelope-encrypted, decrypted only in the dispatcher at send time, never logged, write-only in the API (ADR-005). **Built (slice 6):** adapters never keep vendor or transport error text (it can contain a Slack webhook URL, which is itself a secret, or a recipient address): every failure is a fixed code and message, asserted in tests. The decrypted secret map is wiped after the send |
 | **Template injection (SSTI)** | Sandboxed renderer (ADR-012): Handlebars subset with no helpers, partials or I/O; JSON-only render context; step, depth and output budgets; context-dependent escaping; JSON channels render string leaves only (one shared output budget per render). **Built (Phase 2 slice 2, `internal/workflow/render`):** 5 fuzz targets (parse/execute budgets, HTML escaping round trip, sanitizer output, SMS segments, webhook JSON structure); the escaping and sanitizer properties are mutation-checked |
 | SSRF or file read through payload schemas | JSON Schema compiler with a loader that refuses every external `$ref` (remote and `file://`), tested; 64 KiB cap (Phase 2 slice 4) |
 | Vendor secret disclosure (API, logs, audit, backups) | Write-only secrets: accepted on create and rotate only; responses carry `has_secret` and a 4-character hint; never in audit events or logs (asserted by grep over responses, server log and audit trail); AES-256-GCM under the tenant DEK with AAD bound to the credential row (copied ciphertext fails); crypto-shred makes them unreadable (Phase 2 slice 5, ADR-013) |
 | SSRF through tenant SMTP hosts and Slack URLs | SMTP host must be a public IP or a qualified public name (private, loopback, link-local, CGNAT, metadata, NAT64, numeric-trick and internal-TLD names rejected, tested); Slack webhook pinned to `https://hooks.slack.com/services/`; dialer-level check on resolved addresses in Phase 3 (DNS rebinding) |
-| Confused deputy with BYO SES | Cross-account role with a per-credential, Notifex-generated `external_id`; no static AWS keys stored |
-| **Header injection** | CRLF rejection in subject, sender and recipient fields (Phase 2) |
+| Confused deputy with BYO SES | Cross-account role with a per-credential, Notifex-generated `external_id`; no static AWS keys stored. **Built (slice 6):** the dispatcher never assumes a role without the external id, and the send is signed with the assumed role's short-lived (15 min) keys, tested on the wire against a fake STS/SES |
+| **Header injection** | CRLF rejection in subject, sender and recipient fields (Phase 2). **Built (slice 6):** SMTP refuses any header value with CR, LF or NUL before dialing; display names and subjects are RFC 2047-encoded for SMTP and SES |
+| **Downgrade to plaintext SMTP** | TLS is mandatory: implicit TLS or STARTTLS, and a server that doesn't offer STARTTLS fails the send (`tls_unavailable`) instead of sending in the clear; certificates are verified against the configured host (slice 6, tested) |
 
 ### B5: vendor callbacks → api (Phase 4)
 
@@ -146,7 +151,7 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 |---|---|---|---|---|
 | R1 | ~~No rate limit on failed API-key auth~~ **Mitigated (Phase 1 slice 2):** per-IP limiter on failed API-key attempts (per task); WAF rule still to add as the cross-task layer | L | M | WAF rate rule with the AWS Terraform (Phase 8) |
 | R2 | **Shared-sender abuse once real vendors exist** (spam, phishing, SMS pumping) | H | H | Phases 2–3: verified domains, caps, suspension hooks before Stage 2 (real vendors) |
-| R3 | **SSRF through the webhook channel** | M | H | Phase 3: egress allowlist proxy + resolve-then-connect, with tests from docs/06 |
+| R3 | **SSRF through the webhook channel** — resolve-then-connect guard built (slice 6) | L | H | Egress allowlist proxy as a second layer before Stage 2 (AWS Terraform, Phase 8); keep the netguard tests mandatory for any new outbound client |
 | R4 | ~~CI has never run on GitHub~~ **Mitigated:** CI (lint, race tests, migrations + squawk, vuln, contracts, gitleaks, image + Trivy) has run green on every merged PR since #4 | — | — | Keep CI required on `main` |
 | R5 | **GitHub Actions pinned by tag, not SHA** | L | H | Stage 2 TODO; Dependabot for actions |
 | R6 | **Crypto-shred takes up to one DEK-cache TTL (5 min) on other instances** | L | M | Accepted (ADR-006); tenant deletion also stops processing first |
@@ -154,7 +159,8 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 | R8 | **No RLS yet;** isolation relies on app-layer enforcement plus composite FKs | L | H | Phase 8 RLS; meanwhile the isolation and scope tests are mandatory for new store methods |
 | R9 | **Auth makes 3 DB queries per request;** caching would add a revocation lag | M | L | Measure in Phase 3 load tests; if caching, bound TTL ≤ 30 s |
 | R10 | **External pen test not done** | — | — | Stage 3 gate (charter §5); out of scope for automated work. Scope must include the in-house renderer (ADR-012) and credential handling (ADR-013) |
-| R11 | **SMTP host checked at save time only;** a public name can later resolve to an internal address (DNS rebinding) | M | H | Phase 3: dialer checks every resolved address with `credential.PublicAddr` before connecting |
+| R11 | ~~SMTP host checked at save time only~~ **Mitigated (Phase 3 slice 6):** the SMTP adapter dials through `netguard`, which checks every resolved address before connecting | — | — | — |
+| R14 | **A slow or hostile webhook endpoint ties up dispatcher handlers** (15 s each) and retries | M | M | Per-tenant webhook rate limits in the policy; per-endpoint circuit breaking after load tests (slice 7) |
 | R12 | **Credentials are unverified until the dispatcher exists;** a typo surfaces on first send, not on save | M | L | Accepted (ADR-013 §6); asynchronous verification in Phase 3/4 |
 | R13 | **Renderer is security-critical code we own** (template injection, resource exhaustion) | L | H | Fuzzed and mutation-checked (Phase 2 slice 2); run fuzz targets in CI nightly; pen-test scope (R10) |
 

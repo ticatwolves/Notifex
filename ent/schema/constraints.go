@@ -15,7 +15,12 @@ type ForeignKey struct {
 }
 
 // tenantOwned lists tables whose tenant_id must reference tenants(id).
-var tenantOwned = []string{"memberships", "applications", "environments", "api_keys", "invitations", "brand_profiles", "policies", "workflows", "actions", "templates", "channel_credentials"}
+var tenantOwned = []string{"memberships", "applications", "environments", "api_keys", "invitations", "brand_profiles", "policies", "workflows", "actions", "templates", "channel_credentials",
+	"config_snapshots", "runs", "dispatch_outbox", "scheduled_dispatch", "idempotency_records", "platform_sms_usage", "usage_records"}
+
+// ManualTables have hand-written DDL (range-partitioned by day, ADR-014 §1).
+// The migration generator leaves them, and their daily partitions, alone.
+var ManualTables = []string{"notifications", "notification_events"}
 
 // ForeignKeys returns every foreign key in the core schema.
 func ForeignKeys() []ForeignKey {
@@ -81,6 +86,11 @@ func ForeignKeys() []ForeignKey {
 			Columns:    []string{"tenant_id", "application_id", "environment_id"},
 			RefTable:   "environments",
 			RefColumns: []string{"tenant_id", "application_id", "id"},
+		},
+		// A run's snapshot can't be deleted while the run exists.
+		ForeignKey{
+			Name: "runs_snapshot_fk", Table: "runs",
+			Columns: []string{"tenant_id", "snapshot_hash"}, RefTable: "config_snapshots", RefColumns: []string{"tenant_id", "hash"},
 		},
 		ForeignKey{
 			Name: "sessions_user_fk", Table: "sessions",

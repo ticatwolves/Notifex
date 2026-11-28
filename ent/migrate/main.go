@@ -4,11 +4,15 @@
 //
 //	go run -mod=mod ./ent/migrate/main.go -name add_widgets   # write a new migration
 //	go run -mod=mod ./ent/migrate/main.go -check              # CI: fail if schema changed without a migration
+//	go run -mod=mod ./ent/migrate/main.go -rehash             # rewrite atlas.sum after adding a hand-written migration
 //
 // It replays migrations/ into a throwaway Postgres (testcontainers, or
 // -dev-url), diffs against ent/schema plus the foreign keys declared in
 // ent/schema/constraints.go, and writes golang-migrate files plus atlas.sum.
 // Generated files are reviewed like code: never edit an applied migration.
+//
+// Tables listed in schema.ManualTables (range-partitioned, ADR-014 §1) have
+// hand-written DDL: the diff ignores them and their daily partitions.
 package main
 
 import (
@@ -21,9 +25,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
+	atlasmigrate "ariga.io/atlas/sql/migrate"
 	atlas "ariga.io/atlas/sql/schema"
 	"ariga.io/atlas/sql/sqltool"
 	"entgo.io/ent/dialect"
@@ -44,9 +50,17 @@ func main() {
 	check := flag.Bool("check", false, "fail if the schema differs from migrations/ (writes nothing)")
 	devURL := flag.String("dev-url", "", "empty Postgres to replay into (default: start a container)")
 	dir := flag.String("dir", "migrations", "migrations directory")
+	rehash := flag.Bool("rehash", false, "rewrite atlas.sum for the files in -dir (after adding a hand-written migration)")
 	flag.Parse()
+	if *rehash {
+		if err := writeSum(*dir); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("atlas.sum rewritten")
+		return
+	}
 	if *check == (*name != "") {
-		log.Fatal("usage: -name <snake_case> | -check")
+		log.Fatal("usage: -name <snake_case> | -check | -rehash")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -107,6 +121,7 @@ func run(ctx context.Context, name string, check bool, devURL, dir string) error
 		entschema.WithDropColumn(false), // destructive changes are written by hand, expand/contract
 		entschema.WithDropIndex(true),
 		entschema.WithDiffHook(addForeignKeys),
+		entschema.WithDiffHook(skipManualTables),
 	)
 	if err != nil {
 		return fmt.Errorf("diff: %w", err)
@@ -177,6 +192,42 @@ func addForeignKeys(next entschema.Differ) entschema.Differ {
 		}
 		return next.Diff(current, desired)
 	})
+}
+
+// manualTable matches schema.ManualTables and their daily partitions
+// (<table>_pYYYYMMDD).
+var manualTable = func() *regexp.Regexp {
+	return regexp.MustCompile(`^(` + strings.Join(schema.ManualTables, "|") + `)(_p[0-9]{8})?$`)
+}()
+
+// skipManualTables removes hand-written tables from both sides of the diff,
+// so the generator never proposes dropping or altering them.
+func skipManualTables(next entschema.Differ) entschema.Differ {
+	return entschema.DiffFunc(func(current, desired *atlas.Schema) ([]atlas.Change, error) {
+		for _, s := range []*atlas.Schema{current, desired} {
+			kept := s.Tables[:0]
+			for _, t := range s.Tables {
+				if !manualTable.MatchString(t.Name) {
+					kept = append(kept, t)
+				}
+			}
+			s.Tables = kept
+		}
+		return next.Diff(current, desired)
+	})
+}
+
+// writeSum recomputes atlas.sum for dir.
+func writeSum(dir string) error {
+	mdir, err := sqltool.NewGolangMigrateDir(dir)
+	if err != nil {
+		return fmt.Errorf("migrations dir: %w", err)
+	}
+	sum, err := mdir.Checksum()
+	if err != nil {
+		return fmt.Errorf("checksum: %w", err)
+	}
+	return atlasmigrate.WriteSumFile(mdir, sum)
 }
 
 func listDir(dir string) (map[string]bool, error) {

@@ -4,8 +4,8 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -15,14 +15,18 @@ import (
 	"github.com/ticatwolves/notifex/internal/credential"
 	"github.com/ticatwolves/notifex/internal/crypto"
 	"github.com/ticatwolves/notifex/internal/db"
+	"github.com/ticatwolves/notifex/internal/dispatch"
+	"github.com/ticatwolves/notifex/internal/dispatch/sqsqueue"
 	"github.com/ticatwolves/notifex/internal/lifecycle"
 	"github.com/ticatwolves/notifex/internal/mail"
 	"github.com/ticatwolves/notifex/internal/operator"
+	"github.com/ticatwolves/notifex/internal/ratelimit"
 	"github.com/ticatwolves/notifex/internal/store"
 	"github.com/ticatwolves/notifex/internal/store/entstore"
 	"github.com/ticatwolves/notifex/internal/tenant"
 	grpctransport "github.com/ticatwolves/notifex/internal/transport/grpc"
 	httptransport "github.com/ticatwolves/notifex/internal/transport/http"
+	"github.com/ticatwolves/notifex/internal/trigger"
 	"github.com/ticatwolves/notifex/internal/workflow"
 )
 
@@ -56,7 +60,7 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 		return nil, err
 	}
 	oauth := auth.NewOAuth(accounts, oauthProviders(ctx, rt), rt.Config.OAuthRedirectURIs)
-	keys, err := keyProvider(rt)
+	keys, err := app.KeyProvider(rt)
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +70,24 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 	// crypto-shred drops the tenant's key from it at once.
 	cipher := crypto.NewCipher(keys, st.Tenants(), crypto.CipherOptions{Metrics: rt.Metrics})
 	tenants.OnShred = func(id store.TenantID) { cipher.Forget(id.UUID()) }
+	credSvc := credential.NewService(st, cipher)
+	recipientKey, err := base64.StdEncoding.DecodeString(rt.Config.RecipientHashKey)
+	if err != nil || len(recipientKey) < 32 {
+		return nil, errors.New("RECIPIENT_HASH_KEY must be base64 of at least 32 bytes")
+	}
+	// Fast path: publish right after commit; the scheduler's relay publishes
+	// anything this misses (ADR-004).
+	sqsClient, err := sqsqueue.NewClient(ctx, rt.Config.AWSRegion, rt.Config.SQSEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	queue := sqsqueue.New(sqsClient, sqsqueue.Options{
+		Prefix: rt.Config.QueuePrefix, FairQueues: rt.Config.SQSFairQueues, Log: rt.Logger, Metrics: rt.Metrics,
+	})
+	triggers := trigger.NewService(st, tenants, credSvc, cipher, dispatch.OutboxPublisher{Q: queue},
+		trigger.Config{RecipientHashKey: recipientKey, PlatformSMSDailyCap: rt.Config.PlatformSMSDailyCap}, rt.Logger, rt.Metrics)
+	limits := httptransport.DefaultLimits()
+	limits.Trigger = ratelimit.New(rt.Config.TriggerRatePerMinute, max(rt.Config.TriggerRatePerMinute/6, 1), 100_000)
 
 	rest := lifecycle.NewHTTPServer("http", rt.Config.HTTPAddr, httptransport.NewRouter(httptransport.Deps{
 		Service:        rt.Config.Service,
@@ -78,7 +100,9 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 		OAuth:          oauth,
 		Tenants:        tenants,
 		Workflows:      workflow.NewService(st, tenants, rt.Logger),
-		Credentials:    credential.NewService(st, cipher),
+		Credentials:    credSvc,
+		Triggers:       triggers,
+		Limits:         limits,
 		Operators:      operator.NewService(st, keys, pw, rt.Logger, operator.DefaultPolicy),
 		TrustedProxies: rt.Config.TrustedProxies,
 	}), rt.Logger)
@@ -135,33 +159,4 @@ func oauthProviders(ctx context.Context, rt *app.Runtime) []auth.Provider {
 	}
 	rt.Logger.Info("oauth providers", slog.Any("enabled", names))
 	return ps
-}
-
-// keyProvider wraps tenant DEKs: the local master key in local runs; KMS
-// (Phase 8) everywhere else. Until KMS exists, deployed environments get a
-// provider that refuses to create DEKs, so tenant creation fails there while
-// the rest of the API keeps working. Never fall back to the local key.
-func keyProvider(rt *app.Runtime) (crypto.KeyProvider, error) {
-	if rt.Config.Deployed() {
-		rt.Logger.Warn("no KMS KeyProvider yet (Phase 8): tenant creation is disabled in this environment")
-		return noKMS{}, nil
-	}
-	kp, err := crypto.NewLocalFromBase64(rt.Config.LocalMasterKey)
-	if err != nil {
-		return nil, fmt.Errorf("NOTIFEX_LOCAL_MASTER_KEY: %w", err)
-	}
-	return kp, nil
-}
-
-// noKMS refuses every key operation (deployed environments before Phase 8).
-type noKMS struct{}
-
-var errNoKMS = errors.New("tenant encryption keys are unavailable: KMS KeyProvider not configured (Phase 8)")
-
-func (noKMS) GenerateDataKey(context.Context, crypto.EncryptionContext) (crypto.DataKey, error) {
-	return crypto.DataKey{}, errNoKMS
-}
-
-func (noKMS) Unwrap(context.Context, []byte, string, crypto.EncryptionContext) ([]byte, error) {
-	return nil, errNoKMS
 }
