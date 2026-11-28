@@ -183,7 +183,7 @@ func TestSpecAndRouterDoNotDrift(t *testing.T) {
 	r := NewRouter(Deps{Service: "api", Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Metrics: prometheus.NewRegistry(), Health: health.NewRegistry(time.Second), APIKeys: unavailableAuth{},
 		Accounts: stubAccounts{}, Sessions: stubSessions{}, OAuth: stubOAuth{}, Tenants: stubTenants{},
-		Operators: stubOperators{}})
+		Operators: stubOperators{}, Workflows: stubWorkflows{}, Credentials: stubCredentials{}})
 	param := regexp.MustCompile(`:([a-z_]+)`)
 	served := map[string]bool{}
 	for _, rt := range r.(*gin.Engine).Routes() {
@@ -218,3 +218,7 @@ type stubOAuth struct{ ConsoleOAuth }
 type stubTenants struct{ TenantAdmin }
 
 type stubOperators struct{ OperatorRealm }
+
+type stubWorkflows struct{ WorkflowAdmin }
+
+type stubCredentials struct{ CredentialAdmin }

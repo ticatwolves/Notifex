@@ -1,0 +1,541 @@
+// Package credential manages channel credentials (ADR-005, ADR-013):
+// platform-managed and BYO, per tenant, application or environment, with
+// secrets envelope-encrypted under the tenant DEK and never returned.
+package credential
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/ticatwolves/notifex/internal/audit"
+	"github.com/ticatwolves/notifex/internal/crypto"
+	"github.com/ticatwolves/notifex/internal/observability"
+	"github.com/ticatwolves/notifex/internal/rbac"
+	"github.com/ticatwolves/notifex/internal/store"
+	"github.com/ticatwolves/notifex/internal/tenant"
+)
+
+// secretColumn names the encrypted column in the AAD.
+const secretColumn = "secret_ciphertext"
+
+// ErrUnavailable means no credential applies (credential_unavailable).
+var ErrUnavailable = errors.New("credential: no credential available for this channel")
+
+// PlatformChannels are channels Notifex can send with its own accounts
+// (ADR-005 launch matrix; Slack and Outlook need an install flow, Phase 4).
+var PlatformChannels = map[string]bool{"email": true, "sms": true}
+
+func fieldErr(field, format string, args ...any) error {
+	return &tenant.FieldError{Field: field, Msg: fmt.Sprintf(format, args...)}
+}
+
+// Credential is a credential's metadata. It never holds the secret.
+type Credential struct {
+	ID            uuid.UUID
+	ApplicationID *uuid.UUID
+	EnvironmentID *uuid.UUID
+	Channel       string
+	Provider      string
+	Mode          string
+	Name          string
+	Config        map[string]any
+	HasSecret     bool
+	SecretHint    string
+	Status        string
+	VerifiedAt    *time.Time
+	RotatedAt     *time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+func meta(c store.ChannelCredential) Credential {
+	return Credential{
+		ID: c.ID, ApplicationID: c.ApplicationID, EnvironmentID: c.EnvironmentID, Channel: c.Channel,
+		Provider: c.Provider, Mode: c.Mode, Name: c.Name, Config: c.Config, HasSecret: c.SecretCiphertext != nil,
+		SecretHint: c.SecretHint, Status: c.Status, VerifiedAt: c.VerifiedAt, RotatedAt: c.RotatedAt,
+		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
+	}
+}
+
+// Service implements credential management and resolution.
+type Service struct {
+	st     store.Store
+	cipher crypto.FieldCipher
+	now    func() time.Time
+}
+
+// NewService builds the service.
+func NewService(st store.Store, cipher crypto.FieldCipher) *Service {
+	return &Service{st: st, cipher: cipher, now: time.Now}
+}
+
+func require(a tenant.Actor, c rbac.Capability) error {
+	if !rbac.Allow(a.Role, c) {
+		return fmt.Errorf("%w: %s requires %s", tenant.ErrForbidden, a.Role, c)
+	}
+	return nil
+}
+
+func actorOf(a tenant.Actor) audit.Actor {
+	return audit.Actor{Type: store.ActorUser, ID: a.ID.String()}
+}
+
+func utc(t *time.Time) any {
+	if t == nil {
+		return nil
+	}
+	return t.UTC()
+}
+
+func wrap(op string, err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: %w", op, err)
+}
+
+// ---- secrets
+
+func (s *Service) seal(ctx context.Context, tid store.TenantID, id uuid.UUID, secret map[string]any) ([]byte, error) {
+	pt, err := json.Marshal(secret)
+	if err != nil {
+		return nil, fmt.Errorf("encode secret: %w", err)
+	}
+	defer clear(pt)
+	ct, err := s.cipher.Encrypt(ctx, crypto.AAD{TenantID: tid.UUID(), RowID: id, Column: secretColumn}, pt)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt secret: %w", err)
+	}
+	return ct, nil
+}
+
+// Secret decrypts a credential's secret. Only the dispatcher (Phase 3) calls
+// this; no API route returns it.
+func (s *Service) Secret(ctx context.Context, tid store.TenantID, id uuid.UUID) (map[string]any, error) {
+	c, err := s.st.Credentials().Get(ctx, tid, id)
+	if err != nil {
+		return nil, wrap("credential secret", err)
+	}
+	if c.SecretCiphertext == nil {
+		return map[string]any{}, nil
+	}
+	pt, err := s.cipher.Decrypt(ctx, crypto.AAD{TenantID: tid.UUID(), RowID: id, Column: secretColumn}, c.SecretCiphertext)
+	if err != nil {
+		return nil, fmt.Errorf("credential secret: %w", err)
+	}
+	defer clear(pt)
+	var m map[string]any
+	if err := json.Unmarshal(pt, &m); err != nil {
+		return nil, fmt.Errorf("credential secret: %w", err)
+	}
+	return m, nil
+}
+
+func hint(p Provider, secret map[string]any) string {
+	v, _ := secret[p.HintField].(string)
+	if len(v) < 16 {
+		return "" // too short to show any of it
+	}
+	return v[len(v)-4:]
+}
+
+func generateSigningSecret() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("generate secret: %w", err)
+	}
+	return "whsec_" + base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// prepareSecret validates (or generates) a secret for p. It returns the
+// secret map and, for generated secrets, the plaintext to show once.
+func prepareSecret(p Provider, given map[string]any) (map[string]any, string, error) {
+	switch {
+	case p.SecretGenerated:
+		if given != nil {
+			return nil, "", fieldErr("secret", "is generated by Notifex for %s/%s; don't send one", p.Channel, p.Name)
+		}
+		g, err := generateSigningSecret()
+		if err != nil {
+			return nil, "", err
+		}
+		return map[string]any{"secret": g}, g, nil
+	case len(p.Secret) == 0:
+		if given != nil {
+			return nil, "", fieldErr("secret", "%s/%s has no secret", p.Channel, p.Name)
+		}
+		return nil, "", nil
+	default:
+		if given == nil {
+			return nil, "", fieldErr("secret", "is required for %s/%s", p.Channel, p.Name)
+		}
+		if raw, _ := json.Marshal(given); len(raw) > MaxSecretBytes {
+			return nil, "", fieldErr("secret", "larger than %d KiB", MaxSecretBytes>>10)
+		}
+		m, err := validateFields("secret", p.Secret, given)
+		return m, "", err
+	}
+}
+
+func validateConfig(p Provider, cfg map[string]any) (map[string]any, error) {
+	if cfg == nil {
+		cfg = map[string]any{}
+	}
+	m, err := validateFields("config", p.Config, cfg)
+	if err != nil {
+		return nil, err
+	}
+	if p.cross != nil {
+		if err := p.cross(m); err != nil {
+			return nil, err
+		}
+	}
+	return m, nil
+}
+
+// ---- management API
+
+// CreateInput is a new credential. ApplicationID and EnvironmentID set the
+// scope (both nil: tenant).
+type CreateInput struct {
+	Channel       string
+	Provider      string
+	Name          string
+	ApplicationID *uuid.UUID
+	EnvironmentID *uuid.UUID
+	Config        map[string]any
+	Secret        map[string]any
+}
+
+// Create adds a credential (status pending). For generated secrets the
+// plaintext is returned once.
+func (s *Service) Create(ctx context.Context, a tenant.Actor, in CreateInput) (Credential, string, error) {
+	if err := require(a, rbac.ManageSettings); err != nil {
+		return Credential{}, "", err
+	}
+	p, ok := Find(in.Channel, in.Provider)
+	if !ok {
+		return Credential{}, "", fieldErr("provider", "unknown provider %q for channel %q", truncate(in.Provider, 32), truncate(in.Channel, 20))
+	}
+	name := strings.TrimSpace(in.Name)
+	if name == "" || len([]rune(name)) > 200 {
+		return Credential{}, "", fieldErr("name", "1-200 characters")
+	}
+	if in.EnvironmentID != nil && in.ApplicationID == nil {
+		return Credential{}, "", fieldErr("environment_id", "needs application_id")
+	}
+	cfg, err := validateConfig(p, in.Config)
+	if err != nil {
+		return Credential{}, "", err
+	}
+	if p.Name == "ses" {
+		ext, err := generateSigningSecret() // unguessable; not a secret
+		if err != nil {
+			return Credential{}, "", err
+		}
+		cfg["external_id"] = "nfx-" + strings.TrimPrefix(ext, "whsec_")[:32]
+	}
+	secret, generated, err := prepareSecret(p, in.Secret)
+	if err != nil {
+		return Credential{}, "", err
+	}
+	id := uuid.Must(uuid.NewV7())
+	var ct []byte
+	if secret != nil {
+		if ct, err = s.seal(ctx, a.TenantID, id, secret); err != nil {
+			return Credential{}, "", wrap("create credential", err)
+		}
+	}
+	var out Credential
+	err = s.st.WithTx(ctx, func(ctx context.Context, tx store.Store) error {
+		c, err := tx.Credentials().Create(ctx, a.TenantID, store.NewChannelCredential{
+			ID: id, ApplicationID: in.ApplicationID, EnvironmentID: in.EnvironmentID, Channel: p.Channel,
+			Provider: p.Name, Mode: p.Mode, Name: name, Config: cfg, SecretCiphertext: ct, SecretHint: hint(p, secret),
+		})
+		if err != nil {
+			return err
+		}
+		out = meta(c)
+		return audit.Record(ctx, tx, actorOf(a), audit.Event{
+			TenantID: &a.TenantID, Action: "credential.create", EntityType: "channel_credential", EntityID: id.String(),
+			After: auditMeta(out),
+		})
+	})
+	if err != nil {
+		return Credential{}, "", wrap("create credential", err)
+	}
+	return out, generated, nil
+}
+
+// auditMeta is what the audit trail records: never the secret; email
+// addresses in config are masked.
+func auditMeta(c Credential) map[string]any {
+	cfg := make(map[string]any, len(c.Config))
+	for k, v := range c.Config {
+		if s, ok := v.(string); ok && strings.Contains(s, "@") {
+			v = observability.MaskEmail(s)
+		}
+		cfg[k] = v
+	}
+	m := map[string]any{
+		"channel": c.Channel, "provider": c.Provider, "mode": c.Mode, "name": c.Name, "config": cfg,
+		"status": c.Status, "has_secret": c.HasSecret, "secret_hint": c.SecretHint,
+	}
+	if c.ApplicationID != nil {
+		m["application_id"] = c.ApplicationID.String()
+	}
+	if c.EnvironmentID != nil {
+		m["environment_id"] = c.EnvironmentID.String()
+	}
+	if c.RotatedAt != nil {
+		m["rotated_at"] = c.RotatedAt.UTC()
+	}
+	return m
+}
+
+// List returns credential metadata (developers and above).
+func (s *Service) List(ctx context.Context, a tenant.Actor, channel *string, appID *uuid.UUID, p store.Page) ([]Credential, error) {
+	if err := require(a, rbac.ViewCredentialMeta); err != nil {
+		return nil, err
+	}
+	cs, err := s.st.Credentials().List(ctx, a.TenantID, channel, appID, p)
+	if err != nil {
+		return nil, wrap("list credentials", err)
+	}
+	out := make([]Credential, len(cs))
+	for i, c := range cs {
+		out[i] = meta(c)
+	}
+	return out, nil
+}
+
+// Get returns one credential's metadata.
+func (s *Service) Get(ctx context.Context, a tenant.Actor, id uuid.UUID) (Credential, error) {
+	if err := require(a, rbac.ViewCredentialMeta); err != nil {
+		return Credential{}, err
+	}
+	c, err := s.st.Credentials().Get(ctx, a.TenantID, id)
+	if err != nil {
+		return Credential{}, wrap("get credential", err)
+	}
+	return meta(c), nil
+}
+
+// Patch changes a credential's name, config or enabled state.
+type Patch struct {
+	Name    *string
+	Config  map[string]any
+	Enabled *bool
+}
+
+// Update applies a patch. Config is validated whole; Notifex-set fields
+// (ses external_id) are kept. Enabling sets pending.
+func (s *Service) Update(ctx context.Context, a tenant.Actor, id uuid.UUID, p Patch) (Credential, error) {
+	if err := require(a, rbac.ManageSettings); err != nil {
+		return Credential{}, err
+	}
+	if p.Name != nil {
+		n := strings.TrimSpace(*p.Name)
+		if n == "" || len([]rune(n)) > 200 {
+			return Credential{}, fieldErr("name", "1-200 characters")
+		}
+		p.Name = &n
+	}
+	var out Credential
+	err := s.st.WithTx(ctx, func(ctx context.Context, tx store.Store) error {
+		before, err := tx.Credentials().Get(ctx, a.TenantID, id)
+		if err != nil {
+			return err
+		}
+		prov, ok := Find(before.Channel, before.Provider)
+		if !ok {
+			return fmt.Errorf("credential %s has unknown provider %s/%s", id, before.Channel, before.Provider)
+		}
+		patch := store.CredentialPatch{Name: p.Name}
+		if p.Config != nil {
+			cfg, err := validateConfig(prov, p.Config)
+			if err != nil {
+				return err
+			}
+			if ext, ok := before.Config["external_id"]; ok {
+				cfg["external_id"] = ext
+			}
+			patch.Config = cfg
+		}
+		if p.Enabled != nil {
+			st := store.CredentialDisabled
+			if *p.Enabled {
+				st = store.CredentialPending
+				if before.Status != store.CredentialDisabled {
+					st = before.Status // already enabled: keep verified/pending
+				}
+			}
+			patch.Status = &st
+		}
+		c, err := tx.Credentials().Update(ctx, a.TenantID, id, patch)
+		if err != nil {
+			return err
+		}
+		out = meta(c)
+		return audit.Record(ctx, tx, actorOf(a), audit.Event{
+			TenantID: &a.TenantID, Action: "credential.update", EntityType: "channel_credential", EntityID: id.String(),
+			Before: auditMeta(meta(before)), After: auditMeta(out),
+		})
+	})
+	return out, wrap("update credential", err)
+}
+
+// Rotate replaces the secret. In-flight notifications use the new one
+// (the run snapshot holds the reference, not the secret).
+func (s *Service) Rotate(ctx context.Context, a tenant.Actor, id uuid.UUID, secret map[string]any) (Credential, string, error) {
+	if err := require(a, rbac.ManageSettings); err != nil {
+		return Credential{}, "", err
+	}
+	before, err := s.st.Credentials().Get(ctx, a.TenantID, id)
+	if err != nil {
+		return Credential{}, "", wrap("rotate credential", err)
+	}
+	p, ok := Find(before.Channel, before.Provider)
+	if !ok {
+		return Credential{}, "", fmt.Errorf("rotate credential: unknown provider %s/%s", before.Channel, before.Provider)
+	}
+	if !p.HasSecret() {
+		return Credential{}, "", fieldErr("secret", "%s/%s has no secret to rotate", p.Channel, p.Name)
+	}
+	m, generated, err := prepareSecret(p, secret)
+	if err != nil {
+		return Credential{}, "", err
+	}
+	ct, err := s.seal(ctx, a.TenantID, id, m)
+	if err != nil {
+		return Credential{}, "", wrap("rotate credential", err)
+	}
+	var out Credential
+	err = s.st.WithTx(ctx, func(ctx context.Context, tx store.Store) error {
+		c, err := tx.Credentials().Rotate(ctx, a.TenantID, id, ct, hint(p, m), s.now())
+		if err != nil {
+			return err
+		}
+		out = meta(c)
+		return audit.Record(ctx, tx, actorOf(a), audit.Event{
+			TenantID: &a.TenantID, Action: "credential.rotate", EntityType: "channel_credential", EntityID: id.String(),
+			Before: map[string]any{"secret_hint": before.SecretHint}, After: map[string]any{"secret_hint": out.SecretHint, "rotated_at": utc(out.RotatedAt)},
+		})
+	})
+	if err != nil {
+		return Credential{}, "", wrap("rotate credential", err)
+	}
+	return out, generated, nil
+}
+
+// Delete removes a credential and its encrypted secret.
+func (s *Service) Delete(ctx context.Context, a tenant.Actor, id uuid.UUID) error {
+	if err := require(a, rbac.ManageSettings); err != nil {
+		return err
+	}
+	return wrap("delete credential", s.st.WithTx(ctx, func(ctx context.Context, tx store.Store) error {
+		before, err := tx.Credentials().Get(ctx, a.TenantID, id)
+		if err != nil {
+			return err
+		}
+		if err := tx.Credentials().Delete(ctx, a.TenantID, id); err != nil {
+			return err
+		}
+		return audit.Record(ctx, tx, actorOf(a), audit.Event{
+			TenantID: &a.TenantID, Action: "credential.delete", EntityType: "channel_credential", EntityID: id.String(),
+			Before: auditMeta(meta(before)),
+		})
+	}))
+}
+
+// ---- resolution
+
+// Ref is the resolved credential a send uses (snapshotted at accept, Phase 3).
+type Ref struct {
+	CredentialID *uuid.UUID // nil: implicit platform credential
+	Channel      string
+	Mode         string
+	Provider     string
+	Scope        string // environment, application, tenant, platform_default
+}
+
+// Resolve applies ADR-013 §5: environment → application → tenant →
+// implicit platform (if the channel allows it and the tenant is active).
+func (s *Service) Resolve(ctx context.Context, tid store.TenantID, appID, envID uuid.UUID, channel string) (Ref, error) {
+	cs, err := s.st.Credentials().ActiveForScope(ctx, tid, channel, appID, envID)
+	if err != nil {
+		return Ref{}, wrap("resolve credential", err)
+	}
+	pick := func(scope string, match func(store.ChannelCredential) bool) *store.ChannelCredential {
+		for i := range cs {
+			if match(cs[i]) {
+				return &cs[i]
+			}
+		}
+		return nil
+	}
+	var c *store.ChannelCredential
+	scope := ""
+	for _, sc := range []struct {
+		name  string
+		match func(store.ChannelCredential) bool
+	}{
+		{"environment", func(c store.ChannelCredential) bool { return c.EnvironmentID != nil && *c.EnvironmentID == envID }},
+		{"application", func(c store.ChannelCredential) bool {
+			return c.EnvironmentID == nil && c.ApplicationID != nil && *c.ApplicationID == appID
+		}},
+		{"tenant", func(c store.ChannelCredential) bool { return c.ApplicationID == nil }},
+	} {
+		if c = pick(sc.name, sc.match); c != nil {
+			scope = sc.name
+			break
+		}
+	}
+	if c != nil && c.Mode == "byo" {
+		id := c.ID
+		return Ref{CredentialID: &id, Channel: channel, Mode: c.Mode, Provider: c.Provider, Scope: scope}, nil
+	}
+	// An explicit platform row, or no row at all: platform, if allowed.
+	if !PlatformChannels[channel] {
+		return Ref{}, ErrUnavailable
+	}
+	t, err := s.st.Tenants().Get(ctx, tid)
+	if err != nil {
+		return Ref{}, wrap("resolve credential", err)
+	}
+	if t.Status != store.TenantActive {
+		return Ref{}, ErrUnavailable
+	}
+	if c != nil {
+		id := c.ID
+		return Ref{CredentialID: &id, Channel: channel, Mode: "platform", Provider: c.Provider, Scope: scope}, nil
+	}
+	return Ref{Channel: channel, Mode: "platform", Provider: "platform", Scope: "platform_default"}, nil
+}
+
+// ResolveFor is Resolve for the console: the environment must belong to the
+// application in the caller's tenant.
+func (s *Service) ResolveFor(ctx context.Context, a tenant.Actor, appID, envID uuid.UUID, channel string) (Ref, error) {
+	if err := require(a, rbac.ViewCredentialMeta); err != nil {
+		return Ref{}, err
+	}
+	if !tenant.Channels[channel] {
+		return Ref{}, fieldErr("channel", "unknown channel")
+	}
+	env, err := s.st.Environments().Get(ctx, a.TenantID, envID)
+	if err != nil {
+		return Ref{}, wrap("resolve credential", err)
+	}
+	if env.ApplicationID != appID {
+		return Ref{}, wrap("resolve credential", store.ErrNotFound)
+	}
+	return s.Resolve(ctx, a.TenantID, appID, envID, channel)
+}

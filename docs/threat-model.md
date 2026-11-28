@@ -1,18 +1,19 @@
 # Threat Model v1 (STRIDE)
 
-- **Status:** v1, 2026-11-27, written at the end of Phase 0 (Stage 0 exit criterion).
+- **Status:** v1, 2026-11-27, written at the end of Phase 0 (Stage 0 exit criterion). Revised for Phase 1 (console, OAuth, RBAC, operator realm) and Phase 2 (templates and rendering, brand and policy, channel credentials), 2026-11-28.
 - **Method:** STRIDE per trust boundary, following docs/06 §1. Update on every new surface: Phase 1 (console, OAuth), Phase 3 (trigger and dispatch), Phase 4 (gRPC, vendor callbacks), and the MCP, Terraform and inbound-webhook work (doc 12).
 - **How to read the tables:** "Built" names the code or test that enforces a mitigation today. "Planned" names the phase that delivers it. A mitigation without one of those is a gap and appears under §6, Residual risks.
 
 ## 1. Scope
 
-| In scope now (Phase 0 code) | Designed but not built (modelled from docs/02, 03, 12) |
+| Built (Phases 0–2) | Designed but not built (modelled from docs/02, 03, 12) |
 |---|---|
-| REST `/healthz`, `/readyz`, `/v1/whoami`; gRPC health; ops port | Trigger intake, outbox relay, SQS dispatch, channel adapters, vendor callbacks |
-| API key issue and authentication | Console (Next.js), sessions, OAuth, RBAC |
-| Tenant-scoped store, migrations, audit trail | Channel credentials (BYO secrets), template rendering, webhook channel |
-| Envelope encryption (`internal/crypto`), partition jobs | MCP server, Terraform actions, inbound webhooks, platform-operator realm |
-| CI pipeline, container image | AWS deployment (doc 10) |
+| REST `/healthz`, `/readyz`, `/v1/whoami`; gRPC health; ops port | Trigger intake, outbox relay, SQS dispatch, channel adapters, vendor callbacks (Phase 3–4) |
+| API key issue, authentication and lifecycle | Webhook channel delivery and its SSRF guard (Phase 3) |
+| Console API: signup, login, sessions, OAuth, tenants, members, invitations, RBAC, audit log (Phase 1) | Console UI (Next.js, Phase 6) |
+| Platform-operator realm with TOTP (Phase 1) | MCP server, Terraform actions, inbound webhooks (doc 12) |
+| Workflows, actions, templates, sandboxed renderer, preview; brand and policy; channel credentials with encrypted BYO secrets (Phase 2) | Vendor credential verification (Phase 3/4) |
+| Tenant-scoped store, migrations, envelope encryption, partition jobs; CI pipeline, container image | AWS deployment (doc 10) |
 
 ## 2. Assets (ranked by impact if compromised)
 
@@ -105,7 +106,11 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 | **Spoofing our identity** (spam or phishing through platform SES/SNS) | Sandbox tenants by default (built: new tenants are always sandboxed, and only an operator can lift it). Verified sender domains, bounce and complaint auto-suspension, per-tenant daily SMS limit enforced atomically at accept (ADR-005) |
 | **SMS toll fraud / pumping** | Country allow/deny lists, per-tenant daily caps plus a platform cap below the AWS spend quota, velocity alerts |
 | **Credential leakage** | BYO secrets envelope-encrypted, decrypted only in the dispatcher at send time, never logged, write-only in the API (ADR-005) |
-| **Template injection (SSTI)** | Sandboxed renderer: no function calls or I/O, time and size limits, fuzzing (Phase 2) |
+| **Template injection (SSTI)** | Sandboxed renderer (ADR-012): Handlebars subset with no helpers, partials or I/O; JSON-only render context; step, depth and output budgets; context-dependent escaping; JSON channels render string leaves only (one shared output budget per render). **Built (Phase 2 slice 2, `internal/workflow/render`):** 5 fuzz targets (parse/execute budgets, HTML escaping round trip, sanitizer output, SMS segments, webhook JSON structure); the escaping and sanitizer properties are mutation-checked |
+| SSRF or file read through payload schemas | JSON Schema compiler with a loader that refuses every external `$ref` (remote and `file://`), tested; 64 KiB cap (Phase 2 slice 4) |
+| Vendor secret disclosure (API, logs, audit, backups) | Write-only secrets: accepted on create and rotate only; responses carry `has_secret` and a 4-character hint; never in audit events or logs (asserted by grep over responses, server log and audit trail); AES-256-GCM under the tenant DEK with AAD bound to the credential row (copied ciphertext fails); crypto-shred makes them unreadable (Phase 2 slice 5, ADR-013) |
+| SSRF through tenant SMTP hosts and Slack URLs | SMTP host must be a public IP or a qualified public name (private, loopback, link-local, CGNAT, metadata, NAT64, numeric-trick and internal-TLD names rejected, tested); Slack webhook pinned to `https://hooks.slack.com/services/`; dialer-level check on resolved addresses in Phase 3 (DNS rebinding) |
+| Confused deputy with BYO SES | Cross-account role with a per-credential, Notifex-generated `external_id`; no static AWS keys stored |
 | **Header injection** | CRLF rejection in subject, sender and recipient fields (Phase 2) |
 
 ### B5: vendor callbacks → api (Phase 4)
@@ -142,13 +147,16 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 | R1 | ~~No rate limit on failed API-key auth~~ **Mitigated (Phase 1 slice 2):** per-IP limiter on failed API-key attempts (per task); WAF rule still to add as the cross-task layer | L | M | WAF rate rule with the AWS Terraform (Phase 8) |
 | R2 | **Shared-sender abuse once real vendors exist** (spam, phishing, SMS pumping) | H | H | Phases 2–3: verified domains, caps, suspension hooks before Stage 2 (real vendors) |
 | R3 | **SSRF through the webhook channel** | M | H | Phase 3: egress allowlist proxy + resolve-then-connect, with tests from docs/06 |
-| R4 | **CI has never run on GitHub;** squawk has never checked the migrations | M | M | Open a PR from `chore/reset-to-new-design` |
+| R4 | ~~CI has never run on GitHub~~ **Mitigated:** CI (lint, race tests, migrations + squawk, vuln, contracts, gitleaks, image + Trivy) has run green on every merged PR since #4 | — | — | Keep CI required on `main` |
 | R5 | **GitHub Actions pinned by tag, not SHA** | L | H | Stage 2 TODO; Dependabot for actions |
 | R6 | **Crypto-shred takes up to one DEK-cache TTL (5 min) on other instances** | L | M | Accepted (ADR-006); tenant deletion also stops processing first |
 | R7 | **Backups (PITR) keep payloads longer than tenant retention** | M | M | Accepted; covered by crypto-shred; disclose in the DPA (ADR-006) |
 | R8 | **No RLS yet;** isolation relies on app-layer enforcement plus composite FKs | L | H | Phase 8 RLS; meanwhile the isolation and scope tests are mandatory for new store methods |
 | R9 | **Auth makes 3 DB queries per request;** caching would add a revocation lag | M | L | Measure in Phase 3 load tests; if caching, bound TTL ≤ 30 s |
-| R10 | **External pen test not done** | — | — | Stage 3 gate (charter §5); out of scope for automated work |
+| R10 | **External pen test not done** | — | — | Stage 3 gate (charter §5); out of scope for automated work. Scope must include the in-house renderer (ADR-012) and credential handling (ADR-013) |
+| R11 | **SMTP host checked at save time only;** a public name can later resolve to an internal address (DNS rebinding) | M | H | Phase 3: dialer checks every resolved address with `credential.PublicAddr` before connecting |
+| R12 | **Credentials are unverified until the dispatcher exists;** a typo surfaces on first send, not on save | M | L | Accepted (ADR-013 §6); asynchronous verification in Phase 3/4 |
+| R13 | **Renderer is security-critical code we own** (template injection, resource exhaustion) | L | H | Fuzzed and mutation-checked (Phase 2 slice 2); run fuzz targets in CI nightly; pen-test scope (R10) |
 
 ## 7. Review triggers
 Update this document whenever any of these lands: a new external surface (endpoint group, protocol, callback), a new data store or queue, a new class of secret, a new tenant-supplied input that is rendered, fetched or executed, or a change to the operator realm. Every PR that adds a surface links the section it changes.

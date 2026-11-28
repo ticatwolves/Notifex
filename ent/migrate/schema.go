@@ -38,6 +38,34 @@ var (
 			},
 		},
 	}
+	// ActionsColumns holds the columns for the "actions" table.
+	ActionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "workflow_id", Type: field.TypeUUID},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"email", "sms", "push", "slack", "outlook", "whatsapp", "webhook"}},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+	}
+	// ActionsTable holds the schema information for the "actions" table.
+	ActionsTable = &schema.Table{
+		Name:       "actions",
+		Columns:    ActionsColumns,
+		PrimaryKey: []*schema.Column{ActionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "action_tenant_id_workflow_id_channel",
+				Unique:  true,
+				Columns: []*schema.Column{ActionsColumns[1], ActionsColumns[4], ActionsColumns[5]},
+			},
+			{
+				Name:    "action_tenant_id_id",
+				Unique:  true,
+				Columns: []*schema.Column{ActionsColumns[1], ActionsColumns[0]},
+			},
+		},
+	}
 	// ApplicationsColumns holds the columns for the "applications" table.
 	ApplicationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -110,6 +138,95 @@ var (
 		Name:       "auth_throttles",
 		Columns:    AuthThrottlesColumns,
 		PrimaryKey: []*schema.Column{AuthThrottlesColumns[0]},
+	}
+	// BrandProfilesColumns holds the columns for the "brand_profiles" table.
+	BrandProfilesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "application_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "doc", Type: field.TypeJSON},
+	}
+	// BrandProfilesTable holds the schema information for the "brand_profiles" table.
+	BrandProfilesTable = &schema.Table{
+		Name:       "brand_profiles",
+		Columns:    BrandProfilesColumns,
+		PrimaryKey: []*schema.Column{BrandProfilesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "brand_profiles_tenant_key",
+				Unique:  true,
+				Columns: []*schema.Column{BrandProfilesColumns[1]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "application_id IS NULL",
+				},
+			},
+			{
+				Name:    "brand_profiles_application_key",
+				Unique:  true,
+				Columns: []*schema.Column{BrandProfilesColumns[1], BrandProfilesColumns[4]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "application_id IS NOT NULL",
+				},
+			},
+		},
+	}
+	// ChannelCredentialsColumns holds the columns for the "channel_credentials" table.
+	ChannelCredentialsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "application_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "environment_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"email", "sms", "push", "slack", "outlook", "whatsapp", "webhook"}},
+		{Name: "provider", Type: field.TypeString, Size: 32},
+		{Name: "mode", Type: field.TypeEnum, Enums: []string{"platform", "byo"}},
+		{Name: "name", Type: field.TypeString, Size: 200},
+		{Name: "config", Type: field.TypeJSON},
+		{Name: "secret_ciphertext", Type: field.TypeBytes, Nullable: true},
+		{Name: "secret_hint", Type: field.TypeString, Size: 8, Default: ""},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "verified", "disabled"}, Default: "pending"},
+		{Name: "verified_at", Type: field.TypeTime, Nullable: true},
+		{Name: "rotated_at", Type: field.TypeTime, Nullable: true},
+	}
+	// ChannelCredentialsTable holds the schema information for the "channel_credentials" table.
+	ChannelCredentialsTable = &schema.Table{
+		Name:       "channel_credentials",
+		Columns:    ChannelCredentialsColumns,
+		PrimaryKey: []*schema.Column{ChannelCredentialsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "channel_credentials_tenant_scope_key",
+				Unique:  true,
+				Columns: []*schema.Column{ChannelCredentialsColumns[1], ChannelCredentialsColumns[6]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "application_id IS NULL AND status <> 'disabled'",
+				},
+			},
+			{
+				Name:    "channel_credentials_app_scope_key",
+				Unique:  true,
+				Columns: []*schema.Column{ChannelCredentialsColumns[1], ChannelCredentialsColumns[4], ChannelCredentialsColumns[6]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "application_id IS NOT NULL AND environment_id IS NULL AND status <> 'disabled'",
+				},
+			},
+			{
+				Name:    "channel_credentials_env_scope_key",
+				Unique:  true,
+				Columns: []*schema.Column{ChannelCredentialsColumns[1], ChannelCredentialsColumns[4], ChannelCredentialsColumns[5], ChannelCredentialsColumns[6]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "environment_id IS NOT NULL AND status <> 'disabled'",
+				},
+			},
+			{
+				Name:    "channelcredential_tenant_id_id",
+				Unique:  true,
+				Columns: []*schema.Column{ChannelCredentialsColumns[1], ChannelCredentialsColumns[0]},
+			},
+		},
 	}
 	// EmailTokensColumns holds the columns for the "email_tokens" table.
 	EmailTokensColumns = []*schema.Column{
@@ -323,6 +440,40 @@ var (
 			},
 		},
 	}
+	// PoliciesColumns holds the columns for the "policies" table.
+	PoliciesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "application_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "doc", Type: field.TypeJSON},
+		{Name: "payload_retention_days", Type: field.TypeInt, Nullable: true},
+	}
+	// PoliciesTable holds the schema information for the "policies" table.
+	PoliciesTable = &schema.Table{
+		Name:       "policies",
+		Columns:    PoliciesColumns,
+		PrimaryKey: []*schema.Column{PoliciesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "policies_tenant_key",
+				Unique:  true,
+				Columns: []*schema.Column{PoliciesColumns[1]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "application_id IS NULL",
+				},
+			},
+			{
+				Name:    "policies_application_key",
+				Unique:  true,
+				Columns: []*schema.Column{PoliciesColumns[1], PoliciesColumns[4]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "application_id IS NOT NULL",
+				},
+			},
+		},
+	}
 	// SessionsColumns holds the columns for the "sessions" table.
 	SessionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -355,6 +506,29 @@ var (
 				Name:    "session_absolute_expires_at",
 				Unique:  false,
 				Columns: []*schema.Column{SessionsColumns[5]},
+			},
+		},
+	}
+	// TemplatesColumns holds the columns for the "templates" table.
+	TemplatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "action_id", Type: field.TypeUUID},
+		{Name: "locale", Type: field.TypeString, Size: 16},
+		{Name: "content", Type: field.TypeJSON},
+	}
+	// TemplatesTable holds the schema information for the "templates" table.
+	TemplatesTable = &schema.Table{
+		Name:       "templates",
+		Columns:    TemplatesColumns,
+		PrimaryKey: []*schema.Column{TemplatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "template_tenant_id_action_id_locale",
+				Unique:  true,
+				Columns: []*schema.Column{TemplatesColumns[1], TemplatesColumns[4], TemplatesColumns[5]},
 			},
 		},
 	}
@@ -425,12 +599,46 @@ var (
 			},
 		},
 	}
+	// WorkflowsColumns holds the columns for the "workflows" table.
+	WorkflowsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "application_id", Type: field.TypeUUID},
+		{Name: "key", Type: field.TypeString, Size: 63},
+		{Name: "name", Type: field.TypeString, Size: 200},
+		{Name: "description", Type: field.TypeString, Size: 2000, Default: ""},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "active", "archived"}, Default: "draft"},
+		{Name: "payload_schema", Type: field.TypeJSON, Nullable: true},
+	}
+	// WorkflowsTable holds the schema information for the "workflows" table.
+	WorkflowsTable = &schema.Table{
+		Name:       "workflows",
+		Columns:    WorkflowsColumns,
+		PrimaryKey: []*schema.Column{WorkflowsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "workflow_tenant_id_application_id_key",
+				Unique:  true,
+				Columns: []*schema.Column{WorkflowsColumns[1], WorkflowsColumns[4], WorkflowsColumns[5]},
+			},
+			{
+				Name:    "workflow_tenant_id_id",
+				Unique:  true,
+				Columns: []*schema.Column{WorkflowsColumns[1], WorkflowsColumns[0]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APIKeysTable,
+		ActionsTable,
 		ApplicationsTable,
 		AuditEventsTable,
 		AuthThrottlesTable,
+		BrandProfilesTable,
+		ChannelCredentialsTable,
 		EmailTokensTable,
 		EnvironmentsTable,
 		InvitationsTable,
@@ -438,14 +646,39 @@ var (
 		OauthStatesTable,
 		OperatorsTable,
 		OperatorSessionsTable,
+		PoliciesTable,
 		SessionsTable,
+		TemplatesTable,
 		TenantsTable,
 		UsersTable,
 		UserIdentitiesTable,
+		WorkflowsTable,
 	}
 )
 
 func init() {
+	BrandProfilesTable.Annotation = &entsql.Annotation{}
+	BrandProfilesTable.Annotation.Checks = map[string]string{
+		"brand_profiles_doc_object": "jsonb_typeof(doc) = 'object'",
+	}
+	ChannelCredentialsTable.Annotation = &entsql.Annotation{}
+	ChannelCredentialsTable.Annotation.Checks = map[string]string{
+		"channel_credentials_config_object": "jsonb_typeof(config) = 'object'",
+		"channel_credentials_env_needs_app": "environment_id IS NULL OR application_id IS NOT NULL",
+		"channel_credentials_secret_size":   "secret_ciphertext IS NULL OR octet_length(secret_ciphertext) <= 20000",
+	}
+	PoliciesTable.Annotation = &entsql.Annotation{
+		Table: "policies",
+	}
+	PoliciesTable.Annotation.Checks = map[string]string{
+		"policies_doc_object":            "jsonb_typeof(doc) = 'object'",
+		"policies_retention_range":       "payload_retention_days IS NULL OR payload_retention_days BETWEEN 1 AND 7",
+		"policies_retention_tenant_only": "application_id IS NULL OR payload_retention_days IS NULL",
+	}
+	TemplatesTable.Annotation = &entsql.Annotation{}
+	TemplatesTable.Annotation.Checks = map[string]string{
+		"templates_content_object": "jsonb_typeof(content) = 'object'",
+	}
 	TenantsTable.Annotation = &entsql.Annotation{}
 	TenantsTable.Annotation.Checks = map[string]string{
 		"tenants_dek_version_range":               "dek_version BETWEEN 1 AND 255",

@@ -60,6 +60,12 @@ type Store interface {
 	Invitations() InvitationStore
 	Operators() OperatorStore
 	OperatorSessions() OperatorSessionStore
+	Brands() SettingsStore
+	Policies() SettingsStore
+	Workflows() WorkflowStore
+	Actions() ActionStore
+	Templates() TemplateStore
+	Credentials() CredentialStore
 	// WithTx runs fn in one transaction. The Store passed to fn is bound to it,
 	// so a mutation and its audit event commit or roll back together. fn's
 	// error rolls back; a panic rolls back and re-panics.
@@ -666,4 +672,197 @@ type OperatorSessionStore interface {
 	Touch(ctx context.Context, id uuid.UUID, now time.Time, minInterval time.Duration) error
 	Revoke(ctx context.Context, operatorID, id uuid.UUID, now time.Time) error
 	RevokeAllForOperator(ctx context.Context, operatorID uuid.UUID, now time.Time) (int, error)
+}
+
+// ---- brand profiles and policies (Phase 2, docs/03) ----
+
+// Settings is a brand profile or policy row: the tenant's (ApplicationID
+// nil) or an application's override. Doc holds the fields as JSON; the typed
+// view and validation live in the service. PayloadRetentionDays is used by
+// policies only (tenant rows, 1–7; ADR-006) and is enforced by the database.
+type Settings struct {
+	ApplicationID        *uuid.UUID
+	Doc                  map[string]any
+	PayloadRetentionDays *int
+	UpdatedAt            time.Time
+}
+
+// SettingsStore persists one kind of settings document per scope.
+type SettingsStore interface {
+	// Get returns the row for the tenant (appID nil) or application; ErrNotFound if unset.
+	Get(ctx context.Context, tid TenantID, appID *uuid.UUID) (Settings, error)
+	// Put creates or replaces it. An unknown application is ErrNotFound.
+	Put(ctx context.Context, tid TenantID, appID *uuid.UUID, doc map[string]any, retentionDays *int) (Settings, error)
+	// Delete removes an application override; ErrNotFound if there is none.
+	Delete(ctx context.Context, tid TenantID, appID uuid.UUID) error
+}
+
+// ---- workflows, actions, templates (Phase 2, ADR-012) ----
+
+// WorkflowStatus is a workflow's lifecycle state.
+type WorkflowStatus string
+
+// Workflow statuses.
+const (
+	WorkflowDraft    WorkflowStatus = "draft"
+	WorkflowActive   WorkflowStatus = "active"
+	WorkflowArchived WorkflowStatus = "archived"
+)
+
+// Workflow is one notification of an application.
+type Workflow struct {
+	ID            uuid.UUID
+	TenantID      TenantID
+	ApplicationID uuid.UUID
+	Key           string
+	Name          string
+	Description   string
+	Status        WorkflowStatus
+	PayloadSchema map[string]any // nil: none
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+// NewWorkflow is the input to WorkflowStore.Create.
+type NewWorkflow struct {
+	ApplicationID uuid.UUID
+	Key           string
+	Name          string
+	Description   string
+	PayloadSchema map[string]any
+}
+
+// WorkflowPatch updates selected fields. ClearSchema removes the payload
+// schema; PayloadSchema (non-nil) replaces it.
+type WorkflowPatch struct {
+	Name          *string
+	Description   *string
+	Status        *WorkflowStatus
+	PayloadSchema map[string]any
+	ClearSchema   bool
+}
+
+// WorkflowStore persists workflows. Every method is scoped to tenant and
+// application.
+type WorkflowStore interface {
+	Create(ctx context.Context, tid TenantID, in NewWorkflow) (Workflow, error)
+	Get(ctx context.Context, tid TenantID, appID, id uuid.UUID) (Workflow, error)
+	List(ctx context.Context, tid TenantID, appID uuid.UUID, status *WorkflowStatus, p Page) ([]Workflow, error)
+	Update(ctx context.Context, tid TenantID, appID, id uuid.UUID, p WorkflowPatch) (Workflow, error)
+	Delete(ctx context.Context, tid TenantID, appID, id uuid.UUID) error
+	// Lock takes a row lock on the workflow until the transaction ends, so
+	// changes to its status, actions and templates serialize. ErrNotFound if
+	// it doesn't exist in this tenant and application.
+	Lock(ctx context.Context, tid TenantID, appID, id uuid.UUID) error
+}
+
+// Action is a workflow's channel.
+type Action struct {
+	ID         uuid.UUID
+	WorkflowID uuid.UUID
+	Channel    string
+	Enabled    bool
+	Locales    []string // locales with a template, sorted
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+// ActionStore persists actions. Callers check that the workflow belongs to
+// the application; the composite key ensures it belongs to the tenant.
+type ActionStore interface {
+	Create(ctx context.Context, tid TenantID, workflowID uuid.UUID, channel string, enabled bool) (Action, error)
+	Get(ctx context.Context, tid TenantID, workflowID, id uuid.UUID) (Action, error)
+	// ListForWorkflows returns the actions of the given workflows (with
+	// locales), keyed by workflow id, ordered by creation.
+	ListForWorkflows(ctx context.Context, tid TenantID, workflowIDs []uuid.UUID) (map[uuid.UUID][]Action, error)
+	SetEnabled(ctx context.Context, tid TenantID, workflowID, id uuid.UUID, enabled bool) (Action, error)
+	Delete(ctx context.Context, tid TenantID, workflowID, id uuid.UUID) error
+}
+
+// Template is an action's content for one locale.
+type Template struct {
+	ActionID  uuid.UUID
+	Locale    string
+	Content   map[string]any
+	UpdatedAt time.Time
+}
+
+// TemplateStore persists templates.
+type TemplateStore interface {
+	Get(ctx context.Context, tid TenantID, actionID uuid.UUID, locale string) (Template, error)
+	List(ctx context.Context, tid TenantID, actionID uuid.UUID) ([]Template, error)
+	// Put creates or replaces the template for a locale.
+	Put(ctx context.Context, tid TenantID, actionID uuid.UUID, locale string, content map[string]any) (Template, error)
+	Delete(ctx context.Context, tid TenantID, actionID uuid.UUID, locale string) error
+	// Count returns how many templates an action has.
+	Count(ctx context.Context, tid TenantID, actionID uuid.UUID) (int, error)
+}
+
+// ---- channel credentials (Phase 2, ADR-005, ADR-013) ----
+
+// Credential status values.
+const (
+	CredentialPending  = "pending"
+	CredentialVerified = "verified"
+	CredentialDisabled = "disabled"
+)
+
+// ChannelCredential is a stored credential. SecretCiphertext is opaque here:
+// only internal/credential encrypts and decrypts it, and it never leaves
+// that package.
+type ChannelCredential struct {
+	ID               uuid.UUID
+	TenantID         TenantID
+	ApplicationID    *uuid.UUID
+	EnvironmentID    *uuid.UUID
+	Channel          string
+	Provider         string
+	Mode             string // "platform" or "byo"
+	Name             string
+	Config           map[string]any
+	SecretCiphertext []byte
+	SecretHint       string
+	Status           string
+	VerifiedAt       *time.Time
+	RotatedAt        *time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+// NewChannelCredential is the input to CredentialStore.Create. The caller
+// generates ID first: it is bound into the secret's AAD.
+type NewChannelCredential struct {
+	ID               uuid.UUID
+	ApplicationID    *uuid.UUID
+	EnvironmentID    *uuid.UUID
+	Channel          string
+	Provider         string
+	Mode             string
+	Name             string
+	Config           map[string]any
+	SecretCiphertext []byte
+	SecretHint       string
+}
+
+// CredentialPatch changes metadata; nil means unchanged.
+type CredentialPatch struct {
+	Name   *string
+	Config map[string]any
+	Status *string
+}
+
+// CredentialStore persists channel credentials.
+type CredentialStore interface {
+	// Create inserts a credential. A second non-disabled credential for the
+	// same scope and channel is ErrConflict; an unknown scope is ErrNotFound.
+	Create(ctx context.Context, tid TenantID, in NewChannelCredential) (ChannelCredential, error)
+	Get(ctx context.Context, tid TenantID, id uuid.UUID) (ChannelCredential, error)
+	List(ctx context.Context, tid TenantID, channel *string, appID *uuid.UUID, p Page) ([]ChannelCredential, error)
+	Update(ctx context.Context, tid TenantID, id uuid.UUID, p CredentialPatch) (ChannelCredential, error)
+	// Rotate replaces the secret in one statement.
+	Rotate(ctx context.Context, tid TenantID, id uuid.UUID, ciphertext []byte, hint string, now time.Time) (ChannelCredential, error)
+	Delete(ctx context.Context, tid TenantID, id uuid.UUID) error
+	// ActiveForScope returns the non-disabled credentials for channel at the
+	// environment, application and tenant scopes of (appID, envID).
+	ActiveForScope(ctx context.Context, tid TenantID, channel string, appID, envID uuid.UUID) ([]ChannelCredential, error)
 }

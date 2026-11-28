@@ -16,12 +16,18 @@ type Tx struct {
 	config
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// Action is the client for interacting with the Action builders.
+	Action *ActionClient
 	// Application is the client for interacting with the Application builders.
 	Application *ApplicationClient
 	// AuditEvent is the client for interacting with the AuditEvent builders.
 	AuditEvent *AuditEventClient
 	// AuthThrottle is the client for interacting with the AuthThrottle builders.
 	AuthThrottle *AuthThrottleClient
+	// BrandProfile is the client for interacting with the BrandProfile builders.
+	BrandProfile *BrandProfileClient
+	// ChannelCredential is the client for interacting with the ChannelCredential builders.
+	ChannelCredential *ChannelCredentialClient
 	// EmailToken is the client for interacting with the EmailToken builders.
 	EmailToken *EmailTokenClient
 	// Environment is the client for interacting with the Environment builders.
@@ -36,14 +42,20 @@ type Tx struct {
 	Operator *OperatorClient
 	// OperatorSession is the client for interacting with the OperatorSession builders.
 	OperatorSession *OperatorSessionClient
+	// SendingPolicy is the client for interacting with the SendingPolicy builders.
+	SendingPolicy *SendingPolicyClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
+	// Template is the client for interacting with the Template builders.
+	Template *TemplateClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserIdentity is the client for interacting with the UserIdentity builders.
 	UserIdentity *UserIdentityClient
+	// Workflow is the client for interacting with the Workflow builders.
+	Workflow *WorkflowClient
 
 	// lazily loaded.
 	client     *Client
@@ -176,9 +188,12 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.APIKey = NewAPIKeyClient(tx.config)
+	tx.Action = NewActionClient(tx.config)
 	tx.Application = NewApplicationClient(tx.config)
 	tx.AuditEvent = NewAuditEventClient(tx.config)
 	tx.AuthThrottle = NewAuthThrottleClient(tx.config)
+	tx.BrandProfile = NewBrandProfileClient(tx.config)
+	tx.ChannelCredential = NewChannelCredentialClient(tx.config)
 	tx.EmailToken = NewEmailTokenClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.Invitation = NewInvitationClient(tx.config)
@@ -186,10 +201,13 @@ func (tx *Tx) init() {
 	tx.OAuthState = NewOAuthStateClient(tx.config)
 	tx.Operator = NewOperatorClient(tx.config)
 	tx.OperatorSession = NewOperatorSessionClient(tx.config)
+	tx.SendingPolicy = NewSendingPolicyClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
+	tx.Template = NewTemplateClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.UserIdentity = NewUserIdentityClient(tx.config)
+	tx.Workflow = NewWorkflowClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

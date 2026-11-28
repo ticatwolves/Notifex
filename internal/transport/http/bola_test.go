@@ -29,7 +29,17 @@ var sweepBodies = map[string]func(ids map[string]string) any{
 	},
 	"DELETE /invitations/:invitation_id": nil,
 	"GET /audit-events":                  nil,
-	"GET /applications":                  nil,
+	"GET /brand":                         nil,
+	"PUT /brand":                         func(map[string]string) any { return map[string]string{"display_name": "pwned"} },
+	"GET /policy":                        nil,
+	"PUT /policy":                        func(map[string]string) any { return map[string]any{"max_attempts": 1} },
+	"GET /applications/:application_id/brand":     nil,
+	"PUT /applications/:application_id/brand":     func(map[string]string) any { return map[string]string{"display_name": "pwned"} },
+	"DELETE /applications/:application_id/brand":  nil,
+	"GET /applications/:application_id/policy":    nil,
+	"PUT /applications/:application_id/policy":    func(map[string]string) any { return map[string]any{"max_attempts": 1} },
+	"DELETE /applications/:application_id/policy": nil,
+	"GET /applications":                           nil,
 	"POST /applications": func(map[string]string) any {
 		return map[string]string{"name": "x", "key": "sweep"}
 	},
@@ -46,19 +56,68 @@ var sweepBodies = map[string]func(ids map[string]string) any{
 		return map[string]any{"environment_id": ids["environment_id"], "name": "x"}
 	},
 	"POST /applications/:application_id/api-keys/:api_key_id/revoke": nil,
+	"GET /applications/:application_id/workflows":                    nil,
+	"POST /applications/:application_id/workflows": func(map[string]string) any {
+		return map[string]string{"key": "sweep", "name": "x"}
+	},
+	"GET /applications/:application_id/workflows/:workflow_id":    nil,
+	"PATCH /applications/:application_id/workflows/:workflow_id":  func(map[string]string) any { return map[string]string{"name": "pwned"} },
+	"DELETE /applications/:application_id/workflows/:workflow_id": nil,
+	"POST /applications/:application_id/workflows/:workflow_id/actions": func(map[string]string) any {
+		return map[string]string{"channel": "slack"}
+	},
+	"PATCH /applications/:application_id/workflows/:workflow_id/actions/:action_id": func(map[string]string) any {
+		return map[string]bool{"enabled": false}
+	},
+	"DELETE /applications/:application_id/workflows/:workflow_id/actions/:action_id":                   nil,
+	"GET /applications/:application_id/workflows/:workflow_id/actions/:action_id/templates":            nil,
+	"GET /applications/:application_id/workflows/:workflow_id/actions/:action_id/templates/:locale":    nil,
+	"DELETE /applications/:application_id/workflows/:workflow_id/actions/:action_id/templates/:locale": nil,
+	"PUT /applications/:application_id/workflows/:workflow_id/actions/:action_id/templates/:locale": func(map[string]string) any {
+		return map[string]string{"text": "pwned"}
+	},
+	"GET /channel-credentials":                   nil,
+	"GET /channel-credentials/resolve":           nil,
+	"GET /channel-credentials/:credential_id":    nil,
+	"DELETE /channel-credentials/:credential_id": nil,
+	"PATCH /channel-credentials/:credential_id":  func(map[string]string) any { return map[string]string{"name": "pwned"} },
+	"POST /channel-credentials/:credential_id/rotate": func(map[string]string) any {
+		return map[string]any{"secret": map[string]string{"bot_token": "xoxb-pwned-" + strings.Repeat("1", 10)}}
+	},
+	"POST /channel-credentials": func(ids map[string]string) any {
+		return map[string]string{"channel": "sms", "provider": "platform", "name": "x", "application_id": ids["application_id"]}
+	},
+	"POST /applications/:application_id/templates/preview": func(ids map[string]string) any {
+		return map[string]any{"channel": "sms", "template": map[string]string{"text": "x"}, "workflow_id": ids["workflow_id"]}
+	},
 	"POST /applications/:application_id/api-keys/:api_key_id/rotate": nil,
 }
 
 const tenantPrefix = "/v1/admin/tenants/:tenant_id"
 
+// bodyRefs are routes whose request body references other objects by id.
+var bodyRefs = map[string]bool{
+	"POST /applications/:application_id/api-keys":          true,
+	"POST /applications/:application_id/templates/preview": true,
+	"POST /channel-credentials":                            true,
+	"GET /channel-credentials/resolve":                     true,
+}
+
+// sweepQuery adds a query string (with A's ids) to routes that take ids there.
+var sweepQuery = map[string]func(ids map[string]string) string{
+	"GET /channel-credentials/resolve": func(ids map[string]string) string {
+		return "?channel=email&application_id=" + ids["application_id"] + "&environment_id=" + ids["environment_id"]
+	},
+}
+
 var routeParam = regexp.MustCompile(`:([a-z_]+)`)
 
 // TestBOLASweep: the owner of tenant B calls every tenant-scoped admin route
-// with tenant A's ids in three shapes, and every call must be 404:
-//  1. A's tenant path with A's object ids;
-//  2. B's tenant path with A's object ids;
-//  3. B's tenant and application path with A's deeper ids (env, key) and
-//     A's environment id in request bodies.
+// with tenant A's ids, and every call must be 404. For a route with n path
+// ids it tries n shapes: the first k ids (k = 0…n-1) are B's own and the
+// rest are A's, so a foreign id is caught at every depth (tenant, app,
+// workflow, action, …). Request bodies always carry A's ids, and routes
+// whose body references ids are also called with an all-B path.
 //
 // Afterwards tenant A must be unchanged.
 func TestBOLASweep(t *testing.T) {
@@ -76,9 +135,19 @@ func TestBOLASweep(t *testing.T) {
 		mAddr, mTok := e.account()
 		member := e.join(owner, tid, mAddr, mTok, "viewer")
 		inv := e.post(owner, base+"/invitations", map[string]string{"email": newEmail(), "role": "viewer"}, 201)
+		wf := e.post(owner, appPath+"/workflows", map[string]string{"key": "order", "name": "Order"}, 201)
+		wfPath := appPath + "/workflows/" + wf["id"].(string)
+		act := e.post(owner, wfPath+"/actions", map[string]any{"channel": "sms"}, 201)
+		rec := e.do(call{method: "PUT", path: wfPath + "/actions/" + act["id"].(string) + "/templates/en", token: owner, body: map[string]string{"text": "Order shipped"}})
+		require.Equal(t, 200, rec.Code, rec.Body.String())
+		cred := e.post(owner, base+"/channel-credentials", map[string]any{
+			"channel": "slack", "provider": "bot_token", "name": "Bot", "secret": map[string]string{"bot_token": "xoxb-original-" + strings.Repeat("2", 10) + "abcd"},
+		}, 201)["credential"].(map[string]any)
 		return owner, map[string]string{
-			"tenant_id": tid, "application_id": app["id"].(string), "environment_id": env["id"].(string),
+			"credential_id": cred["id"].(string),
+			"tenant_id":     tid, "application_id": app["id"].(string), "environment_id": env["id"].(string),
 			"api_key_id": key["api_key"].(map[string]any)["id"].(string), "user_id": member, "invitation_id": inv["id"].(string),
+			"workflow_id": wf["id"].(string), "action_id": act["id"].(string), "locale": "en",
 		}
 	}
 	ownerA, a := world()
@@ -103,32 +172,43 @@ func TestBOLASweep(t *testing.T) {
 		if !assert.True(t, known, "route %q has no BOLA sweep entry: add one to sweepBodies", key) {
 			continue
 		}
-		params := routeParam.FindAllStringSubmatch(r.Path, -1)
-		shapes := map[string]func(string) string{
-			"A's tenant": func(p string) string { return a[p] },
+		// Owned ids, in path order; locale is a name, not an owned object.
+		var owned []string
+		for _, m := range routeParam.FindAllStringSubmatch(r.Path, -1) {
+			if m[1] != "locale" {
+				owned = append(owned, m[1])
+			}
 		}
-		if len(params) > 1 {
-			shapes["B's tenant, A's objects"] = func(p string) string {
-				if p == "tenant_id" {
+		shapes := map[string]func(string) string{}
+		for k := 0; k < len(owned); k++ {
+			mine := map[string]bool{}
+			for _, p := range owned[:k] {
+				mine[p] = true
+			}
+			name := "all A"
+			if k > 0 {
+				name = "B's " + strings.Join(owned[:k], ", ") + "; A's rest"
+			}
+			shapes[name] = func(p string) string {
+				if mine[p] {
 					return b[p]
 				}
 				return a[p]
 			}
 		}
-		if len(params) > 2 || strings.HasSuffix(key, "/api-keys") && r.Method == http.MethodPost {
-			shapes["B's tenant and app, A's deeper ids"] = func(p string) string {
-				if p == "tenant_id" || p == "application_id" {
-					return b[p]
-				}
-				return a[p]
-			}
+		if bodyRefs[key] {
+			shapes["all B path, A's ids in the body"] = func(p string) string { return b[p] }
 		}
 		for name, pick := range shapes {
 			var body any
 			if mkBody != nil {
 				body = mkBody(a) // bodies reference A's objects too
 			}
-			rec := e.do(call{method: r.Method, path: fill(r.Path, pick), token: attacker, body: body})
+			path := fill(r.Path, pick)
+			if q := sweepQuery[key]; q != nil {
+				path += q(a)
+			}
+			rec := e.do(call{method: r.Method, path: path, token: attacker, body: body})
 			assert.Equal(t, http.StatusNotFound, rec.Code, "%s [%s] -> %s", key, name, rec.Body.String())
 			calls++
 		}
@@ -168,6 +248,32 @@ func TestBOLASweep(t *testing.T) {
 	rec = e.do(call{method: "GET", path: base + "/invitations", token: ownerA})
 	assert.Contains(t, rec.Body.String(), a["invitation_id"])
 	assert.NotContains(t, rec.Body.String(), "sweep-")
+
+	// A's credential is untouched (name, secret hint, enabled).
+	rec = e.do(call{method: "GET", path: base + "/channel-credentials/" + a["credential_id"], token: ownerA})
+	require.Equal(t, 200, rec.Code)
+	assert.Contains(t, rec.Body.String(), `"name":"Bot"`)
+	assert.Contains(t, rec.Body.String(), `"secret_hint":"abcd"`)
+	assert.Contains(t, rec.Body.String(), `"status":"pending"`)
+	assert.NotContains(t, rec.Body.String(), "xoxb-", "secrets never come back")
+
+	// A's workflow, action and template are untouched.
+	wfPath := appPath + "/workflows/" + a["workflow_id"]
+	rec = e.do(call{method: "GET", path: wfPath, token: ownerA})
+	require.Equal(t, 200, rec.Code)
+	assert.Contains(t, rec.Body.String(), `"name":"Order"`)
+	assert.Contains(t, rec.Body.String(), `"enabled":true`)
+	assert.NotContains(t, rec.Body.String(), `"channel":"slack"`)
+	rec = e.do(call{method: "GET", path: wfPath + "/actions/" + a["action_id"] + "/templates/en", token: ownerA})
+	require.Equal(t, 200, rec.Code)
+	assert.Contains(t, rec.Body.String(), `"text":"Order shipped"`)
+
+	// A's brand and policy were never written (defaults, updated_at null).
+	rec = e.do(call{method: "GET", path: base + "/brand", token: ownerA})
+	assert.JSONEq(t, `{"default_locale":"en","updated_at":null}`, rec.Body.String())
+	rec = e.do(call{method: "GET", path: appPath + "/policy", token: ownerA})
+	assert.Contains(t, rec.Body.String(), `"override":null`)
+	assert.Contains(t, rec.Body.String(), `"max_attempts":5`)
 
 	// A's audit trail shows nothing done by the attacker.
 	rec = e.do(call{method: "GET", path: base + "/audit-events?limit=200", token: ownerA})

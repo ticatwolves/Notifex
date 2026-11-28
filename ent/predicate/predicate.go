@@ -9,6 +9,9 @@ import (
 // APIKey is the predicate function for apikey builders.
 type APIKey func(*sql.Selector)
 
+// Action is the predicate function for action builders.
+type Action func(*sql.Selector)
+
 // Application is the predicate function for application builders.
 type Application func(*sql.Selector)
 
@@ -17,6 +20,12 @@ type AuditEvent func(*sql.Selector)
 
 // AuthThrottle is the predicate function for auththrottle builders.
 type AuthThrottle func(*sql.Selector)
+
+// BrandProfile is the predicate function for brandprofile builders.
+type BrandProfile func(*sql.Selector)
+
+// ChannelCredential is the predicate function for channelcredential builders.
+type ChannelCredential func(*sql.Selector)
 
 // EmailToken is the predicate function for emailtoken builders.
 type EmailToken func(*sql.Selector)
@@ -39,8 +48,14 @@ type Operator func(*sql.Selector)
 // OperatorSession is the predicate function for operatorsession builders.
 type OperatorSession func(*sql.Selector)
 
+// SendingPolicy is the predicate function for sendingpolicy builders.
+type SendingPolicy func(*sql.Selector)
+
 // Session is the predicate function for session builders.
 type Session func(*sql.Selector)
+
+// Template is the predicate function for template builders.
+type Template func(*sql.Selector)
 
 // Tenant is the predicate function for tenant builders.
 type Tenant func(*sql.Selector)
@@ -50,3 +65,6 @@ type User func(*sql.Selector)
 
 // UserIdentity is the predicate function for useridentity builders.
 type UserIdentity func(*sql.Selector)
+
+// Workflow is the predicate function for workflow builders.
+type Workflow func(*sql.Selector)

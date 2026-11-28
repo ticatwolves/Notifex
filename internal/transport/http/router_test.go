@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -214,4 +215,14 @@ func TestOpsHandler(t *testing.T) {
 	rec = httptest.NewRecorder()
 	ops.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+// TestDefaultLimitsComplete: every limiter has a default. A nil limiter
+// panics on the first request that reaches it (regression: Preview).
+func TestDefaultLimitsComplete(t *testing.T) {
+	t.Parallel()
+	v := reflect.ValueOf(DefaultLimits())
+	for i := range v.NumField() {
+		assert.False(t, v.Field(i).IsNil(), "DefaultLimits().%s is nil", v.Type().Field(i).Name)
+	}
 }

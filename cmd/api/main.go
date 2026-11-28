@@ -12,15 +12,18 @@ import (
 
 	"github.com/ticatwolves/notifex/internal/app"
 	"github.com/ticatwolves/notifex/internal/auth"
+	"github.com/ticatwolves/notifex/internal/credential"
 	"github.com/ticatwolves/notifex/internal/crypto"
 	"github.com/ticatwolves/notifex/internal/db"
 	"github.com/ticatwolves/notifex/internal/lifecycle"
 	"github.com/ticatwolves/notifex/internal/mail"
 	"github.com/ticatwolves/notifex/internal/operator"
+	"github.com/ticatwolves/notifex/internal/store"
 	"github.com/ticatwolves/notifex/internal/store/entstore"
 	"github.com/ticatwolves/notifex/internal/tenant"
 	grpctransport "github.com/ticatwolves/notifex/internal/transport/grpc"
 	httptransport "github.com/ticatwolves/notifex/internal/transport/http"
+	"github.com/ticatwolves/notifex/internal/workflow"
 )
 
 func main() { os.Exit(app.Main("api", build)) }
@@ -59,6 +62,10 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 	}
 	tenants := tenant.NewService(st, keys, mailer, rt.Logger, rt.Config.ConsoleURL, tenant.DefaultPolicy)
 	tenants.KeyHasher = hasher
+	// One field cipher per process: it caches unwrapped tenant DEKs, and a
+	// crypto-shred drops the tenant's key from it at once.
+	cipher := crypto.NewCipher(keys, st.Tenants(), crypto.CipherOptions{Metrics: rt.Metrics})
+	tenants.OnShred = func(id store.TenantID) { cipher.Forget(id.UUID()) }
 
 	rest := lifecycle.NewHTTPServer("http", rt.Config.HTTPAddr, httptransport.NewRouter(httptransport.Deps{
 		Service:        rt.Config.Service,
@@ -70,6 +77,8 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 		Sessions:       auth.NewSessionAuthenticator(st, rt.Logger, auth.DefaultSessionPolicy),
 		OAuth:          oauth,
 		Tenants:        tenants,
+		Workflows:      workflow.NewService(st, tenants, rt.Logger),
+		Credentials:    credential.NewService(st, cipher),
 		Operators:      operator.NewService(st, keys, pw, rt.Logger, operator.DefaultPolicy),
 		TrustedProxies: rt.Config.TrustedProxies,
 	}), rt.Logger)
