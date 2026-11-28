@@ -22,12 +22,14 @@ import (
 
 	"github.com/ticatwolves/notifex/internal/auth"
 	"github.com/ticatwolves/notifex/internal/config"
+	"github.com/ticatwolves/notifex/internal/credential"
 	"github.com/ticatwolves/notifex/internal/crypto"
 	"github.com/ticatwolves/notifex/internal/health"
 	"github.com/ticatwolves/notifex/internal/mail"
 	"github.com/ticatwolves/notifex/internal/observability"
 	"github.com/ticatwolves/notifex/internal/operator"
 	"github.com/ticatwolves/notifex/internal/ratelimit"
+	"github.com/ticatwolves/notifex/internal/store"
 	"github.com/ticatwolves/notifex/internal/store/entstore"
 	"github.com/ticatwolves/notifex/internal/store/storetest"
 	"github.com/ticatwolves/notifex/internal/tenant"
@@ -82,6 +84,9 @@ func newConsoleEnvWith(t *testing.T, limits Limits, trusted []string, mk func(*a
 	require.NoError(t, err)
 	deps.Tenants = ts
 	deps.Workflows = workflow.NewService(st, ts, log)
+	cipher := crypto.NewCipher(kp, st.Tenants(), crypto.CipherOptions{})
+	ts.OnShred = func(id store.TenantID) { cipher.Forget(id.UUID()) }
+	deps.Credentials = credential.NewService(st, cipher)
 	ops := operator.NewService(st, kp, auth.NewPasswordHasher(4), log, operator.DefaultPolicy)
 	deps.Operators = ops
 	h := NewRouter(deps)

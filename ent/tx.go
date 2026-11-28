@@ -26,6 +26,8 @@ type Tx struct {
 	AuthThrottle *AuthThrottleClient
 	// BrandProfile is the client for interacting with the BrandProfile builders.
 	BrandProfile *BrandProfileClient
+	// ChannelCredential is the client for interacting with the ChannelCredential builders.
+	ChannelCredential *ChannelCredentialClient
 	// EmailToken is the client for interacting with the EmailToken builders.
 	EmailToken *EmailTokenClient
 	// Environment is the client for interacting with the Environment builders.
@@ -191,6 +193,7 @@ func (tx *Tx) init() {
 	tx.AuditEvent = NewAuditEventClient(tx.config)
 	tx.AuthThrottle = NewAuthThrottleClient(tx.config)
 	tx.BrandProfile = NewBrandProfileClient(tx.config)
+	tx.ChannelCredential = NewChannelCredentialClient(tx.config)
 	tx.EmailToken = NewEmailTokenClient(tx.config)
 	tx.Environment = NewEnvironmentClient(tx.config)
 	tx.Invitation = NewInvitationClient(tx.config)

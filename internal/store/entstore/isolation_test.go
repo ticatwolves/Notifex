@@ -38,6 +38,12 @@ func TestTenantIsolation(t *testing.T) {
 	_, err = f.s.Templates().Put(ctx, a.tenant.ID, actA.ID, "en", map[string]any{"subject": "A"})
 	require.NoError(t, err)
 
+	credA, err := f.s.Credentials().Create(ctx, a.tenant.ID, store.NewChannelCredential{
+		ID: uuid.Must(uuid.NewV7()), ApplicationID: &a.app.ID, Channel: "email", Provider: "sendgrid", Mode: "byo",
+		Name: "A", Config: map[string]any{}, SecretCiphertext: []byte("A-secret"),
+	})
+	require.NoError(t, err)
+
 	notFound := []struct {
 		name string
 		call func() error
@@ -105,6 +111,26 @@ func TestTenantIsolation(t *testing.T) {
 			return err
 		}},
 		{"templates.delete", func() error { return f.s.Templates().Delete(ctx, B, actA.ID, "en") }},
+		{"credentials.create under A's app", func() error {
+			_, err := f.s.Credentials().Create(ctx, B, store.NewChannelCredential{ID: uuid.Must(uuid.NewV7()), ApplicationID: &a.app.ID,
+				Channel: "sms", Provider: "twilio", Mode: "byo", Name: "x", Config: map[string]any{}})
+			return err
+		}},
+		{"credentials.create mixing B's app with A's env", func() error {
+			_, err := f.s.Credentials().Create(ctx, B, store.NewChannelCredential{ID: uuid.Must(uuid.NewV7()), ApplicationID: &b.app.ID,
+				EnvironmentID: &a.env.ID, Channel: "sms", Provider: "twilio", Mode: "byo", Name: "x", Config: map[string]any{}})
+			return err
+		}},
+		{"credentials.get", func() error { _, err := f.s.Credentials().Get(ctx, B, credA.ID); return err }},
+		{"credentials.update", func() error {
+			_, err := f.s.Credentials().Update(ctx, B, credA.ID, store.CredentialPatch{Name: ptr("pwned")})
+			return err
+		}},
+		{"credentials.rotate", func() error {
+			_, err := f.s.Credentials().Rotate(ctx, B, credA.ID, []byte("B"), "B", time.Now())
+			return err
+		}},
+		{"credentials.delete", func() error { return f.s.Credentials().Delete(ctx, B, credA.ID) }},
 	}
 	for _, tt := range notFound {
 		t.Run(tt.name, func(t *testing.T) {
@@ -139,6 +165,14 @@ func TestTenantIsolation(t *testing.T) {
 		}},
 		{"templates.list of A's action", func() (int, error) { l, err := f.s.Templates().List(ctx, B, actA.ID); return len(l), err }},
 		{"templates.count of A's action", func() (int, error) { return f.s.Templates().Count(ctx, B, actA.ID) }},
+		{"credentials.list", func() (int, error) {
+			l, err := f.s.Credentials().List(ctx, B, nil, nil, store.Page{})
+			return countTenant(l, a.tenant.ID, func(x store.ChannelCredential) store.TenantID { return x.TenantID }), err
+		}},
+		{"credentials.active_for_scope of A's app", func() (int, error) {
+			l, err := f.s.Credentials().ActiveForScope(ctx, B, "email", a.app.ID, a.env.ID)
+			return len(l), err
+		}},
 		{"audit.list", func() (int, error) {
 			l, err := f.s.Audit().List(ctx, B, store.Page{})
 			n := 0
@@ -174,6 +208,10 @@ func TestTenantIsolation(t *testing.T) {
 	assert.Equal(t, store.RoleAdmin, m.Role)
 	_, err = f.s.Environments().Get(ctx, a.tenant.ID, a.env.ID)
 	require.NoError(t, err)
+	gotCred, err := f.s.Credentials().Get(ctx, a.tenant.ID, credA.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "A", gotCred.Name)
+	assert.Equal(t, []byte("A-secret"), gotCred.SecretCiphertext)
 	gotWF, err := f.s.Workflows().Get(ctx, a.tenant.ID, a.app.ID, wfA.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "A", gotWF.Name)

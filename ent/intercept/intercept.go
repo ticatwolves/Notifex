@@ -14,6 +14,7 @@ import (
 	"github.com/ticatwolves/notifex/ent/auditevent"
 	"github.com/ticatwolves/notifex/ent/auththrottle"
 	"github.com/ticatwolves/notifex/ent/brandprofile"
+	"github.com/ticatwolves/notifex/ent/channelcredential"
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
 	"github.com/ticatwolves/notifex/ent/invitation"
@@ -247,6 +248,33 @@ func (f TraverseBrandProfile) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.BrandProfileQuery", q)
+}
+
+// The ChannelCredentialFunc type is an adapter to allow the use of ordinary function as a Querier.
+type ChannelCredentialFunc func(context.Context, *ent.ChannelCredentialQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f ChannelCredentialFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.ChannelCredentialQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.ChannelCredentialQuery", q)
+}
+
+// The TraverseChannelCredential type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseChannelCredential func(context.Context, *ent.ChannelCredentialQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseChannelCredential) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseChannelCredential) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.ChannelCredentialQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.ChannelCredentialQuery", q)
 }
 
 // The EmailTokenFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -642,6 +670,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.AuthThrottleQuery, predicate.AuthThrottle, auththrottle.OrderOption]{typ: ent.TypeAuthThrottle, tq: q}, nil
 	case *ent.BrandProfileQuery:
 		return &query[*ent.BrandProfileQuery, predicate.BrandProfile, brandprofile.OrderOption]{typ: ent.TypeBrandProfile, tq: q}, nil
+	case *ent.ChannelCredentialQuery:
+		return &query[*ent.ChannelCredentialQuery, predicate.ChannelCredential, channelcredential.OrderOption]{typ: ent.TypeChannelCredential, tq: q}, nil
 	case *ent.EmailTokenQuery:
 		return &query[*ent.EmailTokenQuery, predicate.EmailToken, emailtoken.OrderOption]{typ: ent.TypeEmailToken, tq: q}, nil
 	case *ent.EnvironmentQuery:

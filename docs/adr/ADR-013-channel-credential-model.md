@@ -86,3 +86,13 @@ Developers and above can list and read credential metadata (`credentials.view_me
 - **Storing static AWS keys for BYO SES.** Long-lived keys in our database are a breach multiplier. Rejected in favour of an assumed role.
 - **Synchronous verification on save.** Vendor latency and failures on the API path, and SMTP SSRF. Rejected (§6).
 - **Soft delete.** Keeps secrets around after the tenant asked to remove them. Rejected; disable covers the reversible case.
+
+## Amendment (2026-11-28, Phase 2 slice 5): implementation details
+- **Uniqueness uses three partial unique indexes**, one per scope shape (tenant, application, environment), each `WHERE status <> 'disabled'`. That is equivalent to the `NULLS NOT DISTINCT` index in §1, which ent's index annotations can't express. 8 concurrent creates for one scope produce exactly one credential (tested).
+- **Credentials block deleting their application or environment** (`RESTRICT`, `409`) instead of disappearing with it, so every credential removal is an explicit, audited delete.
+- **Secret hint:** the last 4 characters only when the secret is at least 16 characters long. Short secrets (SMTP passwords) get no hint.
+- **The AAD is (tenant, credential id, `secret_ciphertext`).** The id is generated before encryption, so the table has no id default. A ciphertext copied to another row fails to decrypt (tested), and crypto-shredding the tenant makes every secret unreadable (tested).
+- **One field cipher per API process.** It caches unwrapped DEKs (ADR-006), and tenant deletion calls `Forget` on it through `tenant.Service.OnShred`. `credential.Service.Secret` decrypts for the dispatcher (Phase 3); no route calls it.
+- **The ciphertext column is marked `Sensitive()`** in ent, so ent's printers never show it. Request bodies are never logged (the access log records route templates only), and the secret map is cleared after use in the handlers.
+- **Checked by tests:** a lifecycle test over HTTP searches every response body, the server log and the audit trail for each secret used (SendGrid key, rotated key, Twilio token, generated signing secret) and finds none. Config emails are masked in audit records. The BOLA sweep covers ids in the query string (`resolve`) and in the body (`create`).
+

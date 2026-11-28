@@ -12,6 +12,7 @@ import (
 	"github.com/ticatwolves/notifex/ent/auditevent"
 	"github.com/ticatwolves/notifex/ent/auththrottle"
 	"github.com/ticatwolves/notifex/ent/brandprofile"
+	"github.com/ticatwolves/notifex/ent/channelcredential"
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
 	"github.com/ticatwolves/notifex/ent/invitation"
@@ -312,6 +313,67 @@ func init() {
 	brandprofileDescID := brandprofileMixinFields0[0].Descriptor()
 	// brandprofile.DefaultID holds the default value on creation for the id field.
 	brandprofile.DefaultID = brandprofileDescID.Default.(func() uuid.UUID)
+	channelcredentialMixin := schema.ChannelCredential{}.Mixin()
+	channelcredentialMixinHooks0 := channelcredentialMixin[0].Hooks()
+	channelcredential.Hooks[0] = channelcredentialMixinHooks0[0]
+	channelcredentialMixinInters0 := channelcredentialMixin[0].Interceptors()
+	channelcredential.Interceptors[0] = channelcredentialMixinInters0[0]
+	channelcredentialMixinFields1 := channelcredentialMixin[1].Fields()
+	_ = channelcredentialMixinFields1
+	channelcredentialFields := schema.ChannelCredential{}.Fields()
+	_ = channelcredentialFields
+	// channelcredentialDescCreatedAt is the schema descriptor for created_at field.
+	channelcredentialDescCreatedAt := channelcredentialMixinFields1[0].Descriptor()
+	// channelcredential.DefaultCreatedAt holds the default value on creation for the created_at field.
+	channelcredential.DefaultCreatedAt = channelcredentialDescCreatedAt.Default.(func() time.Time)
+	// channelcredentialDescUpdatedAt is the schema descriptor for updated_at field.
+	channelcredentialDescUpdatedAt := channelcredentialMixinFields1[1].Descriptor()
+	// channelcredential.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	channelcredential.DefaultUpdatedAt = channelcredentialDescUpdatedAt.Default.(func() time.Time)
+	// channelcredential.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	channelcredential.UpdateDefaultUpdatedAt = channelcredentialDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// channelcredentialDescProvider is the schema descriptor for provider field.
+	channelcredentialDescProvider := channelcredentialFields[4].Descriptor()
+	// channelcredential.ProviderValidator is a validator for the "provider" field. It is called by the builders before save.
+	channelcredential.ProviderValidator = func() func(string) error {
+		validators := channelcredentialDescProvider.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(provider string) error {
+			for _, fn := range fns {
+				if err := fn(provider); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// channelcredentialDescName is the schema descriptor for name field.
+	channelcredentialDescName := channelcredentialFields[6].Descriptor()
+	// channelcredential.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	channelcredential.NameValidator = func() func(string) error {
+		validators := channelcredentialDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// channelcredentialDescSecretHint is the schema descriptor for secret_hint field.
+	channelcredentialDescSecretHint := channelcredentialFields[9].Descriptor()
+	// channelcredential.DefaultSecretHint holds the default value on creation for the secret_hint field.
+	channelcredential.DefaultSecretHint = channelcredentialDescSecretHint.Default.(string)
+	// channelcredential.SecretHintValidator is a validator for the "secret_hint" field. It is called by the builders before save.
+	channelcredential.SecretHintValidator = channelcredentialDescSecretHint.Validators[0].(func(string) error)
 	emailtokenMixin := schema.EmailToken{}.Mixin()
 	emailtokenMixinFields0 := emailtokenMixin[0].Fields()
 	_ = emailtokenMixinFields0

@@ -172,6 +172,62 @@ var (
 			},
 		},
 	}
+	// ChannelCredentialsColumns holds the columns for the "channel_credentials" table.
+	ChannelCredentialsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "application_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "environment_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"email", "sms", "push", "slack", "outlook", "whatsapp", "webhook"}},
+		{Name: "provider", Type: field.TypeString, Size: 32},
+		{Name: "mode", Type: field.TypeEnum, Enums: []string{"platform", "byo"}},
+		{Name: "name", Type: field.TypeString, Size: 200},
+		{Name: "config", Type: field.TypeJSON},
+		{Name: "secret_ciphertext", Type: field.TypeBytes, Nullable: true},
+		{Name: "secret_hint", Type: field.TypeString, Size: 8, Default: ""},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "verified", "disabled"}, Default: "pending"},
+		{Name: "verified_at", Type: field.TypeTime, Nullable: true},
+		{Name: "rotated_at", Type: field.TypeTime, Nullable: true},
+	}
+	// ChannelCredentialsTable holds the schema information for the "channel_credentials" table.
+	ChannelCredentialsTable = &schema.Table{
+		Name:       "channel_credentials",
+		Columns:    ChannelCredentialsColumns,
+		PrimaryKey: []*schema.Column{ChannelCredentialsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "channel_credentials_tenant_scope_key",
+				Unique:  true,
+				Columns: []*schema.Column{ChannelCredentialsColumns[1], ChannelCredentialsColumns[6]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "application_id IS NULL AND status <> 'disabled'",
+				},
+			},
+			{
+				Name:    "channel_credentials_app_scope_key",
+				Unique:  true,
+				Columns: []*schema.Column{ChannelCredentialsColumns[1], ChannelCredentialsColumns[4], ChannelCredentialsColumns[6]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "application_id IS NOT NULL AND environment_id IS NULL AND status <> 'disabled'",
+				},
+			},
+			{
+				Name:    "channel_credentials_env_scope_key",
+				Unique:  true,
+				Columns: []*schema.Column{ChannelCredentialsColumns[1], ChannelCredentialsColumns[4], ChannelCredentialsColumns[5], ChannelCredentialsColumns[6]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "environment_id IS NOT NULL AND status <> 'disabled'",
+				},
+			},
+			{
+				Name:    "channelcredential_tenant_id_id",
+				Unique:  true,
+				Columns: []*schema.Column{ChannelCredentialsColumns[1], ChannelCredentialsColumns[0]},
+			},
+		},
+	}
 	// EmailTokensColumns holds the columns for the "email_tokens" table.
 	EmailTokensColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -582,6 +638,7 @@ var (
 		AuditEventsTable,
 		AuthThrottlesTable,
 		BrandProfilesTable,
+		ChannelCredentialsTable,
 		EmailTokensTable,
 		EnvironmentsTable,
 		InvitationsTable,
@@ -603,6 +660,12 @@ func init() {
 	BrandProfilesTable.Annotation = &entsql.Annotation{}
 	BrandProfilesTable.Annotation.Checks = map[string]string{
 		"brand_profiles_doc_object": "jsonb_typeof(doc) = 'object'",
+	}
+	ChannelCredentialsTable.Annotation = &entsql.Annotation{}
+	ChannelCredentialsTable.Annotation.Checks = map[string]string{
+		"channel_credentials_config_object": "jsonb_typeof(config) = 'object'",
+		"channel_credentials_env_needs_app": "environment_id IS NULL OR application_id IS NOT NULL",
+		"channel_credentials_secret_size":   "secret_ciphertext IS NULL OR octet_length(secret_ciphertext) <= 20000",
 	}
 	PoliciesTable.Annotation = &entsql.Annotation{
 		Table: "policies",

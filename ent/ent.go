@@ -18,6 +18,7 @@ import (
 	"github.com/ticatwolves/notifex/ent/auditevent"
 	"github.com/ticatwolves/notifex/ent/auththrottle"
 	"github.com/ticatwolves/notifex/ent/brandprofile"
+	"github.com/ticatwolves/notifex/ent/channelcredential"
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
 	"github.com/ticatwolves/notifex/ent/invitation"
@@ -92,26 +93,27 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			apikey.Table:          apikey.ValidColumn,
-			action.Table:          action.ValidColumn,
-			application.Table:     application.ValidColumn,
-			auditevent.Table:      auditevent.ValidColumn,
-			auththrottle.Table:    auththrottle.ValidColumn,
-			brandprofile.Table:    brandprofile.ValidColumn,
-			emailtoken.Table:      emailtoken.ValidColumn,
-			environment.Table:     environment.ValidColumn,
-			invitation.Table:      invitation.ValidColumn,
-			membership.Table:      membership.ValidColumn,
-			oauthstate.Table:      oauthstate.ValidColumn,
-			operator.Table:        operator.ValidColumn,
-			operatorsession.Table: operatorsession.ValidColumn,
-			sendingpolicy.Table:   sendingpolicy.ValidColumn,
-			session.Table:         session.ValidColumn,
-			template.Table:        template.ValidColumn,
-			tenant.Table:          tenant.ValidColumn,
-			user.Table:            user.ValidColumn,
-			useridentity.Table:    useridentity.ValidColumn,
-			workflow.Table:        workflow.ValidColumn,
+			apikey.Table:            apikey.ValidColumn,
+			action.Table:            action.ValidColumn,
+			application.Table:       application.ValidColumn,
+			auditevent.Table:        auditevent.ValidColumn,
+			auththrottle.Table:      auththrottle.ValidColumn,
+			brandprofile.Table:      brandprofile.ValidColumn,
+			channelcredential.Table: channelcredential.ValidColumn,
+			emailtoken.Table:        emailtoken.ValidColumn,
+			environment.Table:       environment.ValidColumn,
+			invitation.Table:        invitation.ValidColumn,
+			membership.Table:        membership.ValidColumn,
+			oauthstate.Table:        oauthstate.ValidColumn,
+			operator.Table:          operator.ValidColumn,
+			operatorsession.Table:   operatorsession.ValidColumn,
+			sendingpolicy.Table:     sendingpolicy.ValidColumn,
+			session.Table:           session.ValidColumn,
+			template.Table:          template.ValidColumn,
+			tenant.Table:            tenant.ValidColumn,
+			user.Table:              user.ValidColumn,
+			useridentity.Table:      useridentity.ValidColumn,
+			workflow.Table:          workflow.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

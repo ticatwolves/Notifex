@@ -24,6 +24,9 @@ type AuthThrottle func(*sql.Selector)
 // BrandProfile is the predicate function for brandprofile builders.
 type BrandProfile func(*sql.Selector)
 
+// ChannelCredential is the predicate function for channelcredential builders.
+type ChannelCredential func(*sql.Selector)
+
 // EmailToken is the predicate function for emailtoken builders.
 type EmailToken func(*sql.Selector)
 

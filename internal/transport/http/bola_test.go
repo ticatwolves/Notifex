@@ -76,6 +76,17 @@ var sweepBodies = map[string]func(ids map[string]string) any{
 	"PUT /applications/:application_id/workflows/:workflow_id/actions/:action_id/templates/:locale": func(map[string]string) any {
 		return map[string]string{"text": "pwned"}
 	},
+	"GET /channel-credentials":                   nil,
+	"GET /channel-credentials/resolve":           nil,
+	"GET /channel-credentials/:credential_id":    nil,
+	"DELETE /channel-credentials/:credential_id": nil,
+	"PATCH /channel-credentials/:credential_id":  func(map[string]string) any { return map[string]string{"name": "pwned"} },
+	"POST /channel-credentials/:credential_id/rotate": func(map[string]string) any {
+		return map[string]any{"secret": map[string]string{"bot_token": "xoxb-pwned-" + strings.Repeat("1", 10)}}
+	},
+	"POST /channel-credentials": func(ids map[string]string) any {
+		return map[string]string{"channel": "sms", "provider": "platform", "name": "x", "application_id": ids["application_id"]}
+	},
 	"POST /applications/:application_id/templates/preview": func(ids map[string]string) any {
 		return map[string]any{"channel": "sms", "template": map[string]string{"text": "x"}, "workflow_id": ids["workflow_id"]}
 	},
@@ -88,6 +99,15 @@ const tenantPrefix = "/v1/admin/tenants/:tenant_id"
 var bodyRefs = map[string]bool{
 	"POST /applications/:application_id/api-keys":          true,
 	"POST /applications/:application_id/templates/preview": true,
+	"POST /channel-credentials":                            true,
+	"GET /channel-credentials/resolve":                     true,
+}
+
+// sweepQuery adds a query string (with A's ids) to routes that take ids there.
+var sweepQuery = map[string]func(ids map[string]string) string{
+	"GET /channel-credentials/resolve": func(ids map[string]string) string {
+		return "?channel=email&application_id=" + ids["application_id"] + "&environment_id=" + ids["environment_id"]
+	},
 }
 
 var routeParam = regexp.MustCompile(`:([a-z_]+)`)
@@ -120,8 +140,12 @@ func TestBOLASweep(t *testing.T) {
 		act := e.post(owner, wfPath+"/actions", map[string]any{"channel": "sms"}, 201)
 		rec := e.do(call{method: "PUT", path: wfPath + "/actions/" + act["id"].(string) + "/templates/en", token: owner, body: map[string]string{"text": "Order shipped"}})
 		require.Equal(t, 200, rec.Code, rec.Body.String())
+		cred := e.post(owner, base+"/channel-credentials", map[string]any{
+			"channel": "slack", "provider": "bot_token", "name": "Bot", "secret": map[string]string{"bot_token": "xoxb-original-" + strings.Repeat("2", 10) + "abcd"},
+		}, 201)["credential"].(map[string]any)
 		return owner, map[string]string{
-			"tenant_id": tid, "application_id": app["id"].(string), "environment_id": env["id"].(string),
+			"credential_id": cred["id"].(string),
+			"tenant_id":     tid, "application_id": app["id"].(string), "environment_id": env["id"].(string),
 			"api_key_id": key["api_key"].(map[string]any)["id"].(string), "user_id": member, "invitation_id": inv["id"].(string),
 			"workflow_id": wf["id"].(string), "action_id": act["id"].(string), "locale": "en",
 		}
@@ -180,7 +204,11 @@ func TestBOLASweep(t *testing.T) {
 			if mkBody != nil {
 				body = mkBody(a) // bodies reference A's objects too
 			}
-			rec := e.do(call{method: r.Method, path: fill(r.Path, pick), token: attacker, body: body})
+			path := fill(r.Path, pick)
+			if q := sweepQuery[key]; q != nil {
+				path += q(a)
+			}
+			rec := e.do(call{method: r.Method, path: path, token: attacker, body: body})
 			assert.Equal(t, http.StatusNotFound, rec.Code, "%s [%s] -> %s", key, name, rec.Body.String())
 			calls++
 		}
@@ -220,6 +248,14 @@ func TestBOLASweep(t *testing.T) {
 	rec = e.do(call{method: "GET", path: base + "/invitations", token: ownerA})
 	assert.Contains(t, rec.Body.String(), a["invitation_id"])
 	assert.NotContains(t, rec.Body.String(), "sweep-")
+
+	// A's credential is untouched (name, secret hint, enabled).
+	rec = e.do(call{method: "GET", path: base + "/channel-credentials/" + a["credential_id"], token: ownerA})
+	require.Equal(t, 200, rec.Code)
+	assert.Contains(t, rec.Body.String(), `"name":"Bot"`)
+	assert.Contains(t, rec.Body.String(), `"secret_hint":"abcd"`)
+	assert.Contains(t, rec.Body.String(), `"status":"pending"`)
+	assert.NotContains(t, rec.Body.String(), "xoxb-", "secrets never come back")
 
 	// A's workflow, action and template are untouched.
 	wfPath := appPath + "/workflows/" + a["workflow_id"]

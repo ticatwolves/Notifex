@@ -65,6 +65,7 @@ type Store interface {
 	Workflows() WorkflowStore
 	Actions() ActionStore
 	Templates() TemplateStore
+	Credentials() CredentialStore
 	// WithTx runs fn in one transaction. The Store passed to fn is bound to it,
 	// so a mutation and its audit event commit or roll back together. fn's
 	// error rolls back; a panic rolls back and re-panics.
@@ -795,4 +796,73 @@ type TemplateStore interface {
 	Delete(ctx context.Context, tid TenantID, actionID uuid.UUID, locale string) error
 	// Count returns how many templates an action has.
 	Count(ctx context.Context, tid TenantID, actionID uuid.UUID) (int, error)
+}
+
+// ---- channel credentials (Phase 2, ADR-005, ADR-013) ----
+
+// Credential status values.
+const (
+	CredentialPending  = "pending"
+	CredentialVerified = "verified"
+	CredentialDisabled = "disabled"
+)
+
+// ChannelCredential is a stored credential. SecretCiphertext is opaque here:
+// only internal/credential encrypts and decrypts it, and it never leaves
+// that package.
+type ChannelCredential struct {
+	ID               uuid.UUID
+	TenantID         TenantID
+	ApplicationID    *uuid.UUID
+	EnvironmentID    *uuid.UUID
+	Channel          string
+	Provider         string
+	Mode             string // "platform" or "byo"
+	Name             string
+	Config           map[string]any
+	SecretCiphertext []byte
+	SecretHint       string
+	Status           string
+	VerifiedAt       *time.Time
+	RotatedAt        *time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+// NewChannelCredential is the input to CredentialStore.Create. The caller
+// generates ID first: it is bound into the secret's AAD.
+type NewChannelCredential struct {
+	ID               uuid.UUID
+	ApplicationID    *uuid.UUID
+	EnvironmentID    *uuid.UUID
+	Channel          string
+	Provider         string
+	Mode             string
+	Name             string
+	Config           map[string]any
+	SecretCiphertext []byte
+	SecretHint       string
+}
+
+// CredentialPatch changes metadata; nil means unchanged.
+type CredentialPatch struct {
+	Name   *string
+	Config map[string]any
+	Status *string
+}
+
+// CredentialStore persists channel credentials.
+type CredentialStore interface {
+	// Create inserts a credential. A second non-disabled credential for the
+	// same scope and channel is ErrConflict; an unknown scope is ErrNotFound.
+	Create(ctx context.Context, tid TenantID, in NewChannelCredential) (ChannelCredential, error)
+	Get(ctx context.Context, tid TenantID, id uuid.UUID) (ChannelCredential, error)
+	List(ctx context.Context, tid TenantID, channel *string, appID *uuid.UUID, p Page) ([]ChannelCredential, error)
+	Update(ctx context.Context, tid TenantID, id uuid.UUID, p CredentialPatch) (ChannelCredential, error)
+	// Rotate replaces the secret in one statement.
+	Rotate(ctx context.Context, tid TenantID, id uuid.UUID, ciphertext []byte, hint string, now time.Time) (ChannelCredential, error)
+	Delete(ctx context.Context, tid TenantID, id uuid.UUID) error
+	// ActiveForScope returns the non-disabled credentials for channel at the
+	// environment, application and tenant scopes of (appID, envID).
+	ActiveForScope(ctx context.Context, tid TenantID, channel string, appID, envID uuid.UUID) ([]ChannelCredential, error)
 }

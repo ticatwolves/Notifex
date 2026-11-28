@@ -1,4 +1,4 @@
-h1:vroF8m6ypEbzThhQRLixg+osR6Up3yJunbASLkT3w5E=
+h1:Trh5P4CGh3kD4mNb94epnmCy6CFBpZdNxvozG9hFtEE=
 20261127082446_init_core.up.sql h1:2Umsmqd8gIJFZr3/PL8rio99WbE8DYquRSbXUhYEKtg=
 20261127094332_console_sessions.up.sql h1:HCuWVemc3lO81j4EcFQcEpz7qIdmkmM5IUn2433aGyo=
 20261127121442_oauth_identities.up.sql h1:z21lOMF/PnOQC5VWKzd6q6ZXOsm9vXfsvIySiDUWkKU=
@@ -6,3 +6,4 @@ h1:vroF8m6ypEbzThhQRLixg+osR6Up3yJunbASLkT3w5E=
 20261127130211_operators.up.sql h1:M91zuRTRLOJT6Q6g4wbm+2Wf1q1+A8XcZvFtNup/5KU=
 20261127180617_brand_profiles_and_policies.up.sql h1:pRDBQ2eoaYZWtJiWhDF6pvfeo6X3HGod/gutF1JbHFQ=
 20261127181454_workflows_actions_templates.up.sql h1:rzSi3wdGuAmiGBY7fZti7yxZ3Lg8TuenDpPkZaJXnks=
+20261128031400_channel_accounts.up.sql h1:s7bE3vsrboUtX+KyNRj99CGkB+UBQhPGxzSfWvD6OB8=

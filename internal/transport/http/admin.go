@@ -184,6 +184,10 @@ func registerAdmin(r *gin.Engine, d Deps) {
 	if d.Workflows != nil {
 		registerWorkflows(one, d.Workflows, d.Limits.Preview)
 	}
+	if d.Credentials != nil {
+		registerProviders(r, sess)
+		registerCredentials(one, d.Credentials)
+	}
 
 	one.GET("/audit-events", func(c *gin.Context) {
 		p, ok := pageParams(c, ids.AuditEvent)

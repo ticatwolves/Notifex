@@ -82,6 +82,9 @@ func (s *Store) Actions() store.ActionStore { return actions{s.client} }
 // Templates implements store.Store.
 func (s *Store) Templates() store.TemplateStore { return templates{s.client} }
 
+// Credentials implements store.Store.
+func (s *Store) Credentials() store.CredentialStore { return credentials{s.client} }
+
 // OperatorSessions implements store.Store.
 func (s *Store) OperatorSessions() store.OperatorSessionStore { return operatorSessions{s.client} }
 

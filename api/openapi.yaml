@@ -878,7 +878,7 @@ paths:
       operationId: deleteApplication
       tags: [applications]
       summary: Delete an application (admin, owner)
-      description: "`409 conflict` while it still has environments or workflows (delete them first)."
+      description: "`409 conflict` while it still has environments, workflows or channel credentials (delete them first)."
       security: [{ consoleSession: [] }]
       x-notifex-status: implemented
       x-notifex-phase: 1
@@ -1615,7 +1615,7 @@ paths:
       summary: The provider catalogue (any signed-in user)
       description: Static. Describes each provider's config and secret fields so the console can draw forms.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "200":
@@ -1633,7 +1633,7 @@ paths:
       summary: List credential metadata (developer, admin, owner)
       description: Secrets are never returned.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       parameters:
         - { name: channel, in: query, description: Filter by channel., schema: { $ref: "#/components/schemas/Channel" } }
@@ -1660,7 +1660,7 @@ paths:
         non-disabled credential per scope and channel (`409 conflict`). For `webhook/signing`
         the secret is generated and returned once in `generated_secret`. Audited (never the secret).
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       requestBody:
         required: true
@@ -1689,7 +1689,7 @@ paths:
       summary: Which credential a send would use (developer, admin, owner)
       description: The same resolution as trigger acceptance (ADR-013 §5). `200` with `available:false` and the reason when none applies.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       parameters:
         - { name: channel, in: query, required: true, description: Channel., schema: { $ref: "#/components/schemas/Channel" } }
@@ -1715,7 +1715,7 @@ paths:
       tags: [credentials]
       summary: Get credential metadata (developer, admin, owner)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "200":
@@ -1733,7 +1733,7 @@ paths:
       summary: Rename, change config, or enable/disable (admin, owner)
       description: Changing `config` does not touch the secret. Re-enabling while another credential is active in the same scope and channel is `409 conflict`. Audited.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       requestBody:
         required: true
@@ -1759,7 +1759,7 @@ paths:
       summary: Delete a credential (admin, owner)
       description: Permanent; the encrypted secret is removed. Notifications already accepted with this credential fail permanently at dispatch. Audited.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "204": { description: Deleted. }
@@ -1780,7 +1780,7 @@ paths:
         `webhook/signing` send no body; the new secret is returned once in `generated_secret`.
         Providers without a secret are `400 validation_failed`. Audited (never the secret).
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       requestBody:
         required: false

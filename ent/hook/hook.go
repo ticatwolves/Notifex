@@ -81,6 +81,18 @@ func (f BrandProfileFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BrandProfileMutation", m)
 }
 
+// The ChannelCredentialFunc type is an adapter to allow the use of ordinary
+// function as ChannelCredential mutator.
+type ChannelCredentialFunc func(context.Context, *ent.ChannelCredentialMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ChannelCredentialFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ChannelCredentialMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChannelCredentialMutation", m)
+}
+
 // The EmailTokenFunc type is an adapter to allow the use of ordinary
 // function as EmailToken mutator.
 type EmailTokenFunc func(context.Context, *ent.EmailTokenMutation) (ent.Value, error)

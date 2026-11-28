@@ -35,6 +35,8 @@ type Deps struct {
 	// Workflows enables workflow, action, template and preview routes
 	// (needs Tenants and Sessions).
 	Workflows WorkflowAdmin
+	// Credentials enables channel credential routes (needs Tenants and Sessions).
+	Credentials CredentialAdmin
 	// Operators enables the operator realm (/v1/operator).
 	Operators OperatorRealm
 	// Limits are per-IP limits; zero value means DefaultLimits.

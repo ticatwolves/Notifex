@@ -107,6 +107,9 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 | **Credential leakage** | BYO secrets envelope-encrypted, decrypted only in the dispatcher at send time, never logged, write-only in the API (ADR-005) |
 | **Template injection (SSTI)** | Sandboxed renderer (ADR-012): Handlebars subset with no helpers, partials or I/O; JSON-only render context; step, depth and output budgets; context-dependent escaping; JSON channels render string leaves only (one shared output budget per render). **Built (Phase 2 slice 2, `internal/workflow/render`):** 5 fuzz targets (parse/execute budgets, HTML escaping round trip, sanitizer output, SMS segments, webhook JSON structure); the escaping and sanitizer properties are mutation-checked |
 | SSRF or file read through payload schemas | JSON Schema compiler with a loader that refuses every external `$ref` (remote and `file://`), tested; 64 KiB cap (Phase 2 slice 4) |
+| Vendor secret disclosure (API, logs, audit, backups) | Write-only secrets: accepted on create and rotate only; responses carry `has_secret` and a 4-character hint; never in audit events or logs (asserted by grep over responses, server log and audit trail); AES-256-GCM under the tenant DEK with AAD bound to the credential row (copied ciphertext fails); crypto-shred makes them unreadable (Phase 2 slice 5, ADR-013) |
+| SSRF through tenant SMTP hosts and Slack URLs | SMTP host must be a public IP or a qualified public name (private, loopback, link-local, CGNAT, metadata, NAT64, numeric-trick and internal-TLD names rejected, tested); Slack webhook pinned to `https://hooks.slack.com/services/`; dialer-level check on resolved addresses in Phase 3 (DNS rebinding) |
+| Confused deputy with BYO SES | Cross-account role with a per-credential, Notifex-generated `external_id`; no static AWS keys stored |
 | **Header injection** | CRLF rejection in subject, sender and recipient fields (Phase 2) |
 
 ### B5: vendor callbacks → api (Phase 4)
