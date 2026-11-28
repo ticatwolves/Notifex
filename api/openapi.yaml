@@ -138,7 +138,7 @@ paths:
         7 days ahead is `400 schedule_horizon_exceeded`. Retrying with the same
         `Idempotency-Key` and body returns the original run; a different body
         returns `409 idempotency_conflict`.
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 3
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -193,7 +193,7 @@ paths:
       operationId: getRun
       tags: [runs]
       summary: Get a run
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 3
       parameters:
         - $ref: "#/components/parameters/RunID"
@@ -204,6 +204,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Run" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /v1/runs/{run_id}/cancel:
@@ -230,7 +231,7 @@ paths:
       operationId: getNotification
       tags: [runs]
       summary: Get a notification and its timeline
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 3
       parameters:
         - $ref: "#/components/parameters/NotificationID"
@@ -241,6 +242,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Notification" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "503": { $ref: "#/components/responses/Unavailable" }
   /v1/notifications/{notification_id}/replay:

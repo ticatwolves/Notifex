@@ -82,3 +82,11 @@ Up to **1,000 recipients** per trigger (contract). Slice 7's load smoke test mea
 - **Platform-SMS counters:** `platform_sms_usage` (per tenant per day) and `platform_sms_totals` (platform-wide). Each reservation is an upsert of the day's row followed by one conditional increment; 20 concurrent reservations against a limit of 7 succeed exactly 7 times (tested, mutation-checked).
 - **Cross-tenant operations** (outbox claim, scheduled-dispatch take, expired idempotency cleanup, leases) are raw SQL with explicit columns; tenant-scoped ones go through ent with the tenant scope. Two relays claiming concurrently get disjoint rows (`SKIP LOCKED`, tested).
 
+## Amendment (2026-11-28, Phase 3 slice 3): trigger intake as built
+- **API key scopes are enforced on the data plane.** A key with no scopes keeps full access (keys created before enforcement keep working); a key with scopes needs `trigger` for `POST /v1/trigger` and `read` for `GET /v1/runs/{id}` and `GET /v1/notifications/{id}` (`403 forbidden` otherwise).
+- **Recipient addresses per channel:** email needs `email`, SMS needs `phone`, WhatsApp needs `whatsapp` (`recipient_missing` otherwise). Slack and webhook don't require one: Slack can post to the credential's channel (or DM `slack_user`), and the webhook channel posts to the tenant's endpoint. The whole recipient object is encrypted per notification, because templates can reference any recipient field (ADR-012 §1).
+- **New tenants have `platform_sms_daily_limit = 0`** (Phase 1 default), so platform SMS is refused (`platform_sms_daily_limit`) until an operator sets a limit. Sandbox tenants get a low limit from the operator.
+- **`source`** is `rest` for the REST transport and defaults to `rest` when a caller leaves it empty; other transports set their own.
+- **Fast path:** the API has no publisher until slice 4, so the outbox relay publishes accepted work. The service already marks fast-path publishes and falls back to the relay on any failure.
+- **Open for slice 6:** the webhook channel's endpoint URL isn't in the Phase 2 contract (the `webhook/signing` credential has no `url`, and webhook templates have only `body`). Slice 6 must decide where it lives (recommendation: a required `url` in the `webhook/signing` credential config, per environment) before the adapter is built.
+

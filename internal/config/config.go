@@ -55,6 +55,17 @@ type Config struct {
 	// LocalMasterKey is the base64 32-byte master key for the local
 	// KeyProvider. Local only; deployed environments use KMS.
 	LocalMasterKey string `env:"NOTIFEX_LOCAL_MASTER_KEY"`
+	// RecipientHashKey is the base64 HMAC key (>= 32 bytes) for
+	// notifications.recipient_hash (ADR-014 §4). Separate from the API key
+	// pepper so the two rotate independently.
+	RecipientHashKey string `env:"RECIPIENT_HASH_KEY"`
+
+	// PlatformSMSDailyCap is the platform-wide daily platform-SMS cap, set
+	// below the AWS account's SMS spend quota (ADR-005).
+	PlatformSMSDailyCap int `env:"PLATFORM_SMS_DAILY_CAP" envDefault:"10000"`
+	// TriggerRatePerMinute is the per-API-key trigger limit per process
+	// (ADR-014 §8: effective limit is this times the number of tasks).
+	TriggerRatePerMinute int `env:"TRIGGER_RATE_PER_MINUTE" envDefault:"6000"`
 
 	// ConsoleURL is the web console's base URL, used in emailed links.
 	ConsoleURL string `env:"CONSOLE_BASE_URL" envDefault:"http://localhost:3000"`
@@ -93,8 +104,9 @@ type Config struct {
 // the variable is unset. They decode to "local-dev-only-…-NOT-A-SECRET" text,
 // are deliberately public, and are rejected outside local.
 const (
-	LocalDevAPIKeyPepper   = "bG9jYWwtZGV2LW9ubHktcGVwcGVyLU5PVC1BLVNFQ1JFVA==" //nolint:gosec // gitleaks:allow — public dev value, see above
-	LocalDevLocalMasterKey = "bG9jYWwtZGV2LW9ubHktbWFzdGVyLWtleS1OT1RTRUM="     // gitleaks:allow — public dev value, see above
+	LocalDevAPIKeyPepper     = "bG9jYWwtZGV2LW9ubHktcGVwcGVyLU5PVC1BLVNFQ1JFVA=="         //nolint:gosec // gitleaks:allow — public dev value, see above
+	LocalDevLocalMasterKey   = "bG9jYWwtZGV2LW9ubHktbWFzdGVyLWtleS1OT1RTRUM="             // gitleaks:allow — public dev value, see above
+	LocalDevRecipientHashKey = "bG9jYWwtZGV2LW9ubHktcmVjaXBpZW50LWhhc2gtTk9ULUEtU0VDUkVU" // gitleaks:allow — public dev value, see above
 )
 
 // Load parses the environment into a Config for the named service.
@@ -111,6 +123,9 @@ func Load(service, version string) (Config, error) {
 		}
 		if cfg.LocalMasterKey == "" {
 			cfg.LocalMasterKey = LocalDevLocalMasterKey
+		}
+		if cfg.RecipientHashKey == "" {
+			cfg.RecipientHashKey = LocalDevRecipientHashKey
 		}
 	}
 	if err := cfg.Validate(); err != nil {
@@ -136,6 +151,15 @@ func (c Config) Validate() error {
 	}
 	if c.Deployed() && c.APIKeyPepper == LocalDevAPIKeyPepper {
 		errs = append(errs, errors.New("API_KEY_PEPPER is the public local-dev value; set a real secret"))
+	}
+	if c.Deployed() && c.RecipientHashKey == LocalDevRecipientHashKey {
+		errs = append(errs, errors.New("RECIPIENT_HASH_KEY is the public local-dev value; set a real secret"))
+	}
+	if c.PlatformSMSDailyCap < 0 {
+		errs = append(errs, errors.New("PLATFORM_SMS_DAILY_CAP must be >= 0"))
+	}
+	if c.TriggerRatePerMinute < 1 {
+		errs = append(errs, errors.New("TRIGGER_RATE_PER_MINUTE must be >= 1"))
 	}
 	if c.Deployed() && c.LocalMasterKey != "" {
 		errs = append(errs, errors.New("NOTIFEX_LOCAL_MASTER_KEY must not be set outside local (use KMS)"))

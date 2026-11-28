@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -18,11 +19,13 @@ import (
 	"github.com/ticatwolves/notifex/internal/lifecycle"
 	"github.com/ticatwolves/notifex/internal/mail"
 	"github.com/ticatwolves/notifex/internal/operator"
+	"github.com/ticatwolves/notifex/internal/ratelimit"
 	"github.com/ticatwolves/notifex/internal/store"
 	"github.com/ticatwolves/notifex/internal/store/entstore"
 	"github.com/ticatwolves/notifex/internal/tenant"
 	grpctransport "github.com/ticatwolves/notifex/internal/transport/grpc"
 	httptransport "github.com/ticatwolves/notifex/internal/transport/http"
+	"github.com/ticatwolves/notifex/internal/trigger"
 	"github.com/ticatwolves/notifex/internal/workflow"
 )
 
@@ -66,6 +69,16 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 	// crypto-shred drops the tenant's key from it at once.
 	cipher := crypto.NewCipher(keys, st.Tenants(), crypto.CipherOptions{Metrics: rt.Metrics})
 	tenants.OnShred = func(id store.TenantID) { cipher.Forget(id.UUID()) }
+	credSvc := credential.NewService(st, cipher)
+	recipientKey, err := base64.StdEncoding.DecodeString(rt.Config.RecipientHashKey)
+	if err != nil || len(recipientKey) < 32 {
+		return nil, errors.New("RECIPIENT_HASH_KEY must be base64 of at least 32 bytes")
+	}
+	// No publisher yet: the outbox relay (scheduler) publishes accepted work.
+	triggers := trigger.NewService(st, tenants, credSvc, cipher, nil,
+		trigger.Config{RecipientHashKey: recipientKey, PlatformSMSDailyCap: rt.Config.PlatformSMSDailyCap}, rt.Logger, rt.Metrics)
+	limits := httptransport.DefaultLimits()
+	limits.Trigger = ratelimit.New(rt.Config.TriggerRatePerMinute, max(rt.Config.TriggerRatePerMinute/6, 1), 100_000)
 
 	rest := lifecycle.NewHTTPServer("http", rt.Config.HTTPAddr, httptransport.NewRouter(httptransport.Deps{
 		Service:        rt.Config.Service,
@@ -78,7 +91,9 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 		OAuth:          oauth,
 		Tenants:        tenants,
 		Workflows:      workflow.NewService(st, tenants, rt.Logger),
-		Credentials:    credential.NewService(st, cipher),
+		Credentials:    credSvc,
+		Triggers:       triggers,
+		Limits:         limits,
 		Operators:      operator.NewService(st, keys, pw, rt.Logger, operator.DefaultPolicy),
 		TrustedProxies: rt.Config.TrustedProxies,
 	}), rt.Logger)

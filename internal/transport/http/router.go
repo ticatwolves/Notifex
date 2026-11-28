@@ -35,6 +35,9 @@ type Deps struct {
 	// Workflows enables workflow, action, template and preview routes
 	// (needs Tenants and Sessions).
 	Workflows WorkflowAdmin
+	// Triggers enables POST /v1/trigger, GET /v1/runs/{id} and
+	// GET /v1/notifications/{id} (needs APIKeys).
+	Triggers TriggerAPI
 	// Credentials enables channel credential routes (needs Tenants and Sessions).
 	Credentials CredentialAdmin
 	// Operators enables the operator realm (/v1/operator).
@@ -60,6 +63,9 @@ func NewRouter(d Deps) http.Handler {
 	}
 	if d.Limits.Preview == nil {
 		d.Limits.Preview = DefaultLimits().Preview
+	}
+	if d.Limits.Trigger == nil {
+		d.Limits.Trigger = DefaultLimits().Trigger
 	}
 
 	m := newHTTPMetrics(d.Metrics)
@@ -90,6 +96,9 @@ func NewRouter(d Deps) http.Handler {
 
 	if d.APIKeys != nil {
 		r.GET("/v1/whoami", requireAPIKey(d.APIKeys, d.Limits.APIKeyFail), whoami)
+		if d.Triggers != nil {
+			registerTrigger(r, d)
+		}
 	}
 	if d.Accounts != nil && d.Sessions != nil {
 		registerConsole(r, d)

@@ -32,6 +32,12 @@ func TestWorkflowActionTemplateStores(t *testing.T) {
 	_, err = f.s.Workflows().Create(ctx, tid, store.NewWorkflow{ApplicationID: g.app.ID, Key: "order_shipped", Name: "dup"})
 	require.ErrorIs(t, err, store.ErrConflict)
 
+	byKey, err := f.s.Workflows().GetByKey(ctx, tid, g.app.ID, "order_shipped")
+	require.NoError(t, err)
+	assert.Equal(t, wf.ID, byKey.ID)
+	_, err = f.s.Workflows().GetByKey(ctx, tid, g.app.ID, "nope")
+	require.ErrorIs(t, err, store.ErrNotFound)
+
 	active := store.WorkflowActive
 	wf, err = f.s.Workflows().Update(ctx, tid, g.app.ID, wf.ID, store.WorkflowPatch{Name: ptr("Order shipped"), Status: &active, ClearSchema: true})
 	require.NoError(t, err)

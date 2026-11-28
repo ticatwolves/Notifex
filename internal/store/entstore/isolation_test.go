@@ -106,6 +106,8 @@ func TestTenantIsolation(t *testing.T) {
 			return err
 		}},
 		{"workflows.get", func() error { _, err := f.s.Workflows().Get(ctx, B, a.app.ID, wfA.ID); return err }},
+		{"workflows.get_by_key", func() error { _, err := f.s.Workflows().GetByKey(ctx, B, a.app.ID, wfA.Key); return err }},
+		{"workflows.get_by_key via B's app", func() error { _, err := f.s.Workflows().GetByKey(ctx, B, b.app.ID, wfA.Key); return err }},
 		{"workflows.get via B's app", func() error { _, err := f.s.Workflows().Get(ctx, B, b.app.ID, wfA.ID); return err }},
 		{"workflows.update", func() error {
 			_, err := f.s.Workflows().Update(ctx, B, a.app.ID, wfA.ID, store.WorkflowPatch{Name: ptr("pwned")})

@@ -33,6 +33,7 @@ import (
 	"github.com/ticatwolves/notifex/internal/store/entstore"
 	"github.com/ticatwolves/notifex/internal/store/storetest"
 	"github.com/ticatwolves/notifex/internal/tenant"
+	"github.com/ticatwolves/notifex/internal/trigger"
 	"github.com/ticatwolves/notifex/internal/workflow"
 )
 
@@ -87,6 +88,12 @@ func newConsoleEnvWith(t *testing.T, limits Limits, trusted []string, mk func(*a
 	cipher := crypto.NewCipher(kp, st.Tenants(), crypto.CipherOptions{})
 	ts.OnShred = func(id store.TenantID) { cipher.Forget(id.UUID()) }
 	deps.Credentials = credential.NewService(st, cipher)
+	// The data plane uses the real API-key authenticator and trigger service.
+	deps.APIKeys = auth.NewAPIKeyAuthenticator(st, ts.KeyHasher, log, prometheus.NewRegistry())
+	recipientKey := make([]byte, 32)
+	_, _ = rand.Read(recipientKey)
+	deps.Triggers = trigger.NewService(st, ts, deps.Credentials.(*credential.Service), cipher, nil,
+		trigger.Config{RecipientHashKey: recipientKey, PlatformSMSDailyCap: 1_000_000}, log, nil)
 	ops := operator.NewService(st, kp, auth.NewPasswordHasher(4), log, operator.DefaultPolicy)
 	deps.Operators = ops
 	h := NewRouter(deps)
@@ -96,6 +103,16 @@ func newConsoleEnvWith(t *testing.T, limits Limits, trusted []string, mk func(*a
 type call struct {
 	method, path, token, remote, xff string
 	body                             any
+	headers                          map[string]string
+}
+
+// doWithHeader is do with one extra request header (skipped when empty).
+func (e consoleEnv) doWithHeader(c call, name, value string) *httptest.ResponseRecorder {
+	e.t.Helper()
+	if value != "" {
+		c.headers = map[string]string{name: value}
+	}
+	return e.do(c)
 }
 
 func (e consoleEnv) do(c call) *httptest.ResponseRecorder {
@@ -121,6 +138,9 @@ func (e consoleEnv) do(c call) *httptest.ResponseRecorder {
 	}
 	if c.xff != "" {
 		req.Header.Set("X-Forwarded-For", c.xff)
+	}
+	for k, v := range c.headers {
+		req.Header.Set(k, v)
 	}
 	rec := httptest.NewRecorder()
 	e.h.ServeHTTP(rec, req)

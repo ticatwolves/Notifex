@@ -757,6 +757,8 @@ type WorkflowPatch struct {
 type WorkflowStore interface {
 	Create(ctx context.Context, tid TenantID, in NewWorkflow) (Workflow, error)
 	Get(ctx context.Context, tid TenantID, appID, id uuid.UUID) (Workflow, error)
+	// GetByKey finds a workflow by its trigger key within an application.
+	GetByKey(ctx context.Context, tid TenantID, appID uuid.UUID, key string) (Workflow, error)
 	List(ctx context.Context, tid TenantID, appID uuid.UUID, status *WorkflowStatus, p Page) ([]Workflow, error)
 	Update(ctx context.Context, tid TenantID, appID, id uuid.UUID, p WorkflowPatch) (Workflow, error)
 	Delete(ctx context.Context, tid TenantID, appID, id uuid.UUID) error
