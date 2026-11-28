@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -61,7 +60,7 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 		return nil, err
 	}
 	oauth := auth.NewOAuth(accounts, oauthProviders(ctx, rt), rt.Config.OAuthRedirectURIs)
-	keys, err := keyProvider(rt)
+	keys, err := app.KeyProvider(rt)
 	if err != nil {
 		return nil, err
 	}
@@ -160,33 +159,4 @@ func oauthProviders(ctx context.Context, rt *app.Runtime) []auth.Provider {
 	}
 	rt.Logger.Info("oauth providers", slog.Any("enabled", names))
 	return ps
-}
-
-// keyProvider wraps tenant DEKs: the local master key in local runs; KMS
-// (Phase 8) everywhere else. Until KMS exists, deployed environments get a
-// provider that refuses to create DEKs, so tenant creation fails there while
-// the rest of the API keeps working. Never fall back to the local key.
-func keyProvider(rt *app.Runtime) (crypto.KeyProvider, error) {
-	if rt.Config.Deployed() {
-		rt.Logger.Warn("no KMS KeyProvider yet (Phase 8): tenant creation is disabled in this environment")
-		return noKMS{}, nil
-	}
-	kp, err := crypto.NewLocalFromBase64(rt.Config.LocalMasterKey)
-	if err != nil {
-		return nil, fmt.Errorf("NOTIFEX_LOCAL_MASTER_KEY: %w", err)
-	}
-	return kp, nil
-}
-
-// noKMS refuses every key operation (deployed environments before Phase 8).
-type noKMS struct{}
-
-var errNoKMS = errors.New("tenant encryption keys are unavailable: KMS KeyProvider not configured (Phase 8)")
-
-func (noKMS) GenerateDataKey(context.Context, crypto.EncryptionContext) (crypto.DataKey, error) {
-	return crypto.DataKey{}, errNoKMS
-}
-
-func (noKMS) Unwrap(context.Context, []byte, string, crypto.EncryptionContext) ([]byte, error) {
-	return nil, errNoKMS
 }

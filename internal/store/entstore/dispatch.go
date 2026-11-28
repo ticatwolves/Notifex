@@ -330,6 +330,9 @@ func (s notifications) Update(ctx context.Context, tid store.TenantID, id uuid.U
 	if c.SMSReserved != nil {
 		u.SetSmsReserved(*c.SMSReserved)
 	}
+	if c.Attempt != nil {
+		u.SetAttempt(*c.Attempt)
+	}
 	if c.ClearLease {
 		u.ClearLeaseUntil()
 	}

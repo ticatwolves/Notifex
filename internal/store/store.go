@@ -1003,7 +1003,10 @@ type NotificationChange struct {
 	RenderedContent []byte
 	VendorResponse  []byte
 	SMSReserved     *bool
-	ClearLease      bool
+	// Attempt sets the attempt counter (a policy deferral gives back the
+	// attempt the claim took).
+	Attempt    *int
+	ClearLease bool
 }
 
 // NotificationStore persists notifications (partitioned by day).

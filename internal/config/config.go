@@ -97,6 +97,12 @@ type Config struct {
 	QueuePrefix string `env:"QUEUE_PREFIX"`
 	// SQSFairQueues sets MessageGroupId = tenant_id (SQS fair queues).
 	SQSFairQueues bool `env:"SQS_FAIR_QUEUES" envDefault:"true"`
+	// DispatchEnabled turns the dispatcher's consumers on. Off by default
+	// until real channel adapters land (Phase 3 slice 6); while on, sends go
+	// to the mock vendor in local runs.
+	DispatchEnabled bool `env:"DISPATCH_ENABLED" envDefault:"false"`
+	// DispatchConcurrency is the in-flight handlers per channel per task.
+	DispatchConcurrency int `env:"DISPATCH_CONCURRENCY" envDefault:"10"`
 
 	// Tracing: OTEL_EXPORTER_OTLP_ENDPOINT and friends are read by the OTel SDK
 	// directly. We only read it here to decide whether to install an exporter.
@@ -171,6 +177,9 @@ func (c Config) Validate() error {
 	}
 	if c.Deployed() && c.LocalMasterKey != "" {
 		errs = append(errs, errors.New("NOTIFEX_LOCAL_MASTER_KEY must not be set outside local (use KMS)"))
+	}
+	if c.DispatchConcurrency < 1 || c.DispatchConcurrency > 500 {
+		errs = append(errs, fmt.Errorf("DISPATCH_CONCURRENCY %d: must be within [1, 500]", c.DispatchConcurrency))
 	}
 	if c.PasswordHashConcurrency < 1 || c.PasswordHashConcurrency > 64 {
 		errs = append(errs, fmt.Errorf("PASSWORD_HASH_CONCURRENCY %d: must be within [1, 64]", c.PasswordHashConcurrency))

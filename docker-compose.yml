@@ -86,6 +86,8 @@ services:
     <<: *core
     command: ["/app/dispatcher"]
     ports: ["9101:9100"]
+    environment:
+      DISPATCH_ENABLED: "true"   # local only: sends go to the mock vendor
 
   scheduler:
     <<: *core
