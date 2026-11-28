@@ -23,6 +23,7 @@ import (
 	"github.com/ticatwolves/notifex/internal/auth"
 	"github.com/ticatwolves/notifex/internal/credential"
 	"github.com/ticatwolves/notifex/internal/crypto"
+	"github.com/ticatwolves/notifex/internal/dispatch"
 	"github.com/ticatwolves/notifex/internal/store"
 	"github.com/ticatwolves/notifex/internal/tenant"
 	"github.com/ticatwolves/notifex/internal/workflow"
@@ -660,6 +661,7 @@ func acceptEvents(notifs []store.Notification) []store.NotificationEvent {
 func (s *Service) enqueue(ctx context.Context, tx store.Store, tid store.TenantID, notifs []store.Notification, due, now time.Time) ([]store.OutboxMessage, error) {
 	var out []store.OutboxMessage
 	var later []store.ScheduledMessage
+	tp := dispatch.TraceParent(ctx) // continued by the dispatcher
 	delay := int(due.Sub(now).Round(time.Second) / time.Second)
 	if delay < 0 {
 		delay = 0
@@ -667,9 +669,9 @@ func (s *Service) enqueue(ctx context.Context, tx store.Store, tid store.TenantI
 	for _, n := range notifs {
 		switch n.Status {
 		case store.NotifQueued:
-			out = append(out, store.OutboxMessage{TenantID: tid, NotificationID: n.ID, RunID: n.RunID, Channel: n.Channel, DelaySeconds: delay, Attempt: 1})
+			out = append(out, store.OutboxMessage{TenantID: tid, NotificationID: n.ID, RunID: n.RunID, Channel: n.Channel, DelaySeconds: delay, Attempt: 1, TraceParent: tp})
 		case store.NotifDeferred:
-			later = append(later, store.ScheduledMessage{NotificationID: n.ID, RunID: n.RunID, Channel: n.Channel, DueAt: due, Reason: "scheduled", Attempt: 1})
+			later = append(later, store.ScheduledMessage{NotificationID: n.ID, RunID: n.RunID, Channel: n.Channel, DueAt: due, Reason: "scheduled", Attempt: 1, TraceParent: tp})
 		}
 	}
 	if err := tx.Scheduled().Add(ctx, tid, later, now); err != nil {

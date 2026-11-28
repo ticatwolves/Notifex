@@ -16,6 +16,8 @@ import (
 	"github.com/ticatwolves/notifex/internal/credential"
 	"github.com/ticatwolves/notifex/internal/crypto"
 	"github.com/ticatwolves/notifex/internal/db"
+	"github.com/ticatwolves/notifex/internal/dispatch"
+	"github.com/ticatwolves/notifex/internal/dispatch/sqsqueue"
 	"github.com/ticatwolves/notifex/internal/lifecycle"
 	"github.com/ticatwolves/notifex/internal/mail"
 	"github.com/ticatwolves/notifex/internal/operator"
@@ -74,8 +76,16 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 	if err != nil || len(recipientKey) < 32 {
 		return nil, errors.New("RECIPIENT_HASH_KEY must be base64 of at least 32 bytes")
 	}
-	// No publisher yet: the outbox relay (scheduler) publishes accepted work.
-	triggers := trigger.NewService(st, tenants, credSvc, cipher, nil,
+	// Fast path: publish right after commit; the scheduler's relay publishes
+	// anything this misses (ADR-004).
+	sqsClient, err := sqsqueue.NewClient(ctx, rt.Config.AWSRegion, rt.Config.SQSEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	queue := sqsqueue.New(sqsClient, sqsqueue.Options{
+		Prefix: rt.Config.QueuePrefix, FairQueues: rt.Config.SQSFairQueues, Log: rt.Logger, Metrics: rt.Metrics,
+	})
+	triggers := trigger.NewService(st, tenants, credSvc, cipher, dispatch.OutboxPublisher{Q: queue},
 		trigger.Config{RecipientHashKey: recipientKey, PlatformSMSDailyCap: rt.Config.PlatformSMSDailyCap}, rt.Logger, rt.Metrics)
 	limits := httptransport.DefaultLimits()
 	limits.Trigger = ratelimit.New(rt.Config.TriggerRatePerMinute, max(rt.Config.TriggerRatePerMinute/6, 1), 100_000)

@@ -92,6 +92,11 @@ type Config struct {
 	AWSRegion string `env:"AWS_REGION" envDefault:"ap-south-1"`
 	// SQSEndpoint overrides the SQS endpoint (ElasticMQ locally). Empty in AWS.
 	SQSEndpoint string `env:"SQS_ENDPOINT"`
+	// QueuePrefix names the dispatch queues: <prefix><channel> (ADR-004).
+	// Default notifex-<env>-dispatch-.
+	QueuePrefix string `env:"QUEUE_PREFIX"`
+	// SQSFairQueues sets MessageGroupId = tenant_id (SQS fair queues).
+	SQSFairQueues bool `env:"SQS_FAIR_QUEUES" envDefault:"true"`
 
 	// Tracing: OTEL_EXPORTER_OTLP_ENDPOINT and friends are read by the OTel SDK
 	// directly. We only read it here to decide whether to install an exporter.
@@ -117,6 +122,9 @@ func Load(service, version string) (Config, error) {
 	}
 	cfg.Service = service
 	cfg.Version = version
+	if cfg.QueuePrefix == "" {
+		cfg.QueuePrefix = "notifex-" + cfg.Env + "-dispatch-"
+	}
 	if !cfg.Deployed() {
 		if cfg.APIKeyPepper == "" {
 			cfg.APIKeyPepper = LocalDevAPIKeyPepper

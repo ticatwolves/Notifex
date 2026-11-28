@@ -69,7 +69,7 @@ lint: $(GOLANGCI_LINT) vet ## golangci-lint + go vet
 .PHONY: test
 test: ## Unit + integration tests with the race detector (integration tests need Docker)
 	go test -race -count=1 -coverprofile=coverage.out ./...
-	@grep -v -E '/ent/[a-z_]+/|/ent/[a-z_]+\.go:|/internal/auth/oauthtest/|/internal/store/storetest/' coverage.out > coverage.handwritten.out
+	@grep -v -E '/ent/[a-z_]+/|/ent/[a-z_]+\.go:|/internal/auth/oauthtest/|/internal/store/storetest/|/internal/dispatch/sqsqueue/sqstest/' coverage.out > coverage.handwritten.out
 	@printf 'coverage (excluding generated ent code and test helpers): '; go tool cover -func=coverage.handwritten.out | tail -1 | awk '{print $$NF}'
 
 .PHONY: test-short
