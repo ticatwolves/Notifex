@@ -85,6 +85,36 @@ func (s *Store) Templates() store.TemplateStore { return templates{s.client} }
 // Credentials implements store.Store.
 func (s *Store) Credentials() store.CredentialStore { return credentials{s.client} }
 
+// Snapshots implements store.Store.
+func (s *Store) Snapshots() store.SnapshotStore { return snapshots{s.client} }
+
+// Runs implements store.Store.
+func (s *Store) Runs() store.RunStore { return runs{s.client} }
+
+// Notifications implements store.Store.
+func (s *Store) Notifications() store.NotificationStore { return notifications{s.client} }
+
+// Events implements store.Store.
+func (s *Store) Events() store.EventStore { return events{s.client} }
+
+// Outbox implements store.Store.
+func (s *Store) Outbox() store.OutboxStore { return outbox{s.client} }
+
+// Scheduled implements store.Store.
+func (s *Store) Scheduled() store.ScheduledStore { return scheduled{s.client} }
+
+// Idempotency implements store.Store.
+func (s *Store) Idempotency() store.IdempotencyStore { return idempotency{s.client} }
+
+// SMSLimits implements store.Store.
+func (s *Store) SMSLimits() store.SMSLimitStore { return smsLimits{s.client} }
+
+// Usage implements store.Store.
+func (s *Store) Usage() store.UsageStore { return usage{s.client} }
+
+// Leases implements store.Store.
+func (s *Store) Leases() store.LeaseStore { return leases{s.client} }
+
 // OperatorSessions implements store.Store.
 func (s *Store) OperatorSessions() store.OperatorSessionStore { return operatorSessions{s.client} }
 

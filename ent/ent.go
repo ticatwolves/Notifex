@@ -19,17 +19,28 @@ import (
 	"github.com/ticatwolves/notifex/ent/auththrottle"
 	"github.com/ticatwolves/notifex/ent/brandprofile"
 	"github.com/ticatwolves/notifex/ent/channelcredential"
+	"github.com/ticatwolves/notifex/ent/configsnapshot"
+	"github.com/ticatwolves/notifex/ent/dispatchoutbox"
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
+	"github.com/ticatwolves/notifex/ent/idempotencyrecord"
 	"github.com/ticatwolves/notifex/ent/invitation"
 	"github.com/ticatwolves/notifex/ent/membership"
+	"github.com/ticatwolves/notifex/ent/notification"
+	"github.com/ticatwolves/notifex/ent/notificationevent"
 	"github.com/ticatwolves/notifex/ent/oauthstate"
 	"github.com/ticatwolves/notifex/ent/operator"
 	"github.com/ticatwolves/notifex/ent/operatorsession"
+	"github.com/ticatwolves/notifex/ent/platformsmstotal"
+	"github.com/ticatwolves/notifex/ent/platformsmsusage"
+	"github.com/ticatwolves/notifex/ent/run"
+	"github.com/ticatwolves/notifex/ent/scheduleddispatch"
+	"github.com/ticatwolves/notifex/ent/schedulerlease"
 	"github.com/ticatwolves/notifex/ent/sendingpolicy"
 	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/template"
 	"github.com/ticatwolves/notifex/ent/tenant"
+	"github.com/ticatwolves/notifex/ent/usagerecord"
 	"github.com/ticatwolves/notifex/ent/user"
 	"github.com/ticatwolves/notifex/ent/useridentity"
 	"github.com/ticatwolves/notifex/ent/workflow"
@@ -100,17 +111,28 @@ func checkColumn(t, c string) error {
 			auththrottle.Table:      auththrottle.ValidColumn,
 			brandprofile.Table:      brandprofile.ValidColumn,
 			channelcredential.Table: channelcredential.ValidColumn,
+			configsnapshot.Table:    configsnapshot.ValidColumn,
+			dispatchoutbox.Table:    dispatchoutbox.ValidColumn,
 			emailtoken.Table:        emailtoken.ValidColumn,
 			environment.Table:       environment.ValidColumn,
+			idempotencyrecord.Table: idempotencyrecord.ValidColumn,
 			invitation.Table:        invitation.ValidColumn,
 			membership.Table:        membership.ValidColumn,
+			notification.Table:      notification.ValidColumn,
+			notificationevent.Table: notificationevent.ValidColumn,
 			oauthstate.Table:        oauthstate.ValidColumn,
 			operator.Table:          operator.ValidColumn,
 			operatorsession.Table:   operatorsession.ValidColumn,
+			platformsmstotal.Table:  platformsmstotal.ValidColumn,
+			platformsmsusage.Table:  platformsmsusage.ValidColumn,
+			run.Table:               run.ValidColumn,
+			scheduleddispatch.Table: scheduleddispatch.ValidColumn,
+			schedulerlease.Table:    schedulerlease.ValidColumn,
 			sendingpolicy.Table:     sendingpolicy.ValidColumn,
 			session.Table:           session.ValidColumn,
 			template.Table:          template.ValidColumn,
 			tenant.Table:            tenant.ValidColumn,
+			usagerecord.Table:       usagerecord.ValidColumn,
 			user.Table:              user.ValidColumn,
 			useridentity.Table:      useridentity.ValidColumn,
 			workflow.Table:          workflow.ValidColumn,

@@ -15,18 +15,29 @@ import (
 	"github.com/ticatwolves/notifex/ent/auththrottle"
 	"github.com/ticatwolves/notifex/ent/brandprofile"
 	"github.com/ticatwolves/notifex/ent/channelcredential"
+	"github.com/ticatwolves/notifex/ent/configsnapshot"
+	"github.com/ticatwolves/notifex/ent/dispatchoutbox"
 	"github.com/ticatwolves/notifex/ent/emailtoken"
 	"github.com/ticatwolves/notifex/ent/environment"
+	"github.com/ticatwolves/notifex/ent/idempotencyrecord"
 	"github.com/ticatwolves/notifex/ent/invitation"
 	"github.com/ticatwolves/notifex/ent/membership"
+	"github.com/ticatwolves/notifex/ent/notification"
+	"github.com/ticatwolves/notifex/ent/notificationevent"
 	"github.com/ticatwolves/notifex/ent/oauthstate"
 	"github.com/ticatwolves/notifex/ent/operator"
 	"github.com/ticatwolves/notifex/ent/operatorsession"
+	"github.com/ticatwolves/notifex/ent/platformsmstotal"
+	"github.com/ticatwolves/notifex/ent/platformsmsusage"
 	"github.com/ticatwolves/notifex/ent/predicate"
+	"github.com/ticatwolves/notifex/ent/run"
+	"github.com/ticatwolves/notifex/ent/scheduleddispatch"
+	"github.com/ticatwolves/notifex/ent/schedulerlease"
 	"github.com/ticatwolves/notifex/ent/sendingpolicy"
 	"github.com/ticatwolves/notifex/ent/session"
 	"github.com/ticatwolves/notifex/ent/template"
 	"github.com/ticatwolves/notifex/ent/tenant"
+	"github.com/ticatwolves/notifex/ent/usagerecord"
 	"github.com/ticatwolves/notifex/ent/user"
 	"github.com/ticatwolves/notifex/ent/useridentity"
 	"github.com/ticatwolves/notifex/ent/workflow"
@@ -277,6 +288,60 @@ func (f TraverseChannelCredential) Traverse(ctx context.Context, q ent.Query) er
 	return fmt.Errorf("unexpected query type %T. expect *ent.ChannelCredentialQuery", q)
 }
 
+// The ConfigSnapshotFunc type is an adapter to allow the use of ordinary function as a Querier.
+type ConfigSnapshotFunc func(context.Context, *ent.ConfigSnapshotQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f ConfigSnapshotFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.ConfigSnapshotQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.ConfigSnapshotQuery", q)
+}
+
+// The TraverseConfigSnapshot type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseConfigSnapshot func(context.Context, *ent.ConfigSnapshotQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseConfigSnapshot) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseConfigSnapshot) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.ConfigSnapshotQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.ConfigSnapshotQuery", q)
+}
+
+// The DispatchOutboxFunc type is an adapter to allow the use of ordinary function as a Querier.
+type DispatchOutboxFunc func(context.Context, *ent.DispatchOutboxQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f DispatchOutboxFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.DispatchOutboxQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.DispatchOutboxQuery", q)
+}
+
+// The TraverseDispatchOutbox type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseDispatchOutbox func(context.Context, *ent.DispatchOutboxQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseDispatchOutbox) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseDispatchOutbox) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.DispatchOutboxQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.DispatchOutboxQuery", q)
+}
+
 // The EmailTokenFunc type is an adapter to allow the use of ordinary function as a Querier.
 type EmailTokenFunc func(context.Context, *ent.EmailTokenQuery) (ent.Value, error)
 
@@ -331,6 +396,33 @@ func (f TraverseEnvironment) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.EnvironmentQuery", q)
 }
 
+// The IdempotencyRecordFunc type is an adapter to allow the use of ordinary function as a Querier.
+type IdempotencyRecordFunc func(context.Context, *ent.IdempotencyRecordQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f IdempotencyRecordFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.IdempotencyRecordQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.IdempotencyRecordQuery", q)
+}
+
+// The TraverseIdempotencyRecord type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseIdempotencyRecord func(context.Context, *ent.IdempotencyRecordQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseIdempotencyRecord) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseIdempotencyRecord) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.IdempotencyRecordQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.IdempotencyRecordQuery", q)
+}
+
 // The InvitationFunc type is an adapter to allow the use of ordinary function as a Querier.
 type InvitationFunc func(context.Context, *ent.InvitationQuery) (ent.Value, error)
 
@@ -383,6 +475,60 @@ func (f TraverseMembership) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.MembershipQuery", q)
+}
+
+// The NotificationFunc type is an adapter to allow the use of ordinary function as a Querier.
+type NotificationFunc func(context.Context, *ent.NotificationQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f NotificationFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.NotificationQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.NotificationQuery", q)
+}
+
+// The TraverseNotification type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseNotification func(context.Context, *ent.NotificationQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseNotification) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseNotification) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.NotificationQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.NotificationQuery", q)
+}
+
+// The NotificationEventFunc type is an adapter to allow the use of ordinary function as a Querier.
+type NotificationEventFunc func(context.Context, *ent.NotificationEventQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f NotificationEventFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.NotificationEventQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.NotificationEventQuery", q)
+}
+
+// The TraverseNotificationEvent type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseNotificationEvent func(context.Context, *ent.NotificationEventQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseNotificationEvent) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseNotificationEvent) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.NotificationEventQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.NotificationEventQuery", q)
 }
 
 // The OAuthStateFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -464,6 +610,141 @@ func (f TraverseOperatorSession) Traverse(ctx context.Context, q ent.Query) erro
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.OperatorSessionQuery", q)
+}
+
+// The PlatformSMSTotalFunc type is an adapter to allow the use of ordinary function as a Querier.
+type PlatformSMSTotalFunc func(context.Context, *ent.PlatformSMSTotalQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f PlatformSMSTotalFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.PlatformSMSTotalQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.PlatformSMSTotalQuery", q)
+}
+
+// The TraversePlatformSMSTotal type is an adapter to allow the use of ordinary function as Traverser.
+type TraversePlatformSMSTotal func(context.Context, *ent.PlatformSMSTotalQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraversePlatformSMSTotal) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraversePlatformSMSTotal) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.PlatformSMSTotalQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.PlatformSMSTotalQuery", q)
+}
+
+// The PlatformSMSUsageFunc type is an adapter to allow the use of ordinary function as a Querier.
+type PlatformSMSUsageFunc func(context.Context, *ent.PlatformSMSUsageQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f PlatformSMSUsageFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.PlatformSMSUsageQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.PlatformSMSUsageQuery", q)
+}
+
+// The TraversePlatformSMSUsage type is an adapter to allow the use of ordinary function as Traverser.
+type TraversePlatformSMSUsage func(context.Context, *ent.PlatformSMSUsageQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraversePlatformSMSUsage) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraversePlatformSMSUsage) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.PlatformSMSUsageQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.PlatformSMSUsageQuery", q)
+}
+
+// The RunFunc type is an adapter to allow the use of ordinary function as a Querier.
+type RunFunc func(context.Context, *ent.RunQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f RunFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.RunQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.RunQuery", q)
+}
+
+// The TraverseRun type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseRun func(context.Context, *ent.RunQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseRun) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseRun) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.RunQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.RunQuery", q)
+}
+
+// The ScheduledDispatchFunc type is an adapter to allow the use of ordinary function as a Querier.
+type ScheduledDispatchFunc func(context.Context, *ent.ScheduledDispatchQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f ScheduledDispatchFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.ScheduledDispatchQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.ScheduledDispatchQuery", q)
+}
+
+// The TraverseScheduledDispatch type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseScheduledDispatch func(context.Context, *ent.ScheduledDispatchQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseScheduledDispatch) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseScheduledDispatch) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.ScheduledDispatchQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.ScheduledDispatchQuery", q)
+}
+
+// The SchedulerLeaseFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SchedulerLeaseFunc func(context.Context, *ent.SchedulerLeaseQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SchedulerLeaseFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SchedulerLeaseQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SchedulerLeaseQuery", q)
+}
+
+// The TraverseSchedulerLease type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSchedulerLease func(context.Context, *ent.SchedulerLeaseQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSchedulerLease) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSchedulerLease) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SchedulerLeaseQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SchedulerLeaseQuery", q)
 }
 
 // The SendingPolicyFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -574,6 +855,33 @@ func (f TraverseTenant) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.TenantQuery", q)
 }
 
+// The UsageRecordFunc type is an adapter to allow the use of ordinary function as a Querier.
+type UsageRecordFunc func(context.Context, *ent.UsageRecordQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f UsageRecordFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.UsageRecordQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.UsageRecordQuery", q)
+}
+
+// The TraverseUsageRecord type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseUsageRecord func(context.Context, *ent.UsageRecordQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseUsageRecord) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseUsageRecord) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.UsageRecordQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.UsageRecordQuery", q)
+}
+
 // The UserFunc type is an adapter to allow the use of ordinary function as a Querier.
 type UserFunc func(context.Context, *ent.UserQuery) (ent.Value, error)
 
@@ -672,20 +980,40 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.BrandProfileQuery, predicate.BrandProfile, brandprofile.OrderOption]{typ: ent.TypeBrandProfile, tq: q}, nil
 	case *ent.ChannelCredentialQuery:
 		return &query[*ent.ChannelCredentialQuery, predicate.ChannelCredential, channelcredential.OrderOption]{typ: ent.TypeChannelCredential, tq: q}, nil
+	case *ent.ConfigSnapshotQuery:
+		return &query[*ent.ConfigSnapshotQuery, predicate.ConfigSnapshot, configsnapshot.OrderOption]{typ: ent.TypeConfigSnapshot, tq: q}, nil
+	case *ent.DispatchOutboxQuery:
+		return &query[*ent.DispatchOutboxQuery, predicate.DispatchOutbox, dispatchoutbox.OrderOption]{typ: ent.TypeDispatchOutbox, tq: q}, nil
 	case *ent.EmailTokenQuery:
 		return &query[*ent.EmailTokenQuery, predicate.EmailToken, emailtoken.OrderOption]{typ: ent.TypeEmailToken, tq: q}, nil
 	case *ent.EnvironmentQuery:
 		return &query[*ent.EnvironmentQuery, predicate.Environment, environment.OrderOption]{typ: ent.TypeEnvironment, tq: q}, nil
+	case *ent.IdempotencyRecordQuery:
+		return &query[*ent.IdempotencyRecordQuery, predicate.IdempotencyRecord, idempotencyrecord.OrderOption]{typ: ent.TypeIdempotencyRecord, tq: q}, nil
 	case *ent.InvitationQuery:
 		return &query[*ent.InvitationQuery, predicate.Invitation, invitation.OrderOption]{typ: ent.TypeInvitation, tq: q}, nil
 	case *ent.MembershipQuery:
 		return &query[*ent.MembershipQuery, predicate.Membership, membership.OrderOption]{typ: ent.TypeMembership, tq: q}, nil
+	case *ent.NotificationQuery:
+		return &query[*ent.NotificationQuery, predicate.Notification, notification.OrderOption]{typ: ent.TypeNotification, tq: q}, nil
+	case *ent.NotificationEventQuery:
+		return &query[*ent.NotificationEventQuery, predicate.NotificationEvent, notificationevent.OrderOption]{typ: ent.TypeNotificationEvent, tq: q}, nil
 	case *ent.OAuthStateQuery:
 		return &query[*ent.OAuthStateQuery, predicate.OAuthState, oauthstate.OrderOption]{typ: ent.TypeOAuthState, tq: q}, nil
 	case *ent.OperatorQuery:
 		return &query[*ent.OperatorQuery, predicate.Operator, operator.OrderOption]{typ: ent.TypeOperator, tq: q}, nil
 	case *ent.OperatorSessionQuery:
 		return &query[*ent.OperatorSessionQuery, predicate.OperatorSession, operatorsession.OrderOption]{typ: ent.TypeOperatorSession, tq: q}, nil
+	case *ent.PlatformSMSTotalQuery:
+		return &query[*ent.PlatformSMSTotalQuery, predicate.PlatformSMSTotal, platformsmstotal.OrderOption]{typ: ent.TypePlatformSMSTotal, tq: q}, nil
+	case *ent.PlatformSMSUsageQuery:
+		return &query[*ent.PlatformSMSUsageQuery, predicate.PlatformSMSUsage, platformsmsusage.OrderOption]{typ: ent.TypePlatformSMSUsage, tq: q}, nil
+	case *ent.RunQuery:
+		return &query[*ent.RunQuery, predicate.Run, run.OrderOption]{typ: ent.TypeRun, tq: q}, nil
+	case *ent.ScheduledDispatchQuery:
+		return &query[*ent.ScheduledDispatchQuery, predicate.ScheduledDispatch, scheduleddispatch.OrderOption]{typ: ent.TypeScheduledDispatch, tq: q}, nil
+	case *ent.SchedulerLeaseQuery:
+		return &query[*ent.SchedulerLeaseQuery, predicate.SchedulerLease, schedulerlease.OrderOption]{typ: ent.TypeSchedulerLease, tq: q}, nil
 	case *ent.SendingPolicyQuery:
 		return &query[*ent.SendingPolicyQuery, predicate.SendingPolicy, sendingpolicy.OrderOption]{typ: ent.TypeSendingPolicy, tq: q}, nil
 	case *ent.SessionQuery:
@@ -694,6 +1022,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.TemplateQuery, predicate.Template, template.OrderOption]{typ: ent.TypeTemplate, tq: q}, nil
 	case *ent.TenantQuery:
 		return &query[*ent.TenantQuery, predicate.Tenant, tenant.OrderOption]{typ: ent.TypeTenant, tq: q}, nil
+	case *ent.UsageRecordQuery:
+		return &query[*ent.UsageRecordQuery, predicate.UsageRecord, usagerecord.OrderOption]{typ: ent.TypeUsageRecord, tq: q}, nil
 	case *ent.UserQuery:
 		return &query[*ent.UserQuery, predicate.User, user.OrderOption]{typ: ent.TypeUser, tq: q}, nil
 	case *ent.UserIdentityQuery:

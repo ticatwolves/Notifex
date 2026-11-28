@@ -102,6 +102,9 @@ migration: ## Generate a migration from ent/schema changes: make migration name=
 	go run -mod=mod ./ent/migrate/main.go -name $(name)
 
 .PHONY: migrate-check
+migration-rehash: ## Rewrite migrations/atlas.sum after adding a hand-written migration (ADR-014 §1)
+	go run -mod=mod ./ent/migrate/main.go -rehash
+
 migrate-check: ## Fail if ent/schema changed without a migration (needs Docker)
 	go run -mod=mod ./ent/migrate/main.go -check
 

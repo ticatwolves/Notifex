@@ -44,6 +44,18 @@ func TestTenantIsolation(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	runA := f.newRun(t, a)
+	notifA := newNotif(runA, "email")
+	require.NoError(t, f.s.Notifications().CreateBatch(ctx, a.tenant.ID, []store.Notification{notifA}))
+	require.NoError(t, f.s.Events().Append(ctx, a.tenant.ID, []store.NotificationEvent{{ID: uuid.Must(uuid.NewV7()), NotificationID: notifA.ID, Type: "queued"}}))
+	idemA := store.IdempotencyRecord{Key: "iso-" + uuid.NewString(), RequestHash: []byte("h"), RunID: runA.ID, ExpiresAt: time.Now().Add(time.Hour)}
+	require.NoError(t, f.s.Idempotency().Insert(ctx, a.tenant.ID, idemA, time.Now()))
+	_, err = f.s.Usage().Record(ctx, a.tenant.ID, store.UsageRecord{NotificationID: notifA.ID, Channel: "email", CredentialMode: "byo", BillingBasis: "delivered", BillableAt: time.Now()})
+	require.NoError(t, err)
+	ok, err := f.s.SMSLimits().Reserve(ctx, a.tenant.ID, time.Now(), 3, 10)
+	require.NoError(t, err)
+	require.True(t, ok)
+
 	notFound := []struct {
 		name string
 		call func() error
@@ -131,6 +143,17 @@ func TestTenantIsolation(t *testing.T) {
 			return err
 		}},
 		{"credentials.delete", func() error { return f.s.Credentials().Delete(ctx, B, credA.ID) }},
+		{"snapshots.get", func() error { _, err := f.s.Snapshots().Get(ctx, B, runA.SnapshotHash); return err }},
+		{"runs.get", func() error { _, err := f.s.Runs().Get(ctx, B, runA.ID); return err }},
+		{"runs.get_for_env", func() error { _, err := f.s.Runs().GetForEnv(ctx, B, a.app.ID, a.env.ID, runA.ID); return err }},
+		{"runs.set_status", func() error { return f.s.Runs().SetStatus(ctx, B, runA.ID, store.RunCanceled, nil) }},
+		{"runs.create with A's snapshot", func() error {
+			_, err := f.s.Runs().Create(ctx, B, store.Run{ID: uuid.Must(uuid.NewV7()), ApplicationID: b.app.ID, EnvironmentID: b.env.ID,
+				WorkflowKey: "k", SnapshotHash: runA.SnapshotHash, Source: "rest", ActorType: "a", ActorID: "b"})
+			return err
+		}},
+		{"notifications.get", func() error { _, err := f.s.Notifications().Get(ctx, B, notifA.ID); return err }},
+		{"idempotency.get", func() error { _, err := f.s.Idempotency().Get(ctx, B, idemA.Key, time.Now()); return err }},
 	}
 	for _, tt := range notFound {
 		t.Run(tt.name, func(t *testing.T) {
@@ -173,6 +196,35 @@ func TestTenantIsolation(t *testing.T) {
 			l, err := f.s.Credentials().ActiveForScope(ctx, B, "email", a.app.ID, a.env.ID)
 			return len(l), err
 		}},
+		{"notifications.list_for_run of A's run", func() (int, error) {
+			l, err := f.s.Notifications().ListForRun(ctx, B, runA)
+			return len(l), err
+		}},
+		{"events.list of A's notification", func() (int, error) { l, err := f.s.Events().List(ctx, B, notifA.ID); return len(l), err }},
+		{"usage.count", func() (int, error) { return f.s.Usage().Count(ctx, B) }},
+		{"sms.count", func() (int, error) { return f.s.SMSLimits().Count(ctx, B, time.Now()) }},
+		{"notifications.claim of A's (ok=false)", func() (int, error) {
+			_, ok, err := f.s.Notifications().Claim(ctx, B, notifA.ID, time.Now(), time.Minute)
+			if ok {
+				return 1, err
+			}
+			return 0, err
+		}},
+		{"notifications.extend_lease of A's", func() (int, error) {
+			ok, err := f.s.Notifications().ExtendLease(ctx, B, notifA.ID, time.Now(), time.Minute)
+			if ok {
+				return 1, err
+			}
+			return 0, err
+		}},
+		{"notifications.update of A's", func() (int, error) {
+			st := store.NotifFailed
+			ok, err := f.s.Notifications().Update(ctx, B, notifA.ID, []string{store.NotifQueued}, store.NotificationChange{Status: &st}, time.Now())
+			if ok {
+				return 1, err
+			}
+			return 0, err
+		}},
 		{"audit.list", func() (int, error) {
 			l, err := f.s.Audit().List(ctx, B, store.Page{})
 			n := 0
@@ -208,6 +260,19 @@ func TestTenantIsolation(t *testing.T) {
 	assert.Equal(t, store.RoleAdmin, m.Role)
 	_, err = f.s.Environments().Get(ctx, a.tenant.ID, a.env.ID)
 	require.NoError(t, err)
+	gotRun, err := f.s.Runs().Get(ctx, a.tenant.ID, runA.ID)
+	require.NoError(t, err)
+	assert.Equal(t, store.RunAccepted, gotRun.Status)
+	gotNotif, err := f.s.Notifications().Get(ctx, a.tenant.ID, notifA.ID)
+	require.NoError(t, err)
+	assert.Equal(t, store.NotifQueued, gotNotif.Status, "B couldn't claim or change it")
+	assert.Equal(t, 0, gotNotif.Attempt)
+	usageA, err := f.s.Usage().Count(ctx, a.tenant.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, usageA)
+	smsA, err := f.s.SMSLimits().Count(ctx, a.tenant.ID, time.Now())
+	require.NoError(t, err)
+	assert.Equal(t, 3, smsA)
 	gotCred, err := f.s.Credentials().Get(ctx, a.tenant.ID, credA.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "A", gotCred.Name)

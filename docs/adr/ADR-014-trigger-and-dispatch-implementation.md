@@ -39,7 +39,7 @@
 
 ## 5. Dispatch
 - **Envelope v1** (ADR-004), queues `notifex-{env}-dispatch-{channel}` + DLQ each, `MessageGroupId = tenant_id`.
-- **Claim** is the ADR-004 conditional update (`queued|retrying`, or `sending` with an expired lease). Lease 60 s, renewed every 20 s with `ChangeMessageVisibility` while sending. Zero rows → ack and drop.
+- **Claim** is the ADR-004 conditional update (`queued|retrying|deferred`, or `sending` with an expired lease). `deferred` is included because a deferred notification is re-published when its time comes and must be claimable then. Lease 60 s, renewed every 20 s with `ChangeMessageVisibility` while sending. Zero rows → ack and drop.
 - **Policy at dispatch:** quiet hours → `deferred` until the window ends (SQS delay if ≤ 15 min, else `scheduled_dispatch`); per-tenant channel rate limit (per process) → short defer.
 - **Backoff:** full jitter, base 10 s, factor 2, cap 6 h; `max_attempts` from the snapshot's policy (default 5). Anything still not terminal **48 h** after creation becomes `expired`.
 - **Classification:** timeouts, 5xx, 429 and connection errors are retryable; 4xx (except 408/429), invalid recipient and auth failures are permanent. Vendors report through `SendResult{Status, Retryable, VendorMessageID, Code}`.
@@ -74,3 +74,11 @@ Up to **1,000 recipients** per trigger (contract). Slice 7's load smoke test mea
 - **Unpartitioned notifications, partition later.** Converting a large live table is a long, risky migration. Rejected.
 - **Failing the whole request when nothing is accepted.** Not idempotent-friendly and hides per-notification reasons. Rejected (§3.8).
 - **Redis for rate limits and idempotency now.** No measured need; new infrastructure needs approval. Deferred.
+
+## Amendment (2026-11-28, Phase 3 slice 2): data model as built
+- **Migrations:** the ten ent-managed tables come from the generator (`20261128033649_trigger_and_dispatch`). The partitioned tables are hand-written (`20261128033700_notifications_partitioned`), including a `DO` block that creates partitions from yesterday through 14 days ahead so a fresh database accepts writes before the scheduler runs. The generator gained a diff hook that ignores `schema.ManualTables` and their `_pYYYYMMDD` partitions, and `make migration-rehash` rewrites `atlas.sum` after a hand-written file is added.
+- **Partitioned table keys:** `PRIMARY KEY (id, created_at)`; the store computes `created_at` from the UUIDv7 id on every read and write, so each lookup touches one partition. A run's notifications are listed within an hour of the run's own id time. A row beyond partition coverage fails (tested).
+- **No foreign keys from runs or notifications to configuration** (environments, workflows, actions): runs are history and outlive what they were accepted with. The only foreign keys are to `tenants` and, for runs, to their snapshot `(tenant_id, snapshot_hash)`.
+- **Platform-SMS counters:** `platform_sms_usage` (per tenant per day) and `platform_sms_totals` (platform-wide). Each reservation is an upsert of the day's row followed by one conditional increment; 20 concurrent reservations against a limit of 7 succeed exactly 7 times (tested, mutation-checked).
+- **Cross-tenant operations** (outbox claim, scheduled-dispatch take, expired idempotency cleanup, leases) are raw SQL with explicit columns; tenant-scoped ones go through ent with the tenant scope. Two relays claiming concurrently get disjoint rows (`SKIP LOCKED`, tested).
+

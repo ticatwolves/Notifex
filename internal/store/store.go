@@ -66,6 +66,16 @@ type Store interface {
 	Actions() ActionStore
 	Templates() TemplateStore
 	Credentials() CredentialStore
+	Snapshots() SnapshotStore
+	Runs() RunStore
+	Notifications() NotificationStore
+	Events() EventStore
+	Outbox() OutboxStore
+	Scheduled() ScheduledStore
+	Idempotency() IdempotencyStore
+	SMSLimits() SMSLimitStore
+	Usage() UsageStore
+	Leases() LeaseStore
 	// WithTx runs fn in one transaction. The Store passed to fn is bound to it,
 	// so a mutation and its audit event commit or roll back together. fn's
 	// error rolls back; a panic rolls back and re-panics.
@@ -865,4 +875,273 @@ type CredentialStore interface {
 	// ActiveForScope returns the non-disabled credentials for channel at the
 	// environment, application and tenant scopes of (appID, envID).
 	ActiveForScope(ctx context.Context, tid TenantID, channel string, appID, envID uuid.UUID) ([]ChannelCredential, error)
+}
+
+// ---- trigger and dispatch (Phase 3, ADR-004, ADR-014) ----
+
+// Snapshot is an immutable, deduplicated run configuration (ADR-014 §2).
+type Snapshot struct {
+	Hash      []byte
+	Doc       map[string]any
+	CreatedAt time.Time
+}
+
+// SnapshotStore stores config snapshots. There is no update method.
+type SnapshotStore interface {
+	// Put inserts the snapshot unless (tenant, hash) already exists.
+	Put(ctx context.Context, tid TenantID, hash []byte, doc map[string]any, now time.Time) error
+	Get(ctx context.Context, tid TenantID, hash []byte) (Snapshot, error)
+}
+
+// RunStatus is a run's lifecycle state.
+type RunStatus string
+
+// Run statuses (docs/03).
+const (
+	RunAccepted        RunStatus = "accepted"
+	RunProcessing      RunStatus = "processing"
+	RunCompleted       RunStatus = "completed"
+	RunPartiallyFailed RunStatus = "partially_failed"
+	RunFailed          RunStatus = "failed"
+	RunCanceled        RunStatus = "canceled"
+)
+
+// Run is one accepted trigger. Payload is ciphertext (or nil once purged).
+type Run struct {
+	ID             uuid.UUID
+	TenantID       TenantID
+	ApplicationID  uuid.UUID
+	EnvironmentID  uuid.UUID
+	WorkflowID     uuid.UUID
+	WorkflowKey    string
+	SnapshotHash   []byte
+	Payload        []byte
+	Context        map[string]any
+	IdempotencyKey *string
+	Source         string
+	ActorType      string
+	ActorID        string
+	Status         RunStatus
+	ScheduleAt     *time.Time
+	TerminalAt     *time.Time
+	PurgedAt       *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+// RunStore persists runs. The caller generates Run.ID (UUIDv7) first.
+type RunStore interface {
+	Create(ctx context.Context, tid TenantID, r Run) (Run, error)
+	Get(ctx context.Context, tid TenantID, id uuid.UUID) (Run, error)
+	// GetForEnv returns the run only if it belongs to the application environment.
+	GetForEnv(ctx context.Context, tid TenantID, appID, envID, id uuid.UUID) (Run, error)
+	SetStatus(ctx context.Context, tid TenantID, id uuid.UUID, st RunStatus, terminalAt *time.Time) error
+}
+
+// Notification statuses (docs/03).
+const (
+	NotifQueued          = "queued"
+	NotifDeferred        = "deferred"
+	NotifSending         = "sending"
+	NotifRetrying        = "retrying"
+	NotifSent            = "sent"
+	NotifDelivered       = "delivered"
+	NotifSentUnconfirmed = "sent_unconfirmed"
+	NotifFailed          = "failed"
+	NotifSuppressed      = "suppressed"
+	NotifCanceled        = "canceled"
+	NotifExpired         = "expired"
+)
+
+// Notification is one (action × recipient) of a run. CreatedAt is the
+// UUIDv7 id's timestamp (the partition key, ADR-014 §1). Byte fields are
+// ciphertext.
+type Notification struct {
+	ID              uuid.UUID
+	TenantID        TenantID
+	RunID           uuid.UUID
+	ApplicationID   uuid.UUID
+	EnvironmentID   uuid.UUID
+	ActionID        uuid.UUID
+	Channel         string
+	Locale          string
+	Status          string
+	Attempt         int
+	LeaseUntil      *time.Time
+	NextAttemptAt   *time.Time
+	Recipient       []byte
+	RecipientMasked string
+	RecipientHash   []byte
+	RecipientRef    string
+	CredentialID    *uuid.UUID
+	CredentialMode  string
+	Provider        string
+	BillingBasis    string
+	SMSReserved     bool
+	LastErrorCode   string
+	LastError       string
+	VendorMessageID string
+	RenderedContent []byte
+	VendorResponse  []byte
+	TerminalAt      *time.Time
+	PurgedAt        *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+// NotificationChange is a conditional update; nil fields are unchanged.
+// ClearLease sets lease_until to NULL.
+type NotificationChange struct {
+	Status          *string
+	LastErrorCode   *string
+	LastError       *string
+	VendorMessageID *string
+	NextAttemptAt   *time.Time
+	TerminalAt      *time.Time
+	RenderedContent []byte
+	VendorResponse  []byte
+	SMSReserved     *bool
+	ClearLease      bool
+}
+
+// NotificationStore persists notifications (partitioned by day).
+type NotificationStore interface {
+	// CreateBatch inserts notifications; ids must be UUIDv7 (created_at is
+	// derived from them).
+	CreateBatch(ctx context.Context, tid TenantID, ns []Notification) error
+	Get(ctx context.Context, tid TenantID, id uuid.UUID) (Notification, error)
+	// ListForRun returns a run's notifications. Their ids are generated at
+	// accept, within an hour of the run's own id.
+	ListForRun(ctx context.Context, tid TenantID, run Run) ([]Notification, error)
+	// Claim is the dispatch claim (ADR-004): queued or retrying, or sending
+	// with an expired lease → sending, attempt+1, lease until now+lease. ok is
+	// false when another worker owns it or it is already done.
+	Claim(ctx context.Context, tid TenantID, id uuid.UUID, now time.Time, lease time.Duration) (n Notification, ok bool, err error)
+	// ExtendLease renews the lease of a notification still in sending.
+	ExtendLease(ctx context.Context, tid TenantID, id uuid.UUID, now time.Time, lease time.Duration) (bool, error)
+	// Update applies c only if the current status is one of from. ok is false
+	// otherwise (the transition lost a race).
+	Update(ctx context.Context, tid TenantID, id uuid.UUID, from []string, c NotificationChange, now time.Time) (ok bool, err error)
+}
+
+// NotificationEvent is one timeline entry (detail is redacted).
+type NotificationEvent struct {
+	ID             uuid.UUID
+	NotificationID uuid.UUID
+	Type           string
+	Detail         map[string]any
+	CreatedAt      time.Time
+}
+
+// EventStore persists timelines (partitioned by day).
+type EventStore interface {
+	// Append inserts events; ids must be UUIDv7.
+	Append(ctx context.Context, tid TenantID, evs []NotificationEvent) error
+	// List returns a notification's events in time order.
+	List(ctx context.Context, tid TenantID, notificationID uuid.UUID) ([]NotificationEvent, error)
+}
+
+// OutboxMessage is a queue message waiting to be published (ids only).
+type OutboxMessage struct {
+	ID             int64
+	TenantID       TenantID
+	NotificationID uuid.UUID
+	RunID          uuid.UUID
+	Channel        string
+	DelaySeconds   int
+	Attempt        int
+	TraceParent    string
+	CreatedAt      time.Time
+}
+
+// OutboxStore is the transactional outbox (ADR-004).
+type OutboxStore interface {
+	// Enqueue inserts messages in the caller's transaction and returns their ids.
+	Enqueue(ctx context.Context, tid TenantID, msgs []OutboxMessage, now time.Time) ([]int64, error)
+	// ClaimUnpublished locks up to limit unpublished messages across tenants
+	// (FOR UPDATE SKIP LOCKED); call inside a transaction.
+	ClaimUnpublished(ctx context.Context, limit int) ([]OutboxMessage, error)
+	MarkPublished(ctx context.Context, ids []int64, now time.Time) error
+	// DeletePublishedBefore removes up to limit messages published before t.
+	DeletePublishedBefore(ctx context.Context, t time.Time, limit int) (int, error)
+	// OldestUnpublished is the outbox lag metric's input (zero if none).
+	OldestUnpublished(ctx context.Context) (time.Time, error)
+}
+
+// ScheduledMessage is work due more than 15 minutes out.
+type ScheduledMessage struct {
+	ID             uuid.UUID
+	TenantID       TenantID
+	NotificationID uuid.UUID
+	RunID          uuid.UUID
+	Channel        string
+	DueAt          time.Time
+	Reason         string // scheduled, deferred, backoff
+	Attempt        int
+	TraceParent    string
+}
+
+// ScheduledStore holds delayed dispatch work.
+type ScheduledStore interface {
+	Add(ctx context.Context, tid TenantID, msgs []ScheduledMessage, now time.Time) error
+	// TakeDue deletes and returns up to limit due rows across tenants (FOR
+	// UPDATE SKIP LOCKED); call inside the transaction that enqueues them.
+	TakeDue(ctx context.Context, now time.Time, limit int) ([]ScheduledMessage, error)
+}
+
+// IdempotencyRecord maps an Idempotency-Key to its run.
+type IdempotencyRecord struct {
+	Key         string
+	RequestHash []byte
+	RunID       uuid.UUID
+	ExpiresAt   time.Time
+}
+
+// IdempotencyStore stores Idempotency-Key records (24 h).
+type IdempotencyStore interface {
+	// Insert fails with ErrConflict if the key is already recorded.
+	Insert(ctx context.Context, tid TenantID, r IdempotencyRecord, now time.Time) error
+	// Get returns an unexpired record, or ErrNotFound.
+	Get(ctx context.Context, tid TenantID, key string, now time.Time) (IdempotencyRecord, error)
+	// DeleteExpired removes up to limit expired records across tenants.
+	DeleteExpired(ctx context.Context, now time.Time, limit int) (int, error)
+}
+
+// SMSLimitStore holds the platform-SMS daily counters (ADR-005).
+type SMSLimitStore interface {
+	// Reserve atomically adds n to the tenant's count for day if the result
+	// stays within limit.
+	Reserve(ctx context.Context, tid TenantID, day time.Time, n, limit int) (bool, error)
+	Release(ctx context.Context, tid TenantID, day time.Time, n int) error
+	// ReservePlatform and ReleasePlatform are the platform-wide counter.
+	ReservePlatform(ctx context.Context, day time.Time, n, limit int) (bool, error)
+	ReleasePlatform(ctx context.Context, day time.Time, n int) error
+	Count(ctx context.Context, tid TenantID, day time.Time) (int, error)
+}
+
+// UsageRecord is one billable notification (ADR-007).
+type UsageRecord struct {
+	NotificationID uuid.UUID
+	Channel        string
+	CredentialMode string
+	BillingBasis   string
+	Country        string
+	BillableAt     time.Time
+	UnitPriceRef   string
+}
+
+// UsageStore records billable notifications, once each.
+type UsageStore interface {
+	// Record inserts the usage record; inserted is false if the notification
+	// was already billed.
+	Record(ctx context.Context, tid TenantID, u UsageRecord) (inserted bool, err error)
+	Count(ctx context.Context, tid TenantID) (int, error)
+}
+
+// LeaseStore elects leaders (platform-level).
+type LeaseStore interface {
+	// Acquire takes or renews the named lease for holder until now+ttl. It
+	// fails (false) while another holder's lease is unexpired.
+	Acquire(ctx context.Context, name, holder string, now time.Time, ttl time.Duration) (bool, error)
+	Release(ctx context.Context, name, holder string) error
 }

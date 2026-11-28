@@ -27,17 +27,32 @@ type BrandProfile func(*sql.Selector)
 // ChannelCredential is the predicate function for channelcredential builders.
 type ChannelCredential func(*sql.Selector)
 
+// ConfigSnapshot is the predicate function for configsnapshot builders.
+type ConfigSnapshot func(*sql.Selector)
+
+// DispatchOutbox is the predicate function for dispatchoutbox builders.
+type DispatchOutbox func(*sql.Selector)
+
 // EmailToken is the predicate function for emailtoken builders.
 type EmailToken func(*sql.Selector)
 
 // Environment is the predicate function for environment builders.
 type Environment func(*sql.Selector)
 
+// IdempotencyRecord is the predicate function for idempotencyrecord builders.
+type IdempotencyRecord func(*sql.Selector)
+
 // Invitation is the predicate function for invitation builders.
 type Invitation func(*sql.Selector)
 
 // Membership is the predicate function for membership builders.
 type Membership func(*sql.Selector)
+
+// Notification is the predicate function for notification builders.
+type Notification func(*sql.Selector)
+
+// NotificationEvent is the predicate function for notificationevent builders.
+type NotificationEvent func(*sql.Selector)
 
 // OAuthState is the predicate function for oauthstate builders.
 type OAuthState func(*sql.Selector)
@@ -47,6 +62,21 @@ type Operator func(*sql.Selector)
 
 // OperatorSession is the predicate function for operatorsession builders.
 type OperatorSession func(*sql.Selector)
+
+// PlatformSMSTotal is the predicate function for platformsmstotal builders.
+type PlatformSMSTotal func(*sql.Selector)
+
+// PlatformSMSUsage is the predicate function for platformsmsusage builders.
+type PlatformSMSUsage func(*sql.Selector)
+
+// Run is the predicate function for run builders.
+type Run func(*sql.Selector)
+
+// ScheduledDispatch is the predicate function for scheduleddispatch builders.
+type ScheduledDispatch func(*sql.Selector)
+
+// SchedulerLease is the predicate function for schedulerlease builders.
+type SchedulerLease func(*sql.Selector)
 
 // SendingPolicy is the predicate function for sendingpolicy builders.
 type SendingPolicy func(*sql.Selector)
@@ -59,6 +89,9 @@ type Template func(*sql.Selector)
 
 // Tenant is the predicate function for tenant builders.
 type Tenant func(*sql.Selector)
+
+// UsageRecord is the predicate function for usagerecord builders.
+type UsageRecord func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)
