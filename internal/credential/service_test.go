@@ -161,7 +161,7 @@ func TestGeneratedAndSecretlessProviders(t *testing.T) {
 	ctx := context.Background()
 	w := e.world(t)
 
-	c, gen, err := e.svc.Create(ctx, w.a, credential.CreateInput{Channel: "webhook", Provider: "signing", Name: "hooks"})
+	c, gen, err := e.svc.Create(ctx, w.a, credential.CreateInput{Channel: "webhook", Provider: "signing", Name: "hooks", Config: map[string]any{"url": "https://hooks.acme.test/notifex"}})
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(gen, "whsec_"), "generated secret shown once")
 	assert.Equal(t, gen[len(gen)-4:], c.SecretHint)
@@ -220,6 +220,12 @@ func TestCatalogValidation(t *testing.T) {
 		{"twilio no sender", credential.CreateInput{Channel: "sms", Provider: "twilio", Name: "x", Config: map[string]any{"account_sid": twSID}, Secret: map[string]any{"auth_token": twToken}}, "config"},
 		{"slack webhook elsewhere", credential.CreateInput{Channel: "slack", Provider: "incoming_webhook", Name: "x", Secret: map[string]any{"webhook_url": "https://evil.test/services/x"}}, "secret.webhook_url"},
 		{"slack webhook http", credential.CreateInput{Channel: "slack", Provider: "incoming_webhook", Name: "x", Secret: map[string]any{"webhook_url": "http://hooks.slack.com/services/x"}}, "secret.webhook_url"},
+		{"webhook missing url", credential.CreateInput{Channel: "webhook", Provider: "signing", Name: "x"}, "config.url"},
+		{"webhook http", credential.CreateInput{Channel: "webhook", Provider: "signing", Name: "x", Config: map[string]any{"url": "http://hooks.acme.test/x"}}, "config.url"},
+		{"webhook metadata", credential.CreateInput{Channel: "webhook", Provider: "signing", Name: "x", Config: map[string]any{"url": "https://169.254.169.254/latest"}}, "config.url"},
+		{"webhook userinfo", credential.CreateInput{Channel: "webhook", Provider: "signing", Name: "x", Config: map[string]any{"url": "https://u:p@hooks.acme.test/x"}}, "config.url"},
+		{"webhook internal name", credential.CreateInput{Channel: "webhook", Provider: "signing", Name: "x", Config: map[string]any{"url": "https://api.internal/x"}}, "config.url"},
+		{"webhook low port", credential.CreateInput{Channel: "webhook", Provider: "signing", Name: "x", Config: map[string]any{"url": "https://hooks.acme.test:22/x"}}, "config.url"},
 		{"smtp bad port", credential.CreateInput{Channel: "email", Provider: "smtp", Name: "x", Config: map[string]any{"host": "smtp.acme.test", "port": 22, "tls": "starttls", "from_email": "a@b.test"}, Secret: map[string]any{"password": "p"}}, "config.port"},
 		{"ses bad region", credential.CreateInput{Channel: "email", Provider: "ses", Name: "x", Config: map[string]any{"role_arn": "arn:aws:iam::123456789012:role/r", "region": "mars-1", "from_email": "a@b.test"}}, "config.region"},
 		{"ses bad arn", credential.CreateInput{Channel: "email", Provider: "ses", Name: "x", Config: map[string]any{"role_arn": "arn:aws:iam::1:user/u", "region": "ap-south-1", "from_email": "a@b.test"}}, "config.role_arn"},
@@ -372,3 +378,16 @@ func TestCredentialPermissionsAndScope(t *testing.T) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+func TestWebhookURLRules(t *testing.T) {
+	t.Parallel()
+	for _, ok := range []string{"https://hooks.acme.test/notifex", "https://hooks.acme.test:8443/x?team=1", "https://203.0.113.10/hook"} {
+		assert.NoError(t, credential.WebhookURL(ok), ok)
+	}
+	for _, bad := range []string{"", "http://hooks.acme.test/x", "ftp://hooks.acme.test/x", "https:///x", "https://localhost/x",
+		"https://127.0.0.1/x", "https://[::1]/x", "https://10.1.2.3/x", "https://169.254.169.254/x", "https://metadata.internal/x",
+		"https://u@hooks.acme.test/x", "https://hooks.acme.test/x#frag", "https://hooks.acme.test:80/x", "https://hooks.acme.test:70000/x",
+		"https://0x7f.1/x", "https://2130706433/x", "https://" + strings.Repeat("a", 2050) + ".test/"} {
+		assert.Error(t, credential.WebhookURL(bad), bad)
+	}
+}

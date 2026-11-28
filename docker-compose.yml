@@ -87,7 +87,8 @@ services:
     command: ["/app/dispatcher"]
     ports: ["9101:9100"]
     environment:
-      DISPATCH_ENABLED: "true"   # local only: sends go to the mock vendor
+      DISPATCH_ENABLED: "true"
+      DISPATCH_VENDORS: mock     # nothing leaves the machine locally
 
   scheduler:
     <<: *core

@@ -102,16 +102,17 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 
 | Threat | Mitigation (planned) |
 |---|---|
-| **SSRF** via the webhook channel or logo fetches | Resolve-then-connect allowlist; block RFC1918, loopback, link-local, metadata endpoints and their IPv6 forms; no redirects to internal targets; egress proxy; size and time limits (docs/06 §3) |
+| **SSRF** via the webhook channel or logo fetches | **Built (Phase 3 slice 6, `internal/netguard`):** webhook URLs are checked at save (https, public host by the SMTP host rule, port 443 or 1024–65535, no userinfo) and again at send; every outbound connection (webhook, SMTP, vendor APIs) goes through a dialer that checks each **resolved** address (loopback, RFC 1918, CGNAT, link-local and metadata, NAT64, IPv4-mapped forms refused; tested with names that resolve to loopback); redirects are never followed; proxy environment variables ignored; 15 s timeout, responses read to 64 KiB. Still planned: an egress allowlist proxy (defence in depth) and logo fetches (none today) |
 | **Spoofing our identity** (spam or phishing through platform SES/SNS) | Sandbox tenants by default (built: new tenants are always sandboxed, and only an operator can lift it). Verified sender domains, bounce and complaint auto-suspension, per-tenant daily SMS limit enforced atomically at accept (ADR-005) |
 | **SMS toll fraud / pumping** | Country allow/deny lists, per-tenant daily caps plus a platform cap below the AWS spend quota, velocity alerts |
-| **Credential leakage** | BYO secrets envelope-encrypted, decrypted only in the dispatcher at send time, never logged, write-only in the API (ADR-005) |
+| **Credential leakage** | BYO secrets envelope-encrypted, decrypted only in the dispatcher at send time, never logged, write-only in the API (ADR-005). **Built (slice 6):** adapters never keep vendor or transport error text (it can contain a Slack webhook URL, which is itself a secret, or a recipient address): every failure is a fixed code and message, asserted in tests. The decrypted secret map is wiped after the send |
 | **Template injection (SSTI)** | Sandboxed renderer (ADR-012): Handlebars subset with no helpers, partials or I/O; JSON-only render context; step, depth and output budgets; context-dependent escaping; JSON channels render string leaves only (one shared output budget per render). **Built (Phase 2 slice 2, `internal/workflow/render`):** 5 fuzz targets (parse/execute budgets, HTML escaping round trip, sanitizer output, SMS segments, webhook JSON structure); the escaping and sanitizer properties are mutation-checked |
 | SSRF or file read through payload schemas | JSON Schema compiler with a loader that refuses every external `$ref` (remote and `file://`), tested; 64 KiB cap (Phase 2 slice 4) |
 | Vendor secret disclosure (API, logs, audit, backups) | Write-only secrets: accepted on create and rotate only; responses carry `has_secret` and a 4-character hint; never in audit events or logs (asserted by grep over responses, server log and audit trail); AES-256-GCM under the tenant DEK with AAD bound to the credential row (copied ciphertext fails); crypto-shred makes them unreadable (Phase 2 slice 5, ADR-013) |
 | SSRF through tenant SMTP hosts and Slack URLs | SMTP host must be a public IP or a qualified public name (private, loopback, link-local, CGNAT, metadata, NAT64, numeric-trick and internal-TLD names rejected, tested); Slack webhook pinned to `https://hooks.slack.com/services/`; dialer-level check on resolved addresses in Phase 3 (DNS rebinding) |
-| Confused deputy with BYO SES | Cross-account role with a per-credential, Notifex-generated `external_id`; no static AWS keys stored |
-| **Header injection** | CRLF rejection in subject, sender and recipient fields (Phase 2) |
+| Confused deputy with BYO SES | Cross-account role with a per-credential, Notifex-generated `external_id`; no static AWS keys stored. **Built (slice 6):** the dispatcher never assumes a role without the external id, and the send is signed with the assumed role's short-lived (15 min) keys, tested on the wire against a fake STS/SES |
+| **Header injection** | CRLF rejection in subject, sender and recipient fields (Phase 2). **Built (slice 6):** SMTP refuses any header value with CR, LF or NUL before dialing; display names and subjects are RFC 2047-encoded for SMTP and SES |
+| **Downgrade to plaintext SMTP** | TLS is mandatory: implicit TLS or STARTTLS, and a server that doesn't offer STARTTLS fails the send (`tls_unavailable`) instead of sending in the clear; certificates are verified against the configured host (slice 6, tested) |
 
 ### B5: vendor callbacks → api (Phase 4)
 
@@ -146,7 +147,7 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 |---|---|---|---|---|
 | R1 | ~~No rate limit on failed API-key auth~~ **Mitigated (Phase 1 slice 2):** per-IP limiter on failed API-key attempts (per task); WAF rule still to add as the cross-task layer | L | M | WAF rate rule with the AWS Terraform (Phase 8) |
 | R2 | **Shared-sender abuse once real vendors exist** (spam, phishing, SMS pumping) | H | H | Phases 2–3: verified domains, caps, suspension hooks before Stage 2 (real vendors) |
-| R3 | **SSRF through the webhook channel** | M | H | Phase 3: egress allowlist proxy + resolve-then-connect, with tests from docs/06 |
+| R3 | **SSRF through the webhook channel** — resolve-then-connect guard built (slice 6) | L | H | Egress allowlist proxy as a second layer before Stage 2 (AWS Terraform, Phase 8); keep the netguard tests mandatory for any new outbound client |
 | R4 | ~~CI has never run on GitHub~~ **Mitigated:** CI (lint, race tests, migrations + squawk, vuln, contracts, gitleaks, image + Trivy) has run green on every merged PR since #4 | — | — | Keep CI required on `main` |
 | R5 | **GitHub Actions pinned by tag, not SHA** | L | H | Stage 2 TODO; Dependabot for actions |
 | R6 | **Crypto-shred takes up to one DEK-cache TTL (5 min) on other instances** | L | M | Accepted (ADR-006); tenant deletion also stops processing first |
@@ -154,7 +155,8 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 | R8 | **No RLS yet;** isolation relies on app-layer enforcement plus composite FKs | L | H | Phase 8 RLS; meanwhile the isolation and scope tests are mandatory for new store methods |
 | R9 | **Auth makes 3 DB queries per request;** caching would add a revocation lag | M | L | Measure in Phase 3 load tests; if caching, bound TTL ≤ 30 s |
 | R10 | **External pen test not done** | — | — | Stage 3 gate (charter §5); out of scope for automated work. Scope must include the in-house renderer (ADR-012) and credential handling (ADR-013) |
-| R11 | **SMTP host checked at save time only;** a public name can later resolve to an internal address (DNS rebinding) | M | H | Phase 3: dialer checks every resolved address with `credential.PublicAddr` before connecting |
+| R11 | ~~SMTP host checked at save time only~~ **Mitigated (Phase 3 slice 6):** the SMTP adapter dials through `netguard`, which checks every resolved address before connecting | — | — | — |
+| R14 | **A slow or hostile webhook endpoint ties up dispatcher handlers** (15 s each) and retries | M | M | Per-tenant webhook rate limits in the policy; per-endpoint circuit breaking after load tests (slice 7) |
 | R12 | **Credentials are unverified until the dispatcher exists;** a typo surfaces on first send, not on save | M | L | Accepted (ADR-013 §6); asynchronous verification in Phase 3/4 |
 | R13 | **Renderer is security-critical code we own** (template injection, resource exhaustion) | L | H | Fuzzed and mutation-checked (Phase 2 slice 2); run fuzz targets in CI nightly; pen-test scope (R10) |
 

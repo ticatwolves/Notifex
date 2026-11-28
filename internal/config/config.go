@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/mail"
 	"slices"
 	"strings"
 	"time"
@@ -97,10 +98,19 @@ type Config struct {
 	QueuePrefix string `env:"QUEUE_PREFIX"`
 	// SQSFairQueues sets MessageGroupId = tenant_id (SQS fair queues).
 	SQSFairQueues bool `env:"SQS_FAIR_QUEUES" envDefault:"true"`
-	// DispatchEnabled turns the dispatcher's consumers on. Off by default
-	// until real channel adapters land (Phase 3 slice 6); while on, sends go
-	// to the mock vendor in local runs.
+	// DispatchEnabled turns the dispatcher's consumers on (dark launch).
 	DispatchEnabled bool `env:"DISPATCH_ENABLED" envDefault:"false"`
+	// DispatchVendors picks the senders: "mock" (record only; local
+	// default, refused outside local) or "live" (real vendors; default
+	// when deployed).
+	DispatchVendors string `env:"DISPATCH_VENDORS"`
+	// PlatformEmailFrom is the platform email sender (a verified SES
+	// identity). Required for a deployed dispatcher with dispatch enabled.
+	PlatformEmailFrom string `env:"PLATFORM_EMAIL_FROM"`
+	// SESConfigurationSet is attached to every SES send (optional).
+	SESConfigurationSet string `env:"SES_CONFIGURATION_SET"`
+	// SMTPEHLOName is the EHLO name for tenant SMTP servers.
+	SMTPEHLOName string `env:"SMTP_EHLO_NAME" envDefault:"notifex"`
 	// DispatchConcurrency is the in-flight handlers per channel per task.
 	DispatchConcurrency int `env:"DISPATCH_CONCURRENCY" envDefault:"10"`
 
@@ -128,6 +138,12 @@ func Load(service, version string) (Config, error) {
 	}
 	cfg.Service = service
 	cfg.Version = version
+	if cfg.DispatchVendors == "" {
+		cfg.DispatchVendors = "live"
+		if !cfg.Deployed() {
+			cfg.DispatchVendors = "mock"
+		}
+	}
 	if cfg.QueuePrefix == "" {
 		cfg.QueuePrefix = "notifex-" + cfg.Env + "-dispatch-"
 	}
@@ -180,6 +196,23 @@ func (c Config) Validate() error {
 	}
 	if c.DispatchConcurrency < 1 || c.DispatchConcurrency > 500 {
 		errs = append(errs, fmt.Errorf("DISPATCH_CONCURRENCY %d: must be within [1, 500]", c.DispatchConcurrency))
+	}
+	switch c.DispatchVendors {
+	case "", "live":
+	case "mock":
+		if c.Deployed() {
+			errs = append(errs, errors.New("DISPATCH_VENDORS=mock is local-only"))
+		}
+	default:
+		errs = append(errs, fmt.Errorf("DISPATCH_VENDORS %q: must be mock or live", c.DispatchVendors))
+	}
+	if c.PlatformEmailFrom != "" {
+		if a, err := mail.ParseAddress(c.PlatformEmailFrom); err != nil || a.Address != c.PlatformEmailFrom {
+			errs = append(errs, errors.New("PLATFORM_EMAIL_FROM must be a plain email address"))
+		}
+	}
+	if c.Deployed() && c.Service == "dispatcher" && c.DispatchEnabled && c.PlatformEmailFrom == "" {
+		errs = append(errs, errors.New("PLATFORM_EMAIL_FROM is required for a deployed dispatcher"))
 	}
 	if c.PasswordHashConcurrency < 1 || c.PasswordHashConcurrency > 64 {
 		errs = append(errs, fmt.Errorf("PASSWORD_HASH_CONCURRENCY %d: must be within [1, 64]", c.PasswordHashConcurrency))

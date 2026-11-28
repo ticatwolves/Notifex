@@ -1668,7 +1668,8 @@ paths:
       description: |
         Scope is the tenant, an application, or an application environment. At most one
         non-disabled credential per scope and channel (`409 conflict`). For `webhook/signing`
-        the secret is generated and returned once in `generated_secret`. Audited (never the secret).
+        the secret is generated and returned once in `generated_secret`, and `config.url` (the
+        HTTPS endpoint, public host, port 443 or 1024-65535) is required. Audited (never the secret).
       security: [{ consoleSession: [] }]
       x-notifex-status: implemented
       x-notifex-phase: 2

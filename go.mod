@@ -7,7 +7,11 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.48.2
 	github.com/aws/aws-sdk-go-v2/config v1.33.23
 	github.com/aws/aws-sdk-go-v2/credentials v1.21.5
+	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.80.2
+	github.com/aws/aws-sdk-go-v2/service/sns v1.48.2
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.53.2
+	github.com/aws/aws-sdk-go-v2/service/sts v1.53.2
+	github.com/aws/smithy-go v1.28.11
 	github.com/caarlos0/env/v11 v11.4.2
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/gin-gonic/gin v1.12.0
@@ -54,8 +58,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/signin v1.14.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.39.7 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.44.7 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.53.2 // indirect
-	github.com/aws/smithy-go v1.28.11 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/basgys/goxml2json v1.1.1-0.20231018121955-e66ee54ceaad // indirect

@@ -1,14 +1,17 @@
 // Command dispatcher consumes the per-channel SQS dispatch queues and sends
 // notifications through the channel registry (ADR-004, ADR-014 §5).
-// Consumers run only with DISPATCH_ENABLED=true. Until the real channel
-// adapters land (Phase 3 slice 6) every send goes to the mock vendor, so
-// enabling dispatch outside local is refused.
+// Consumers run only with DISPATCH_ENABLED=true. DISPATCH_VENDORS picks the
+// senders: live vendors (the default when deployed) or the mock vendor
+// (the local default, refused outside local by config validation).
 package main
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
+
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 
 	"github.com/ticatwolves/notifex/internal/app"
 	"github.com/ticatwolves/notifex/internal/channel"
@@ -30,9 +33,6 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 		rt.Logger.Warn("DISPATCH_ENABLED is false: no channel consumers running")
 		return nil, nil
 	}
-	if rt.Config.Deployed() {
-		return nil, errors.New("DISPATCH_ENABLED: real channel adapters are not built yet (Phase 3 slice 6); refusing to send through the mock vendor outside local")
-	}
 	if rt.Config.DatabaseURL == "" {
 		return nil, errors.New("DATABASE_URL is required")
 	}
@@ -51,8 +51,22 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 	cipher := crypto.NewCipher(keys, st.Tenants(), crypto.CipherOptions{Metrics: rt.Metrics})
 
 	reg := channel.NewRegistry()
-	vendor.NewMock().RegisterAll(reg)
-	rt.Logger.Warn("channel adapters: mock vendor only (Phase 3 slice 6 adds real ones)")
+	if rt.Config.DispatchVendors == "mock" {
+		vendor.NewMock().RegisterAll(reg)
+		rt.Logger.Warn("DISPATCH_VENDORS=mock: sends are recorded in memory, nothing leaves this process")
+	} else {
+		awsCfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(rt.Config.AWSRegion))
+		if err != nil {
+			return nil, fmt.Errorf("aws config: %w", err)
+		}
+		vendor.RegisterLive(reg, vendor.LiveConfig{
+			AWS: awsCfg, PlatformFrom: rt.Config.PlatformEmailFrom,
+			ConfigurationSet: rt.Config.SESConfigurationSet, EHLOName: rt.Config.SMTPEHLOName,
+		})
+		if rt.Config.PlatformEmailFrom == "" {
+			rt.Logger.Warn("PLATFORM_EMAIL_FROM not set: platform email sends will retry until it is configured")
+		}
+	}
 
 	client, err := sqsqueue.NewClient(ctx, rt.Config.AWSRegion, rt.Config.SQSEndpoint)
 	if err != nil {

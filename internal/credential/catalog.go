@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/ticatwolves/notifex/internal/netguard"
 )
 
 // FieldType is a provider field's type.
@@ -106,32 +108,10 @@ func maxLen(n int) func(string) error {
 	}
 }
 
-// blockedPrefixes are address ranges an SMTP host may never point at, beyond
-// what netip's predicates cover.
-var blockedPrefixes = []netip.Prefix{
-	netip.MustParsePrefix("0.0.0.0/8"),
-	netip.MustParsePrefix("100.64.0.0/10"), // CGNAT
-	netip.MustParsePrefix("192.0.0.0/24"),
-	netip.MustParsePrefix("198.18.0.0/15"),
-	netip.MustParsePrefix("240.0.0.0/4"),
-	netip.MustParsePrefix("64:ff9b::/96"), // NAT64 can reach IPv4 private space
-}
-
-// PublicAddr reports whether ip is a public unicast address. Phase 3's
-// dialer applies the same rule to resolved addresses (DNS rebinding).
-func PublicAddr(ip netip.Addr) bool {
-	ip = ip.Unmap()
-	if !ip.IsValid() || ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
-		ip.IsMulticast() || ip.IsUnspecified() || ip.IsInterfaceLocalMulticast() {
-		return false
-	}
-	for _, p := range blockedPrefixes {
-		if p.Contains(ip) {
-			return false
-		}
-	}
-	return true
-}
+// PublicAddr reports whether ip is a public unicast address; the
+// dispatcher's dialer (internal/netguard) applies the same rule to resolved
+// addresses (DNS rebinding).
+func PublicAddr(ip netip.Addr) bool { return netguard.PublicAddr(ip) }
 
 // SMTPHost is the ADR-013 §3 save-time rule: a public IP literal, or a DNS
 // name with at least two labels and an alphabetic top-level label, and not a
@@ -163,6 +143,26 @@ func SMTPHost(h string) error {
 	switch tld {
 	case "local", "localhost", "internal", "lan", "home", "corp", "intranet", "localdomain":
 		return fmt.Errorf("must not be a local or internal name")
+	}
+	return nil
+}
+
+// WebhookURL is the save-time rule for webhook endpoints: https, a public
+// host (SMTPHost's rule), port 443 or 1024-65535, no credentials or
+// fragment. The dispatcher's dialer re-checks the resolved address.
+func WebhookURL(s string) error {
+	u, err := url.Parse(s)
+	if err != nil || len(s) > 2048 || u.Scheme != "https" || u.User != nil || u.Fragment != "" || u.Opaque != "" || u.Host == "" {
+		return fmt.Errorf("must be an https:// URL without credentials or fragment")
+	}
+	if err := SMTPHost(u.Hostname()); err != nil {
+		return err
+	}
+	if p := u.Port(); p != "" {
+		n, err := strconv.Atoi(p)
+		if err != nil || (n != 443 && (n < 1024 || n > 65535)) {
+			return fmt.Errorf("port must be 443 or 1024-65535")
+		}
 	}
 	return nil
 }
@@ -228,7 +228,8 @@ var Catalog = []Provider{
 	{Channel: "slack", Name: "bot_token", Mode: "byo", HintField: "bot_token",
 		Config: []Field{{Name: "default_channel", Type: TypeString, Description: "Channel name or id.", check: matches(slackChan, "Slack channel")}},
 		Secret: []Field{{Name: "bot_token", Type: TypeString, Required: true, Description: "Bot token (xoxb-…).", check: matches(slackBot, "Slack bot token")}}},
-	{Channel: "webhook", Name: "signing", Mode: "byo", SecretGenerated: true, HintField: "secret"},
+	{Channel: "webhook", Name: "signing", Mode: "byo", SecretGenerated: true, HintField: "secret",
+		Config: []Field{{Name: "url", Type: TypeString, Required: true, Description: "HTTPS endpoint that receives the signed POST (public host; port 443 or 1024-65535).", check: WebhookURL}}},
 }
 
 // Find returns the provider for channel and name.

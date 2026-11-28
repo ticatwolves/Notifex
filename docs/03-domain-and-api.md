@@ -141,6 +141,19 @@ service NotifexService {
 - Draft contract: `api/proto/notifex/v1/notifex.proto`. Every RPC has its own `<Rpc>Request`/`<Rpc>Response` (buf STANDARD lint), so fields can be added later without breaking changes.
 - Use `buf` for lint/breaking-change checks. Same service layer as REST; transports stay thin.
 
+## Webhook channel delivery (tenant-facing contract, ADR-014 slice 6)
+The webhook channel `POST`s the rendered JSON body to the `url` of the resolved `webhook/signing` credential (per environment, application or tenant). Headers, in the Standard Webhooks style:
+
+| Header | Value |
+|---|---|
+| `webhook-id` | the notification id (stable across retries; also sent as `Idempotency-Key`) |
+| `webhook-timestamp` | Unix seconds when this attempt was signed |
+| `webhook-signature` | `v1,<base64(HMAC-SHA256(key, webhook-id + "." + webhook-timestamp + "." + body))>` |
+| `Content-Type` | `application/json` |
+| `User-Agent` | `Notifex-Webhook/1` |
+
+`key` is the 32 bytes after the secret's `whsec_` prefix, base64url-decoded (no padding). Receivers should verify the signature over the raw body, reject timestamps older than 5 minutes, and dedupe on `webhook-id`. A `2xx` within 15 s is delivery. `408`, `425`, `429` and `5xx` (and timeouts) are retried with backoff, honoring `Retry-After`; other statuses fail the notification. Redirects are never followed. The endpoint must resolve to a public address at connect time.
+
 ## Queue envelope (internal contract, ADR-004)
 ```json
 {"v":1,"tenant_id":"…","run_id":"…","notification_id":"…","channel":"sms",

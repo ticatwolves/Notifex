@@ -146,7 +146,8 @@ func (x *h) email() {
 func (x *h) webhook() uuid.UUID {
 	x.t.Helper()
 	x.action("webhook", workflow.Content{Body: map[string]any{"order": "{{payload.id}}"}})
-	c, _, err := x.creds.Create(context.Background(), x.owner, credential.CreateInput{Channel: "webhook", Provider: "signing", Name: "hooks"})
+	c, _, err := x.creds.Create(context.Background(), x.owner, credential.CreateInput{Channel: "webhook", Provider: "signing", Name: "hooks",
+		Config: map[string]any{"url": "https://hooks.acme.test/notifex"}})
 	require.NoError(x.t, err)
 	return c.ID
 }

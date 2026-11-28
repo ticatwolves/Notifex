@@ -47,7 +47,7 @@ Defined in code (`internal/credential/catalog.go`) with a config schema and a se
 | sms | `twilio` | byo | `account_sid`, and `from` (E.164) or `messaging_service_sid` | `auth_token` |
 | slack | `incoming_webhook` | byo | `channel_label?` | `webhook_url` (must be `https://hooks.slack.com/services/…`) |
 | slack | `bot_token` | byo | `default_channel?` | `bot_token` (`xoxb-…`) |
-| webhook | `signing` | byo | — | generated (§2) |
+| webhook | `signing` | byo | `url` (https, public host, port 443 or 1024–65535; added in Phase 3 slice 6, ADR-014) | generated (§2) |
 
 Push, WhatsApp and Outlook providers, and platform Slack and Outlook (which need an OAuth install flow), are added in Phase 4. A BYO provider whose secret schema is empty (`ses`) is allowed; the database does not tie `mode` to the presence of a secret, the catalogue does, and that is unit-tested per provider.
 
