@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"github.com/ticatwolves/notifex/ent/action"
 	"github.com/ticatwolves/notifex/ent/apikey"
 	"github.com/ticatwolves/notifex/ent/application"
 	"github.com/ticatwolves/notifex/ent/auditevent"
@@ -29,9 +30,11 @@ import (
 	"github.com/ticatwolves/notifex/ent/operatorsession"
 	"github.com/ticatwolves/notifex/ent/sendingpolicy"
 	"github.com/ticatwolves/notifex/ent/session"
+	"github.com/ticatwolves/notifex/ent/template"
 	"github.com/ticatwolves/notifex/ent/tenant"
 	"github.com/ticatwolves/notifex/ent/user"
 	"github.com/ticatwolves/notifex/ent/useridentity"
+	"github.com/ticatwolves/notifex/ent/workflow"
 
 	stdsql "database/sql"
 )
@@ -43,6 +46,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// Action is the client for interacting with the Action builders.
+	Action *ActionClient
 	// Application is the client for interacting with the Application builders.
 	Application *ApplicationClient
 	// AuditEvent is the client for interacting with the AuditEvent builders.
@@ -69,12 +74,16 @@ type Client struct {
 	SendingPolicy *SendingPolicyClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
+	// Template is the client for interacting with the Template builders.
+	Template *TemplateClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserIdentity is the client for interacting with the UserIdentity builders.
 	UserIdentity *UserIdentityClient
+	// Workflow is the client for interacting with the Workflow builders.
+	Workflow *WorkflowClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -87,6 +96,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.APIKey = NewAPIKeyClient(c.config)
+	c.Action = NewActionClient(c.config)
 	c.Application = NewApplicationClient(c.config)
 	c.AuditEvent = NewAuditEventClient(c.config)
 	c.AuthThrottle = NewAuthThrottleClient(c.config)
@@ -100,9 +110,11 @@ func (c *Client) init() {
 	c.OperatorSession = NewOperatorSessionClient(c.config)
 	c.SendingPolicy = NewSendingPolicyClient(c.config)
 	c.Session = NewSessionClient(c.config)
+	c.Template = NewTemplateClient(c.config)
 	c.Tenant = NewTenantClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.UserIdentity = NewUserIdentityClient(c.config)
+	c.Workflow = NewWorkflowClient(c.config)
 }
 
 type (
@@ -196,6 +208,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:             ctx,
 		config:          cfg,
 		APIKey:          NewAPIKeyClient(cfg),
+		Action:          NewActionClient(cfg),
 		Application:     NewApplicationClient(cfg),
 		AuditEvent:      NewAuditEventClient(cfg),
 		AuthThrottle:    NewAuthThrottleClient(cfg),
@@ -209,9 +222,11 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		OperatorSession: NewOperatorSessionClient(cfg),
 		SendingPolicy:   NewSendingPolicyClient(cfg),
 		Session:         NewSessionClient(cfg),
+		Template:        NewTemplateClient(cfg),
 		Tenant:          NewTenantClient(cfg),
 		User:            NewUserClient(cfg),
 		UserIdentity:    NewUserIdentityClient(cfg),
+		Workflow:        NewWorkflowClient(cfg),
 	}, nil
 }
 
@@ -232,6 +247,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:             ctx,
 		config:          cfg,
 		APIKey:          NewAPIKeyClient(cfg),
+		Action:          NewActionClient(cfg),
 		Application:     NewApplicationClient(cfg),
 		AuditEvent:      NewAuditEventClient(cfg),
 		AuthThrottle:    NewAuthThrottleClient(cfg),
@@ -245,9 +261,11 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		OperatorSession: NewOperatorSessionClient(cfg),
 		SendingPolicy:   NewSendingPolicyClient(cfg),
 		Session:         NewSessionClient(cfg),
+		Template:        NewTemplateClient(cfg),
 		Tenant:          NewTenantClient(cfg),
 		User:            NewUserClient(cfg),
 		UserIdentity:    NewUserIdentityClient(cfg),
+		Workflow:        NewWorkflowClient(cfg),
 	}, nil
 }
 
@@ -277,10 +295,10 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIKey, c.Application, c.AuditEvent, c.AuthThrottle, c.BrandProfile,
+		c.APIKey, c.Action, c.Application, c.AuditEvent, c.AuthThrottle, c.BrandProfile,
 		c.EmailToken, c.Environment, c.Invitation, c.Membership, c.OAuthState,
-		c.Operator, c.OperatorSession, c.SendingPolicy, c.Session, c.Tenant, c.User,
-		c.UserIdentity,
+		c.Operator, c.OperatorSession, c.SendingPolicy, c.Session, c.Template,
+		c.Tenant, c.User, c.UserIdentity, c.Workflow,
 	} {
 		n.Use(hooks...)
 	}
@@ -290,10 +308,10 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIKey, c.Application, c.AuditEvent, c.AuthThrottle, c.BrandProfile,
+		c.APIKey, c.Action, c.Application, c.AuditEvent, c.AuthThrottle, c.BrandProfile,
 		c.EmailToken, c.Environment, c.Invitation, c.Membership, c.OAuthState,
-		c.Operator, c.OperatorSession, c.SendingPolicy, c.Session, c.Tenant, c.User,
-		c.UserIdentity,
+		c.Operator, c.OperatorSession, c.SendingPolicy, c.Session, c.Template,
+		c.Tenant, c.User, c.UserIdentity, c.Workflow,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -304,6 +322,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *APIKeyMutation:
 		return c.APIKey.mutate(ctx, m)
+	case *ActionMutation:
+		return c.Action.mutate(ctx, m)
 	case *ApplicationMutation:
 		return c.Application.mutate(ctx, m)
 	case *AuditEventMutation:
@@ -330,12 +350,16 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.SendingPolicy.mutate(ctx, m)
 	case *SessionMutation:
 		return c.Session.mutate(ctx, m)
+	case *TemplateMutation:
+		return c.Template.mutate(ctx, m)
 	case *TenantMutation:
 		return c.Tenant.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	case *UserIdentityMutation:
 		return c.UserIdentity.mutate(ctx, m)
+	case *WorkflowMutation:
+		return c.Workflow.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -473,6 +497,141 @@ func (c *APIKeyClient) mutate(ctx context.Context, m *APIKeyMutation) (Value, er
 		return (&APIKeyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown APIKey mutation op: %q", m.Op())
+	}
+}
+
+// ActionClient is a client for the Action schema.
+type ActionClient struct {
+	config
+}
+
+// NewActionClient returns a client for the Action from the given config.
+func NewActionClient(c config) *ActionClient {
+	return &ActionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `action.Hooks(f(g(h())))`.
+func (c *ActionClient) Use(hooks ...Hook) {
+	c.hooks.Action = append(c.hooks.Action, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `action.Intercept(f(g(h())))`.
+func (c *ActionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Action = append(c.inters.Action, interceptors...)
+}
+
+// Create returns a builder for creating a Action entity.
+func (c *ActionClient) Create() *ActionCreate {
+	mutation := newActionMutation(c.config, OpCreate)
+	return &ActionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Action entities.
+func (c *ActionClient) CreateBulk(builders ...*ActionCreate) *ActionCreateBulk {
+	return &ActionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ActionClient) MapCreateBulk(slice any, setFunc func(*ActionCreate, int)) *ActionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ActionCreateBulk{err: fmt.Errorf("calling to ActionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ActionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ActionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Action.
+func (c *ActionClient) Update() *ActionUpdate {
+	mutation := newActionMutation(c.config, OpUpdate)
+	return &ActionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ActionClient) UpdateOne(_m *Action) *ActionUpdateOne {
+	mutation := newActionMutation(c.config, OpUpdateOne, withAction(_m))
+	return &ActionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ActionClient) UpdateOneID(id uuid.UUID) *ActionUpdateOne {
+	mutation := newActionMutation(c.config, OpUpdateOne, withActionID(id))
+	return &ActionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Action.
+func (c *ActionClient) Delete() *ActionDelete {
+	mutation := newActionMutation(c.config, OpDelete)
+	return &ActionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ActionClient) DeleteOne(_m *Action) *ActionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ActionClient) DeleteOneID(id uuid.UUID) *ActionDeleteOne {
+	builder := c.Delete().Where(action.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ActionDeleteOne{builder}
+}
+
+// Query returns a query builder for Action.
+func (c *ActionClient) Query() *ActionQuery {
+	return &ActionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAction},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Action entity by its id.
+func (c *ActionClient) Get(ctx context.Context, id uuid.UUID) (*Action, error) {
+	return c.Query().Where(action.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ActionClient) GetX(ctx context.Context, id uuid.UUID) *Action {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ActionClient) Hooks() []Hook {
+	hooks := c.hooks.Action
+	return append(hooks[:len(hooks):len(hooks)], action.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *ActionClient) Interceptors() []Interceptor {
+	inters := c.inters.Action
+	return append(inters[:len(inters):len(inters)], action.Interceptors[:]...)
+}
+
+func (c *ActionClient) mutate(ctx context.Context, m *ActionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ActionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ActionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ActionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ActionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Action mutation op: %q", m.Op())
 	}
 }
 
@@ -2217,6 +2376,141 @@ func (c *SessionClient) mutate(ctx context.Context, m *SessionMutation) (Value, 
 	}
 }
 
+// TemplateClient is a client for the Template schema.
+type TemplateClient struct {
+	config
+}
+
+// NewTemplateClient returns a client for the Template from the given config.
+func NewTemplateClient(c config) *TemplateClient {
+	return &TemplateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `template.Hooks(f(g(h())))`.
+func (c *TemplateClient) Use(hooks ...Hook) {
+	c.hooks.Template = append(c.hooks.Template, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `template.Intercept(f(g(h())))`.
+func (c *TemplateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Template = append(c.inters.Template, interceptors...)
+}
+
+// Create returns a builder for creating a Template entity.
+func (c *TemplateClient) Create() *TemplateCreate {
+	mutation := newTemplateMutation(c.config, OpCreate)
+	return &TemplateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Template entities.
+func (c *TemplateClient) CreateBulk(builders ...*TemplateCreate) *TemplateCreateBulk {
+	return &TemplateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TemplateClient) MapCreateBulk(slice any, setFunc func(*TemplateCreate, int)) *TemplateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TemplateCreateBulk{err: fmt.Errorf("calling to TemplateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TemplateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TemplateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Template.
+func (c *TemplateClient) Update() *TemplateUpdate {
+	mutation := newTemplateMutation(c.config, OpUpdate)
+	return &TemplateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TemplateClient) UpdateOne(_m *Template) *TemplateUpdateOne {
+	mutation := newTemplateMutation(c.config, OpUpdateOne, withTemplate(_m))
+	return &TemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TemplateClient) UpdateOneID(id uuid.UUID) *TemplateUpdateOne {
+	mutation := newTemplateMutation(c.config, OpUpdateOne, withTemplateID(id))
+	return &TemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Template.
+func (c *TemplateClient) Delete() *TemplateDelete {
+	mutation := newTemplateMutation(c.config, OpDelete)
+	return &TemplateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TemplateClient) DeleteOne(_m *Template) *TemplateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TemplateClient) DeleteOneID(id uuid.UUID) *TemplateDeleteOne {
+	builder := c.Delete().Where(template.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TemplateDeleteOne{builder}
+}
+
+// Query returns a query builder for Template.
+func (c *TemplateClient) Query() *TemplateQuery {
+	return &TemplateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTemplate},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Template entity by its id.
+func (c *TemplateClient) Get(ctx context.Context, id uuid.UUID) (*Template, error) {
+	return c.Query().Where(template.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TemplateClient) GetX(ctx context.Context, id uuid.UUID) *Template {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *TemplateClient) Hooks() []Hook {
+	hooks := c.hooks.Template
+	return append(hooks[:len(hooks):len(hooks)], template.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *TemplateClient) Interceptors() []Interceptor {
+	inters := c.inters.Template
+	return append(inters[:len(inters):len(inters)], template.Interceptors[:]...)
+}
+
+func (c *TemplateClient) mutate(ctx context.Context, m *TemplateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TemplateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TemplateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TemplateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Template mutation op: %q", m.Op())
+	}
+}
+
 // TenantClient is a client for the Tenant schema.
 type TenantClient struct {
 	config
@@ -2616,17 +2910,154 @@ func (c *UserIdentityClient) mutate(ctx context.Context, m *UserIdentityMutation
 	}
 }
 
+// WorkflowClient is a client for the Workflow schema.
+type WorkflowClient struct {
+	config
+}
+
+// NewWorkflowClient returns a client for the Workflow from the given config.
+func NewWorkflowClient(c config) *WorkflowClient {
+	return &WorkflowClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `workflow.Hooks(f(g(h())))`.
+func (c *WorkflowClient) Use(hooks ...Hook) {
+	c.hooks.Workflow = append(c.hooks.Workflow, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `workflow.Intercept(f(g(h())))`.
+func (c *WorkflowClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Workflow = append(c.inters.Workflow, interceptors...)
+}
+
+// Create returns a builder for creating a Workflow entity.
+func (c *WorkflowClient) Create() *WorkflowCreate {
+	mutation := newWorkflowMutation(c.config, OpCreate)
+	return &WorkflowCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Workflow entities.
+func (c *WorkflowClient) CreateBulk(builders ...*WorkflowCreate) *WorkflowCreateBulk {
+	return &WorkflowCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WorkflowClient) MapCreateBulk(slice any, setFunc func(*WorkflowCreate, int)) *WorkflowCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WorkflowCreateBulk{err: fmt.Errorf("calling to WorkflowClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WorkflowCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WorkflowCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Workflow.
+func (c *WorkflowClient) Update() *WorkflowUpdate {
+	mutation := newWorkflowMutation(c.config, OpUpdate)
+	return &WorkflowUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WorkflowClient) UpdateOne(_m *Workflow) *WorkflowUpdateOne {
+	mutation := newWorkflowMutation(c.config, OpUpdateOne, withWorkflow(_m))
+	return &WorkflowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WorkflowClient) UpdateOneID(id uuid.UUID) *WorkflowUpdateOne {
+	mutation := newWorkflowMutation(c.config, OpUpdateOne, withWorkflowID(id))
+	return &WorkflowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Workflow.
+func (c *WorkflowClient) Delete() *WorkflowDelete {
+	mutation := newWorkflowMutation(c.config, OpDelete)
+	return &WorkflowDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WorkflowClient) DeleteOne(_m *Workflow) *WorkflowDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WorkflowClient) DeleteOneID(id uuid.UUID) *WorkflowDeleteOne {
+	builder := c.Delete().Where(workflow.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WorkflowDeleteOne{builder}
+}
+
+// Query returns a query builder for Workflow.
+func (c *WorkflowClient) Query() *WorkflowQuery {
+	return &WorkflowQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWorkflow},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Workflow entity by its id.
+func (c *WorkflowClient) Get(ctx context.Context, id uuid.UUID) (*Workflow, error) {
+	return c.Query().Where(workflow.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WorkflowClient) GetX(ctx context.Context, id uuid.UUID) *Workflow {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WorkflowClient) Hooks() []Hook {
+	hooks := c.hooks.Workflow
+	return append(hooks[:len(hooks):len(hooks)], workflow.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *WorkflowClient) Interceptors() []Interceptor {
+	inters := c.inters.Workflow
+	return append(inters[:len(inters):len(inters)], workflow.Interceptors[:]...)
+}
+
+func (c *WorkflowClient) mutate(ctx context.Context, m *WorkflowMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WorkflowCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WorkflowUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WorkflowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WorkflowDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Workflow mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIKey, Application, AuditEvent, AuthThrottle, BrandProfile, EmailToken,
+		APIKey, Action, Application, AuditEvent, AuthThrottle, BrandProfile, EmailToken,
 		Environment, Invitation, Membership, OAuthState, Operator, OperatorSession,
-		SendingPolicy, Session, Tenant, User, UserIdentity []ent.Hook
+		SendingPolicy, Session, Template, Tenant, User, UserIdentity,
+		Workflow []ent.Hook
 	}
 	inters struct {
-		APIKey, Application, AuditEvent, AuthThrottle, BrandProfile, EmailToken,
+		APIKey, Action, Application, AuditEvent, AuthThrottle, BrandProfile, EmailToken,
 		Environment, Invitation, Membership, OAuthState, Operator, OperatorSession,
-		SendingPolicy, Session, Tenant, User, UserIdentity []ent.Interceptor
+		SendingPolicy, Session, Template, Tenant, User, UserIdentity,
+		Workflow []ent.Interceptor
 	}
 )
 

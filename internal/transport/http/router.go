@@ -32,6 +32,9 @@ type Deps struct {
 	OAuth ConsoleOAuth
 	// Tenants enables /v1/admin/tenants and invitation acceptance.
 	Tenants TenantAdmin
+	// Workflows enables workflow, action, template and preview routes
+	// (needs Tenants and Sessions).
+	Workflows WorkflowAdmin
 	// Operators enables the operator realm (/v1/operator).
 	Operators OperatorRealm
 	// Limits are per-IP limits; zero value means DefaultLimits.
@@ -52,6 +55,9 @@ func NewRouter(d Deps) http.Handler {
 	}
 	if d.Limits.Login == nil {
 		d.Limits = DefaultLimits()
+	}
+	if d.Limits.Preview == nil {
+		d.Limits.Preview = DefaultLimits().Preview
 	}
 
 	m := newHTTPMetrics(d.Metrics)
@@ -102,13 +108,26 @@ type errorBody struct {
 }
 
 type errorDetail struct {
-	Code      string `json:"code"`
-	Message   string `json:"message"`
-	RequestID string `json:"request_id,omitempty"`
+	Code      string         `json:"code"`
+	Message   string         `json:"message"`
+	RequestID string         `json:"request_id,omitempty"`
+	Details   []errorDetail2 `json:"details,omitempty"`
+}
+
+// errorDetail2 locates one problem (template_invalid).
+type errorDetail2 struct {
+	Field   string `json:"field"`
+	Line    int    `json:"line,omitempty"`
+	Column  int    `json:"column,omitempty"`
+	Message string `json:"message"`
 }
 
 func writeError(c *gin.Context, status int, code, msg string) {
+	writeErrorDetails(c, status, code, msg, nil)
+}
+
+func writeErrorDetails(c *gin.Context, status int, code, msg string, details []errorDetail2) {
 	c.AbortWithStatusJSON(status, errorBody{Error: errorDetail{
-		Code: code, Message: msg, RequestID: c.GetString(ctxRequestID),
+		Code: code, Message: msg, RequestID: c.GetString(ctxRequestID), Details: details,
 	}})
 }

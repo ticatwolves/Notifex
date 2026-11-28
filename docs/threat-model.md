@@ -106,6 +106,7 @@ CI/CD (GitHub OIDC) ──► ECR, ECS, Terraform
 | **SMS toll fraud / pumping** | Country allow/deny lists, per-tenant daily caps plus a platform cap below the AWS spend quota, velocity alerts |
 | **Credential leakage** | BYO secrets envelope-encrypted, decrypted only in the dispatcher at send time, never logged, write-only in the API (ADR-005) |
 | **Template injection (SSTI)** | Sandboxed renderer (ADR-012): Handlebars subset with no helpers, partials or I/O; JSON-only render context; step, depth and output budgets; context-dependent escaping; JSON channels render string leaves only (one shared output budget per render). **Built (Phase 2 slice 2, `internal/workflow/render`):** 5 fuzz targets (parse/execute budgets, HTML escaping round trip, sanitizer output, SMS segments, webhook JSON structure); the escaping and sanitizer properties are mutation-checked |
+| SSRF or file read through payload schemas | JSON Schema compiler with a loader that refuses every external `$ref` (remote and `file://`), tested; 64 KiB cap (Phase 2 slice 4) |
 | **Header injection** | CRLF rejection in subject, sender and recipient fields (Phase 2) |
 
 ### B5: vendor callbacks → api (Phase 4)

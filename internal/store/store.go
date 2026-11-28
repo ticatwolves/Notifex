@@ -62,6 +62,9 @@ type Store interface {
 	OperatorSessions() OperatorSessionStore
 	Brands() SettingsStore
 	Policies() SettingsStore
+	Workflows() WorkflowStore
+	Actions() ActionStore
+	Templates() TemplateStore
 	// WithTx runs fn in one transaction. The Store passed to fn is bound to it,
 	// so a mutation and its audit event commit or roll back together. fn's
 	// error rolls back; a panic rolls back and re-panics.
@@ -691,4 +694,105 @@ type SettingsStore interface {
 	Put(ctx context.Context, tid TenantID, appID *uuid.UUID, doc map[string]any, retentionDays *int) (Settings, error)
 	// Delete removes an application override; ErrNotFound if there is none.
 	Delete(ctx context.Context, tid TenantID, appID uuid.UUID) error
+}
+
+// ---- workflows, actions, templates (Phase 2, ADR-012) ----
+
+// WorkflowStatus is a workflow's lifecycle state.
+type WorkflowStatus string
+
+// Workflow statuses.
+const (
+	WorkflowDraft    WorkflowStatus = "draft"
+	WorkflowActive   WorkflowStatus = "active"
+	WorkflowArchived WorkflowStatus = "archived"
+)
+
+// Workflow is one notification of an application.
+type Workflow struct {
+	ID            uuid.UUID
+	TenantID      TenantID
+	ApplicationID uuid.UUID
+	Key           string
+	Name          string
+	Description   string
+	Status        WorkflowStatus
+	PayloadSchema map[string]any // nil: none
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+// NewWorkflow is the input to WorkflowStore.Create.
+type NewWorkflow struct {
+	ApplicationID uuid.UUID
+	Key           string
+	Name          string
+	Description   string
+	PayloadSchema map[string]any
+}
+
+// WorkflowPatch updates selected fields. ClearSchema removes the payload
+// schema; PayloadSchema (non-nil) replaces it.
+type WorkflowPatch struct {
+	Name          *string
+	Description   *string
+	Status        *WorkflowStatus
+	PayloadSchema map[string]any
+	ClearSchema   bool
+}
+
+// WorkflowStore persists workflows. Every method is scoped to tenant and
+// application.
+type WorkflowStore interface {
+	Create(ctx context.Context, tid TenantID, in NewWorkflow) (Workflow, error)
+	Get(ctx context.Context, tid TenantID, appID, id uuid.UUID) (Workflow, error)
+	List(ctx context.Context, tid TenantID, appID uuid.UUID, status *WorkflowStatus, p Page) ([]Workflow, error)
+	Update(ctx context.Context, tid TenantID, appID, id uuid.UUID, p WorkflowPatch) (Workflow, error)
+	Delete(ctx context.Context, tid TenantID, appID, id uuid.UUID) error
+	// Lock takes a row lock on the workflow until the transaction ends, so
+	// changes to its status, actions and templates serialize. ErrNotFound if
+	// it doesn't exist in this tenant and application.
+	Lock(ctx context.Context, tid TenantID, appID, id uuid.UUID) error
+}
+
+// Action is a workflow's channel.
+type Action struct {
+	ID         uuid.UUID
+	WorkflowID uuid.UUID
+	Channel    string
+	Enabled    bool
+	Locales    []string // locales with a template, sorted
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+// ActionStore persists actions. Callers check that the workflow belongs to
+// the application; the composite key ensures it belongs to the tenant.
+type ActionStore interface {
+	Create(ctx context.Context, tid TenantID, workflowID uuid.UUID, channel string, enabled bool) (Action, error)
+	Get(ctx context.Context, tid TenantID, workflowID, id uuid.UUID) (Action, error)
+	// ListForWorkflows returns the actions of the given workflows (with
+	// locales), keyed by workflow id, ordered by creation.
+	ListForWorkflows(ctx context.Context, tid TenantID, workflowIDs []uuid.UUID) (map[uuid.UUID][]Action, error)
+	SetEnabled(ctx context.Context, tid TenantID, workflowID, id uuid.UUID, enabled bool) (Action, error)
+	Delete(ctx context.Context, tid TenantID, workflowID, id uuid.UUID) error
+}
+
+// Template is an action's content for one locale.
+type Template struct {
+	ActionID  uuid.UUID
+	Locale    string
+	Content   map[string]any
+	UpdatedAt time.Time
+}
+
+// TemplateStore persists templates.
+type TemplateStore interface {
+	Get(ctx context.Context, tid TenantID, actionID uuid.UUID, locale string) (Template, error)
+	List(ctx context.Context, tid TenantID, actionID uuid.UUID) ([]Template, error)
+	// Put creates or replaces the template for a locale.
+	Put(ctx context.Context, tid TenantID, actionID uuid.UUID, locale string, content map[string]any) (Template, error)
+	Delete(ctx context.Context, tid TenantID, actionID uuid.UUID, locale string) error
+	// Count returns how many templates an action has.
+	Count(ctx context.Context, tid TenantID, actionID uuid.UUID) (int, error)
 }

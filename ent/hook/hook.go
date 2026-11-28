@@ -21,6 +21,18 @@ func (f APIKeyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APIKeyMutation", m)
 }
 
+// The ActionFunc type is an adapter to allow the use of ordinary
+// function as Action mutator.
+type ActionFunc func(context.Context, *ent.ActionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ActionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ActionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ActionMutation", m)
+}
+
 // The ApplicationFunc type is an adapter to allow the use of ordinary
 // function as Application mutator.
 type ApplicationFunc func(context.Context, *ent.ApplicationMutation) (ent.Value, error)
@@ -177,6 +189,18 @@ func (f SessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SessionMutation", m)
 }
 
+// The TemplateFunc type is an adapter to allow the use of ordinary
+// function as Template mutator.
+type TemplateFunc func(context.Context, *ent.TemplateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TemplateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TemplateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TemplateMutation", m)
+}
+
 // The TenantFunc type is an adapter to allow the use of ordinary
 // function as Tenant mutator.
 type TenantFunc func(context.Context, *ent.TenantMutation) (ent.Value, error)
@@ -211,6 +235,18 @@ func (f UserIdentityFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserIdentityMutation", m)
+}
+
+// The WorkflowFunc type is an adapter to allow the use of ordinary
+// function as Workflow mutator.
+type WorkflowFunc func(context.Context, *ent.WorkflowMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f WorkflowFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.WorkflowMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WorkflowMutation", m)
 }
 
 // Condition is a hook condition function.

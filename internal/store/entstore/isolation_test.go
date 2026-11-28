@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -29,6 +30,13 @@ func TestTenantIsolation(t *testing.T) {
 		_, err = ss.Put(ctx, a.tenant.ID, &a.app.ID, map[string]any{"owner": "A-app"}, nil)
 		require.NoError(t, err)
 	}
+
+	wfA, err := f.s.Workflows().Create(ctx, a.tenant.ID, store.NewWorkflow{ApplicationID: a.app.ID, Key: "wf", Name: "A"})
+	require.NoError(t, err)
+	actA, err := f.s.Actions().Create(ctx, a.tenant.ID, wfA.ID, "email", true)
+	require.NoError(t, err)
+	_, err = f.s.Templates().Put(ctx, a.tenant.ID, actA.ID, "en", map[string]any{"subject": "A"})
+	require.NoError(t, err)
 
 	notFound := []struct {
 		name string
@@ -75,6 +83,28 @@ func TestTenantIsolation(t *testing.T) {
 			return err
 		}},
 		{"policies.delete A's override", func() error { return f.s.Policies().Delete(ctx, B, a.app.ID) }},
+		{"workflows.create under A's app", func() error {
+			_, err := f.s.Workflows().Create(ctx, B, store.NewWorkflow{ApplicationID: a.app.ID, Key: "x", Name: "x"})
+			return err
+		}},
+		{"workflows.get", func() error { _, err := f.s.Workflows().Get(ctx, B, a.app.ID, wfA.ID); return err }},
+		{"workflows.get via B's app", func() error { _, err := f.s.Workflows().Get(ctx, B, b.app.ID, wfA.ID); return err }},
+		{"workflows.update", func() error {
+			_, err := f.s.Workflows().Update(ctx, B, a.app.ID, wfA.ID, store.WorkflowPatch{Name: ptr("pwned")})
+			return err
+		}},
+		{"workflows.delete", func() error { return f.s.Workflows().Delete(ctx, B, a.app.ID, wfA.ID) }},
+		{"workflows.lock", func() error { return f.s.Workflows().Lock(ctx, B, a.app.ID, wfA.ID) }},
+		{"actions.create on A's workflow", func() error { _, err := f.s.Actions().Create(ctx, B, wfA.ID, "sms", true); return err }},
+		{"actions.get", func() error { _, err := f.s.Actions().Get(ctx, B, wfA.ID, actA.ID); return err }},
+		{"actions.set_enabled", func() error { _, err := f.s.Actions().SetEnabled(ctx, B, wfA.ID, actA.ID, false); return err }},
+		{"actions.delete", func() error { return f.s.Actions().Delete(ctx, B, wfA.ID, actA.ID) }},
+		{"templates.get", func() error { _, err := f.s.Templates().Get(ctx, B, actA.ID, "en"); return err }},
+		{"templates.put on A's action", func() error {
+			_, err := f.s.Templates().Put(ctx, B, actA.ID, "en", map[string]any{"subject": "pwned"})
+			return err
+		}},
+		{"templates.delete", func() error { return f.s.Templates().Delete(ctx, B, actA.ID, "en") }},
 	}
 	for _, tt := range notFound {
 		t.Run(tt.name, func(t *testing.T) {
@@ -99,6 +129,16 @@ func TestTenantIsolation(t *testing.T) {
 			l, err := f.s.Memberships().List(ctx, B, store.Page{})
 			return countTenant(l, a.tenant.ID, func(x store.Membership) store.TenantID { return x.TenantID }), err
 		}},
+		{"workflows.list of A's app", func() (int, error) {
+			l, err := f.s.Workflows().List(ctx, B, a.app.ID, nil, store.Page{})
+			return len(l), err
+		}},
+		{"actions.list of A's workflow", func() (int, error) {
+			m, err := f.s.Actions().ListForWorkflows(ctx, B, []uuid.UUID{wfA.ID})
+			return len(m), err
+		}},
+		{"templates.list of A's action", func() (int, error) { l, err := f.s.Templates().List(ctx, B, actA.ID); return len(l), err }},
+		{"templates.count of A's action", func() (int, error) { return f.s.Templates().Count(ctx, B, actA.ID) }},
 		{"audit.list", func() (int, error) {
 			l, err := f.s.Audit().List(ctx, B, store.Page{})
 			n := 0
@@ -134,6 +174,15 @@ func TestTenantIsolation(t *testing.T) {
 	assert.Equal(t, store.RoleAdmin, m.Role)
 	_, err = f.s.Environments().Get(ctx, a.tenant.ID, a.env.ID)
 	require.NoError(t, err)
+	gotWF, err := f.s.Workflows().Get(ctx, a.tenant.ID, a.app.ID, wfA.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "A", gotWF.Name)
+	gotAct, err := f.s.Actions().Get(ctx, a.tenant.ID, wfA.ID, actA.ID)
+	require.NoError(t, err)
+	assert.True(t, gotAct.Enabled)
+	gotTpl, err := f.s.Templates().Get(ctx, a.tenant.ID, actA.ID, "en")
+	require.NoError(t, err)
+	assert.Equal(t, "A", gotTpl.Content["subject"])
 	for _, ss := range []store.SettingsStore{f.s.Brands(), f.s.Policies()} {
 		got, err := ss.Get(ctx, a.tenant.ID, nil)
 		require.NoError(t, err)

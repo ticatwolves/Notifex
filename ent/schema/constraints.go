@@ -15,7 +15,7 @@ type ForeignKey struct {
 }
 
 // tenantOwned lists tables whose tenant_id must reference tenants(id).
-var tenantOwned = []string{"memberships", "applications", "environments", "api_keys", "invitations", "brand_profiles", "policies"}
+var tenantOwned = []string{"memberships", "applications", "environments", "api_keys", "invitations", "brand_profiles", "policies", "workflows", "actions", "templates"}
 
 // ForeignKeys returns every foreign key in the core schema.
 func ForeignKeys() []ForeignKey {
@@ -52,6 +52,22 @@ func ForeignKeys() []ForeignKey {
 		ForeignKey{
 			Name: "policies_application_fk", Table: "policies",
 			Columns: []string{"tenant_id", "application_id"}, RefTable: "applications", RefColumns: []string{"tenant_id", "id"},
+			OnDelete: "CASCADE",
+		},
+		// Workflows block deleting their application (409, like environments);
+		// actions and templates go with their workflow.
+		ForeignKey{
+			Name: "workflows_application_fk", Table: "workflows",
+			Columns: []string{"tenant_id", "application_id"}, RefTable: "applications", RefColumns: []string{"tenant_id", "id"},
+		},
+		ForeignKey{
+			Name: "actions_workflow_fk", Table: "actions",
+			Columns: []string{"tenant_id", "workflow_id"}, RefTable: "workflows", RefColumns: []string{"tenant_id", "id"},
+			OnDelete: "CASCADE",
+		},
+		ForeignKey{
+			Name: "templates_action_fk", Table: "templates",
+			Columns: []string{"tenant_id", "action_id"}, RefTable: "actions", RefColumns: []string{"tenant_id", "id"},
 			OnDelete: "CASCADE",
 		},
 		ForeignKey{

@@ -79,3 +79,16 @@ Templates are stored per locale for each action. At send time: the recipient's e
 - **`aymerick/raymond`** (Handlebars for Go). It renders the whole output as one string with no step or size budget, supports helpers and partials we'd have to disable, and is largely unmaintained. Rejected.
 - **Go `text/template` / `html/template`** with a restricted FuncMap. Different syntax from what docs/03 promises, method calls on values are possible, and there's no step budget. Rejected.
 - **Running templates in a separate sandbox process or WASM.** Strong isolation, but heavy for the dispatcher hot path. An in-process interpreter with no function calls and hard budgets gives the same guarantees for this language. Rejected for now; revisit if helpers ever execute tenant code.
+
+## Amendment (2026-11-27, Phase 2 slice 4): workflows, templates and preview
+- **Invariants of an active workflow**, serialized by a row lock on the workflow (`SELECT … FOR UPDATE`) in every change to its status, actions or templates:
+  - activating needs at least one enabled action, and every enabled action needs a template;
+  - the last enabled action can't be disabled or deleted (archive instead);
+  - an action needs a template before it can be enabled, so a new action on an active workflow starts disabled;
+  - the last template of an enabled action can't be deleted.
+  All are `409 conflict` with an explanation. A concurrency test (four actions disabled at once, ten rounds) fails without the lock (mutation-checked).
+- **Templates are validated on save** with the renderer and per-channel field rules (`subject`/`html`/`text`/`layout` for email, `text` for SMS, `text`/`blocks` for Slack, `body` for webhook). Renderer problems are `400 template_invalid` with `details` (field, line, column).
+- **Payload schemas** are JSON Schema 2020-12 compiled with `santhosh-tekuri/jsonschema/v6`, at most 64 KiB, with a loader that refuses every external `$ref` (no remote fetch, no `file://` read). Request bodies are decoded with `UseNumber`, so payload numbers keep every digit.
+- **Preview** renders with the application's effective brand, validates the sample payload against the workflow's schema, and warns about `payload.*` paths the schema doesn't define (paths relative to `#each`/`#with` aren't checked). It is limited to 120 requests per minute per IP and has a 2-second render timeout on top of the step budget.
+- Workflows block deleting their application (`409`, like environments); actions and templates are deleted with their workflow.
+

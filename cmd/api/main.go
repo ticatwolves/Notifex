@@ -21,6 +21,7 @@ import (
 	"github.com/ticatwolves/notifex/internal/tenant"
 	grpctransport "github.com/ticatwolves/notifex/internal/transport/grpc"
 	httptransport "github.com/ticatwolves/notifex/internal/transport/http"
+	"github.com/ticatwolves/notifex/internal/workflow"
 )
 
 func main() { os.Exit(app.Main("api", build)) }
@@ -70,6 +71,7 @@ func build(ctx context.Context, rt *app.Runtime) ([]lifecycle.Component, error) 
 		Sessions:       auth.NewSessionAuthenticator(st, rt.Logger, auth.DefaultSessionPolicy),
 		OAuth:          oauth,
 		Tenants:        tenants,
+		Workflows:      workflow.NewService(st, tenants, rt.Logger),
 		Operators:      operator.NewService(st, keys, pw, rt.Logger, operator.DefaultPolicy),
 		TrustedProxies: rt.Config.TrustedProxies,
 	}), rt.Logger)

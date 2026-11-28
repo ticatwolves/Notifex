@@ -31,6 +31,9 @@ const (
 	Invitation   Kind = "inv"
 	Session      Kind = "ses"
 	AuditEvent   Kind = "evt"
+	Workflow     Kind = "wfl"
+	Action       Kind = "act"
+	Credential   Kind = "crd"
 )
 
 const encodedLen = 22

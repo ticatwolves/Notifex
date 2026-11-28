@@ -16,6 +16,8 @@ type Tx struct {
 	config
 	// APIKey is the client for interacting with the APIKey builders.
 	APIKey *APIKeyClient
+	// Action is the client for interacting with the Action builders.
+	Action *ActionClient
 	// Application is the client for interacting with the Application builders.
 	Application *ApplicationClient
 	// AuditEvent is the client for interacting with the AuditEvent builders.
@@ -42,12 +44,16 @@ type Tx struct {
 	SendingPolicy *SendingPolicyClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
+	// Template is the client for interacting with the Template builders.
+	Template *TemplateClient
 	// Tenant is the client for interacting with the Tenant builders.
 	Tenant *TenantClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserIdentity is the client for interacting with the UserIdentity builders.
 	UserIdentity *UserIdentityClient
+	// Workflow is the client for interacting with the Workflow builders.
+	Workflow *WorkflowClient
 
 	// lazily loaded.
 	client     *Client
@@ -180,6 +186,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.APIKey = NewAPIKeyClient(tx.config)
+	tx.Action = NewActionClient(tx.config)
 	tx.Application = NewApplicationClient(tx.config)
 	tx.AuditEvent = NewAuditEventClient(tx.config)
 	tx.AuthThrottle = NewAuthThrottleClient(tx.config)
@@ -193,9 +200,11 @@ func (tx *Tx) init() {
 	tx.OperatorSession = NewOperatorSessionClient(tx.config)
 	tx.SendingPolicy = NewSendingPolicyClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
+	tx.Template = NewTemplateClient(tx.config)
 	tx.Tenant = NewTenantClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.UserIdentity = NewUserIdentityClient(tx.config)
+	tx.Workflow = NewWorkflowClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

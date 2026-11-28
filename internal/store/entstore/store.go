@@ -73,6 +73,15 @@ func (s *Store) Brands() store.SettingsStore { return brands{s.client} }
 // Policies implements store.Store.
 func (s *Store) Policies() store.SettingsStore { return policies{s.client} }
 
+// Workflows implements store.Store.
+func (s *Store) Workflows() store.WorkflowStore { return workflows{s.client} }
+
+// Actions implements store.Store.
+func (s *Store) Actions() store.ActionStore { return actions{s.client} }
+
+// Templates implements store.Store.
+func (s *Store) Templates() store.TemplateStore { return templates{s.client} }
+
 // OperatorSessions implements store.Store.
 func (s *Store) OperatorSessions() store.OperatorSessionStore { return operatorSessions{s.client} }
 

@@ -15,6 +15,7 @@ require (
 	github.com/pb33f/libopenapi v0.44.0
 	github.com/pb33f/libopenapi-validator v0.16.5
 	github.com/prometheus/client_golang v1.25.0
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.45.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.72.0

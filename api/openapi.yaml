@@ -878,7 +878,7 @@ paths:
       operationId: deleteApplication
       tags: [applications]
       summary: Delete an application (admin, owner)
-      description: "`409 conflict` while it still has environments (delete them first)."
+      description: "`409 conflict` while it still has environments or workflows (delete them first)."
       security: [{ consoleSession: [] }]
       x-notifex-status: implemented
       x-notifex-phase: 1
@@ -1299,7 +1299,7 @@ paths:
       tags: [workflows]
       summary: List workflows (any member)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       parameters:
         - { name: status, in: query, description: Filter by status., schema: { $ref: "#/components/schemas/WorkflowStatus" } }
@@ -1321,7 +1321,7 @@ paths:
       summary: Create a workflow (developer, admin, owner)
       description: New workflows start as `draft`. A `payload_schema` must be a valid JSON Schema (2020-12, no remote `$ref`, at most 64 KiB).
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       requestBody:
         required: true
@@ -1351,7 +1351,7 @@ paths:
       tags: [workflows]
       summary: Get a workflow with its actions (any member)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "200":
@@ -1371,7 +1371,7 @@ paths:
         enabled action, and every enabled action needs at least one template; otherwise
         `400 validation_failed`. In-flight runs are unaffected (snapshot at accept).
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       requestBody:
         required: true
@@ -1396,7 +1396,7 @@ paths:
       summary: Delete a workflow with its actions and templates (developer, admin, owner)
       description: Runs already accepted keep their snapshot and are unaffected.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "204": { description: Deleted. }
@@ -1413,9 +1413,12 @@ paths:
       operationId: createAction
       tags: [workflows]
       summary: Add a channel action (developer, admin, owner)
-      description: One action per channel per workflow (`409 conflict` otherwise). Phase 2 channels are email, sms, slack and webhook.
+      description: |
+        One action per channel per workflow (`409 conflict` otherwise). Phase 2 channels are email,
+        sms, slack and webhook. On an active workflow a new action must be created with
+        `enabled: false` (`409`): add a template, then enable it.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       requestBody:
         required: true
@@ -1444,9 +1447,11 @@ paths:
       operationId: updateAction
       tags: [workflows]
       summary: Enable or disable an action (developer, admin, owner)
-      description: Disabling the last enabled action of an active workflow is `409 conflict` (archive the workflow instead).
+      description: |
+        On an active workflow, disabling the last enabled action is `409 conflict` (archive the
+        workflow instead), and enabling an action that has no template is `409`.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       requestBody:
         required: true
@@ -1471,7 +1476,7 @@ paths:
       summary: Delete an action and its templates (developer, admin, owner)
       description: Same rule as disabling for the last enabled action of an active workflow.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "204": { description: Deleted. }
@@ -1491,7 +1496,7 @@ paths:
       tags: [workflows]
       summary: List an action's templates, one per locale (any member)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "200":
@@ -1514,7 +1519,7 @@ paths:
       tags: [workflows]
       summary: Get the template for a locale (any member)
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "200":
@@ -1534,7 +1539,7 @@ paths:
         `400 validation_failed`. Syntax errors and channel limit violations are
         `400 template_invalid` with `details` (field, line, column).
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       requestBody:
         required: true
@@ -1559,7 +1564,7 @@ paths:
       summary: Delete the template for a locale (developer, admin, owner)
       description: Deleting the last template of an enabled action in an active workflow is `409 conflict`.
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       responses:
         "204": { description: Deleted. }
@@ -1581,7 +1586,7 @@ paths:
         Render failures (syntax, budgets, channel limits) are `400 template_invalid` with `details`.
         The console must show the HTML in a sandboxed iframe (docs/11).
       security: [{ consoleSession: [] }]
-      x-notifex-status: draft
+      x-notifex-status: implemented
       x-notifex-phase: 2
       requestBody:
         required: true

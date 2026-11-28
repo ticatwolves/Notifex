@@ -23,6 +23,8 @@ import (
 	"github.com/ticatwolves/notifex/internal/ratelimit"
 	"github.com/ticatwolves/notifex/internal/store"
 	"github.com/ticatwolves/notifex/internal/tenant"
+	"github.com/ticatwolves/notifex/internal/workflow"
+	"github.com/ticatwolves/notifex/internal/workflow/render"
 )
 
 // ConsoleAccounts is what the console routes need from internal/auth.
@@ -57,6 +59,7 @@ type Limits struct {
 	Login      *ratelimit.Limiter // login, reauth
 	Credential *ratelimit.Limiter // signup, forgot, reset, verify
 	APIKeyFail *ratelimit.Limiter // failed API-key authentications
+	Preview    *ratelimit.Limiter // template previews (CPU-bound renders)
 	// OperatorLogin is separate from console login (ADR-011 §5).
 	OperatorLogin *ratelimit.Limiter
 }
@@ -68,6 +71,7 @@ func DefaultLimits() Limits {
 		Credential:    ratelimit.New(10, 10, 100_000),
 		APIKeyFail:    ratelimit.New(20, 20, 100_000),
 		OperatorLogin: ratelimit.New(5, 5, 10_000),
+		Preview:       ratelimit.New(120, 30, 100_000),
 	}
 }
 
@@ -354,6 +358,7 @@ func rateLimited(c *gin.Context, code string, retry time.Duration) {
 func bindJSON(c *gin.Context, dst any) bool {
 	dec := json.NewDecoder(c.Request.Body)
 	dec.DisallowUnknownFields()
+	dec.UseNumber() // payloads and schemas keep exact numbers
 	if err := dec.Decode(dst); err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
@@ -434,6 +439,12 @@ func consoleError(c *gin.Context, err error) {
 		writeError(c, http.StatusConflict, "conflict", "already a member of this tenant")
 	case errors.Is(err, tenant.ErrInvalidToken):
 		writeError(c, http.StatusBadRequest, "invalid_token", "the invitation is invalid, expired or already used")
+	case errors.Is(err, render.ErrInvalid):
+		templateInvalid(c, err)
+	case errors.As(err, new(*workflow.RuleError)):
+		var re *workflow.RuleError
+		errors.As(err, &re)
+		writeError(c, http.StatusConflict, "conflict", re.Msg)
 	case errors.As(err, new(*tenant.FieldError)):
 		// Field-level messages are ours (never echo input values).
 		writeError(c, http.StatusBadRequest, "validation_failed", strings.ReplaceAll(err.Error(), "\n", "; "))
@@ -497,4 +508,31 @@ func meJSON(m auth.Me) gin.H {
 		}
 	}
 	return gin.H{"user": toUserJSON(m.User), "memberships": ms}
+}
+
+// templateInvalid reports renderer problems with their locations. Messages
+// come from the renderer and never contain payload values.
+func templateInvalid(c *gin.Context, err error) {
+	var es render.Errors
+	var one *render.Error
+	var list []*render.Error
+	switch {
+	case errors.As(err, &es):
+		list = es
+	case errors.As(err, &one):
+		list = []*render.Error{one}
+	}
+	details := make([]errorDetail2, 0, len(list))
+	for _, e := range list {
+		field := e.Field
+		if field == "" {
+			field = "template"
+		}
+		details = append(details, errorDetail2{Field: field, Line: e.Line, Column: e.Column, Message: e.Msg})
+	}
+	msg := "the template is invalid"
+	if len(details) > 0 {
+		msg = details[0].Field + ": " + details[0].Message
+	}
+	writeErrorDetails(c, http.StatusBadRequest, "template_invalid", msg, details)
 }

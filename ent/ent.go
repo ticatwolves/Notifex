@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/ticatwolves/notifex/ent/action"
 	"github.com/ticatwolves/notifex/ent/apikey"
 	"github.com/ticatwolves/notifex/ent/application"
 	"github.com/ticatwolves/notifex/ent/auditevent"
@@ -26,9 +27,11 @@ import (
 	"github.com/ticatwolves/notifex/ent/operatorsession"
 	"github.com/ticatwolves/notifex/ent/sendingpolicy"
 	"github.com/ticatwolves/notifex/ent/session"
+	"github.com/ticatwolves/notifex/ent/template"
 	"github.com/ticatwolves/notifex/ent/tenant"
 	"github.com/ticatwolves/notifex/ent/user"
 	"github.com/ticatwolves/notifex/ent/useridentity"
+	"github.com/ticatwolves/notifex/ent/workflow"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -90,6 +93,7 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			apikey.Table:          apikey.ValidColumn,
+			action.Table:          action.ValidColumn,
 			application.Table:     application.ValidColumn,
 			auditevent.Table:      auditevent.ValidColumn,
 			auththrottle.Table:    auththrottle.ValidColumn,
@@ -103,9 +107,11 @@ func checkColumn(t, c string) error {
 			operatorsession.Table: operatorsession.ValidColumn,
 			sendingpolicy.Table:   sendingpolicy.ValidColumn,
 			session.Table:         session.ValidColumn,
+			template.Table:        template.ValidColumn,
 			tenant.Table:          tenant.ValidColumn,
 			user.Table:            user.ValidColumn,
 			useridentity.Table:    useridentity.ValidColumn,
+			workflow.Table:        workflow.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

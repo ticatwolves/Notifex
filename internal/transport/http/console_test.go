@@ -31,6 +31,7 @@ import (
 	"github.com/ticatwolves/notifex/internal/store/entstore"
 	"github.com/ticatwolves/notifex/internal/store/storetest"
 	"github.com/ticatwolves/notifex/internal/tenant"
+	"github.com/ticatwolves/notifex/internal/workflow"
 )
 
 const (
@@ -80,6 +81,7 @@ func newConsoleEnvWith(t *testing.T, limits Limits, trusted []string, mk func(*a
 	ts.KeyHasher, err = auth.NewHasher(base64.StdEncoding.EncodeToString(pepper))
 	require.NoError(t, err)
 	deps.Tenants = ts
+	deps.Workflows = workflow.NewService(st, ts, log)
 	ops := operator.NewService(st, kp, auth.NewPasswordHasher(4), log, operator.DefaultPolicy)
 	deps.Operators = ops
 	h := NewRouter(deps)

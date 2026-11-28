@@ -8,6 +8,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/ticatwolves/notifex/ent"
+	"github.com/ticatwolves/notifex/ent/action"
 	"github.com/ticatwolves/notifex/ent/apikey"
 	"github.com/ticatwolves/notifex/ent/application"
 	"github.com/ticatwolves/notifex/ent/auditevent"
@@ -23,9 +24,11 @@ import (
 	"github.com/ticatwolves/notifex/ent/predicate"
 	"github.com/ticatwolves/notifex/ent/sendingpolicy"
 	"github.com/ticatwolves/notifex/ent/session"
+	"github.com/ticatwolves/notifex/ent/template"
 	"github.com/ticatwolves/notifex/ent/tenant"
 	"github.com/ticatwolves/notifex/ent/user"
 	"github.com/ticatwolves/notifex/ent/useridentity"
+	"github.com/ticatwolves/notifex/ent/workflow"
 )
 
 // The Query interface represents an operation that queries a graph.
@@ -109,6 +112,33 @@ func (f TraverseAPIKey) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.APIKeyQuery", q)
+}
+
+// The ActionFunc type is an adapter to allow the use of ordinary function as a Querier.
+type ActionFunc func(context.Context, *ent.ActionQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f ActionFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.ActionQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.ActionQuery", q)
+}
+
+// The TraverseAction type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseAction func(context.Context, *ent.ActionQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseAction) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseAction) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.ActionQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.ActionQuery", q)
 }
 
 // The ApplicationFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -462,6 +492,33 @@ func (f TraverseSession) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.SessionQuery", q)
 }
 
+// The TemplateFunc type is an adapter to allow the use of ordinary function as a Querier.
+type TemplateFunc func(context.Context, *ent.TemplateQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f TemplateFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.TemplateQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.TemplateQuery", q)
+}
+
+// The TraverseTemplate type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseTemplate func(context.Context, *ent.TemplateQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseTemplate) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseTemplate) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.TemplateQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.TemplateQuery", q)
+}
+
 // The TenantFunc type is an adapter to allow the use of ordinary function as a Querier.
 type TenantFunc func(context.Context, *ent.TenantQuery) (ent.Value, error)
 
@@ -543,11 +600,40 @@ func (f TraverseUserIdentity) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.UserIdentityQuery", q)
 }
 
+// The WorkflowFunc type is an adapter to allow the use of ordinary function as a Querier.
+type WorkflowFunc func(context.Context, *ent.WorkflowQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f WorkflowFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.WorkflowQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.WorkflowQuery", q)
+}
+
+// The TraverseWorkflow type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseWorkflow func(context.Context, *ent.WorkflowQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseWorkflow) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseWorkflow) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.WorkflowQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.WorkflowQuery", q)
+}
+
 // NewQuery returns the generic Query interface for the given typed query.
 func NewQuery(q ent.Query) (Query, error) {
 	switch q := q.(type) {
 	case *ent.APIKeyQuery:
 		return &query[*ent.APIKeyQuery, predicate.APIKey, apikey.OrderOption]{typ: ent.TypeAPIKey, tq: q}, nil
+	case *ent.ActionQuery:
+		return &query[*ent.ActionQuery, predicate.Action, action.OrderOption]{typ: ent.TypeAction, tq: q}, nil
 	case *ent.ApplicationQuery:
 		return &query[*ent.ApplicationQuery, predicate.Application, application.OrderOption]{typ: ent.TypeApplication, tq: q}, nil
 	case *ent.AuditEventQuery:
@@ -574,12 +660,16 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.SendingPolicyQuery, predicate.SendingPolicy, sendingpolicy.OrderOption]{typ: ent.TypeSendingPolicy, tq: q}, nil
 	case *ent.SessionQuery:
 		return &query[*ent.SessionQuery, predicate.Session, session.OrderOption]{typ: ent.TypeSession, tq: q}, nil
+	case *ent.TemplateQuery:
+		return &query[*ent.TemplateQuery, predicate.Template, template.OrderOption]{typ: ent.TypeTemplate, tq: q}, nil
 	case *ent.TenantQuery:
 		return &query[*ent.TenantQuery, predicate.Tenant, tenant.OrderOption]{typ: ent.TypeTenant, tq: q}, nil
 	case *ent.UserQuery:
 		return &query[*ent.UserQuery, predicate.User, user.OrderOption]{typ: ent.TypeUser, tq: q}, nil
 	case *ent.UserIdentityQuery:
 		return &query[*ent.UserIdentityQuery, predicate.UserIdentity, useridentity.OrderOption]{typ: ent.TypeUserIdentity, tq: q}, nil
+	case *ent.WorkflowQuery:
+		return &query[*ent.WorkflowQuery, predicate.Workflow, workflow.OrderOption]{typ: ent.TypeWorkflow, tq: q}, nil
 	default:
 		return nil, fmt.Errorf("unknown query type %T", q)
 	}

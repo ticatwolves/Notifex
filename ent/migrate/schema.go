@@ -38,6 +38,34 @@ var (
 			},
 		},
 	}
+	// ActionsColumns holds the columns for the "actions" table.
+	ActionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "workflow_id", Type: field.TypeUUID},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"email", "sms", "push", "slack", "outlook", "whatsapp", "webhook"}},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+	}
+	// ActionsTable holds the schema information for the "actions" table.
+	ActionsTable = &schema.Table{
+		Name:       "actions",
+		Columns:    ActionsColumns,
+		PrimaryKey: []*schema.Column{ActionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "action_tenant_id_workflow_id_channel",
+				Unique:  true,
+				Columns: []*schema.Column{ActionsColumns[1], ActionsColumns[4], ActionsColumns[5]},
+			},
+			{
+				Name:    "action_tenant_id_id",
+				Unique:  true,
+				Columns: []*schema.Column{ActionsColumns[1], ActionsColumns[0]},
+			},
+		},
+	}
 	// ApplicationsColumns holds the columns for the "applications" table.
 	ApplicationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -425,6 +453,29 @@ var (
 			},
 		},
 	}
+	// TemplatesColumns holds the columns for the "templates" table.
+	TemplatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "action_id", Type: field.TypeUUID},
+		{Name: "locale", Type: field.TypeString, Size: 16},
+		{Name: "content", Type: field.TypeJSON},
+	}
+	// TemplatesTable holds the schema information for the "templates" table.
+	TemplatesTable = &schema.Table{
+		Name:       "templates",
+		Columns:    TemplatesColumns,
+		PrimaryKey: []*schema.Column{TemplatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "template_tenant_id_action_id_locale",
+				Unique:  true,
+				Columns: []*schema.Column{TemplatesColumns[1], TemplatesColumns[4], TemplatesColumns[5]},
+			},
+		},
+	}
 	// TenantsColumns holds the columns for the "tenants" table.
 	TenantsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -492,9 +543,41 @@ var (
 			},
 		},
 	}
+	// WorkflowsColumns holds the columns for the "workflows" table.
+	WorkflowsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "tenant_id", Type: field.TypeUUID},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "application_id", Type: field.TypeUUID},
+		{Name: "key", Type: field.TypeString, Size: 63},
+		{Name: "name", Type: field.TypeString, Size: 200},
+		{Name: "description", Type: field.TypeString, Size: 2000, Default: ""},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "active", "archived"}, Default: "draft"},
+		{Name: "payload_schema", Type: field.TypeJSON, Nullable: true},
+	}
+	// WorkflowsTable holds the schema information for the "workflows" table.
+	WorkflowsTable = &schema.Table{
+		Name:       "workflows",
+		Columns:    WorkflowsColumns,
+		PrimaryKey: []*schema.Column{WorkflowsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "workflow_tenant_id_application_id_key",
+				Unique:  true,
+				Columns: []*schema.Column{WorkflowsColumns[1], WorkflowsColumns[4], WorkflowsColumns[5]},
+			},
+			{
+				Name:    "workflow_tenant_id_id",
+				Unique:  true,
+				Columns: []*schema.Column{WorkflowsColumns[1], WorkflowsColumns[0]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APIKeysTable,
+		ActionsTable,
 		ApplicationsTable,
 		AuditEventsTable,
 		AuthThrottlesTable,
@@ -508,9 +591,11 @@ var (
 		OperatorSessionsTable,
 		PoliciesTable,
 		SessionsTable,
+		TemplatesTable,
 		TenantsTable,
 		UsersTable,
 		UserIdentitiesTable,
+		WorkflowsTable,
 	}
 )
 
@@ -526,6 +611,10 @@ func init() {
 		"policies_doc_object":            "jsonb_typeof(doc) = 'object'",
 		"policies_retention_range":       "payload_retention_days IS NULL OR payload_retention_days BETWEEN 1 AND 7",
 		"policies_retention_tenant_only": "application_id IS NULL OR payload_retention_days IS NULL",
+	}
+	TemplatesTable.Annotation = &entsql.Annotation{}
+	TemplatesTable.Annotation.Checks = map[string]string{
+		"templates_content_object": "jsonb_typeof(content) = 'object'",
 	}
 	TenantsTable.Annotation = &entsql.Annotation{}
 	TenantsTable.Annotation.Checks = map[string]string{
