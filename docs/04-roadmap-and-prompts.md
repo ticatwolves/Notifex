@@ -33,6 +33,7 @@ Work in phases. Each phase ends with a demo-able, tested slice. Start every phas
 > **Prompt:** "Implement the sandboxed template renderer and the preview endpoint. Include brand variables, per-channel validation (SMS ≤ 3 segments, push size, Slack blocks), and fuzz tests for the renderer. Then plan the ChannelCredential model and resolution (env BYO → app BYO → tenant BYO → platform) per ADR-005; wait for approval before the schema."
 
 ## Phase 3 — Trigger and dispatch (the critical path)
+- **Plan approved 2026-11-28** (ADR-014). Slices: 1 contract + ADR-014 · 2 data model (partitioned notifications, config snapshots) · 3 trigger intake · 4 JobQueue, sqsqueue, outbox relay, scheduler · 5 dispatcher core · 6 channel adapters · 7 load smoke + docs.
 - Trigger intake (REST first): auth, idempotency, quota, credential resolution, **atomic platform-SMS daily reservation**, snapshot, encrypted payload, **single-transaction write of run + notifications + outbox / scheduled_dispatch**, fast-path publish.
 - `JobQueue` with `sqsqueue` and `inmem` impls; outbox relay and scheduled_dispatch mover in the scheduler (leader lease).
 - Dispatcher: per-channel SQS consumers, conditional claim with lease, visibility heartbeat, policy engine (defer/deny), jittered backoff via delay re-publish or scheduled_dispatch, retryable vs permanent classification, business dead-letter, poison DLQ.

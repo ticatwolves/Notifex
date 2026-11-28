@@ -19,13 +19,15 @@ All tenant-owned entities carry `tenant_id`, `created_at`, `updated_at`. Ids are
 | `Workflow` | tenant_id, application_id, key (stable slug, unique per application), name, description, payload_schema (JSON Schema 2020-12, optional, ≤ 64 KiB, no remote `$ref`), status (`draft/active/archived`). Exposure flags (MCP/Terraform, doc 12) are added with those features |
 | `Action` | tenant_id, workflow_id, channel (one action per channel per workflow), enabled. `conditions` are added when they are evaluated (not before Phase 3) |
 | `Template` | tenant_id, action_id, locale (unique per action), content by channel: email subject/html/text/layout, sms text, slack text/blocks, webhook body (ADR-012) |
-| `Run` | tenant_id, application_id, environment, workflow_key, snapshot (JSONB: workflow, templates, brand, policy, credential refs), `payload` 🔒⏳, context (JSONB), idempotency_key, source, actor, status, schedule_at |
+| `ConfigSnapshot` | tenant_id, hash (SHA-256 of canonical JSON), doc (JSONB: workflow, enabled actions, all their templates, effective brand and policy, resolved credential refs), created_at. PK (tenant_id, hash); immutable, deduplicated, deleted when no run references it (ADR-014 §2) |
+| `Run` | tenant_id, application_id, environment, workflow_key, snapshot_hash → `config_snapshots`, `payload` 🔒⏳, context (JSONB), idempotency_key, source, actor, status, schedule_at |
 | `Notification` | tenant_id, run_id, channel, `recipient` 🔒⏳, recipient_masked, recipient_hash (keyed HMAC), status, attempt, `lease_until`, last_error_code, last_error (redacted), vendor_message_id, `credential_id`, `credential_mode`, `billing_basis` (`delivered/sent`), `rendered_content` 🔒⏳, `vendor_response` 🔒⏳, terminal_at, purged_at. **Partitioned daily on created_at.** |
 | `NotificationEvent` | tenant_id, notification_id, type, at, detail (redacted) — the timeline. Partitioned daily. |
 | `DispatchOutbox` | id (bigserial), tenant_id, notification_id, channel, delay_s (≤ 900), attempt, created_at, published_at |
 | `ScheduledDispatch` | tenant_id, notification_id, due_at, reason (`scheduled/deferred/backoff`), attempt |
 | `PlatformSmsUsage` | tenant_id, day (UTC date), count — PK (tenant_id, day) |
-| `IdempotencyRecord` | tenant_id, key, request_hash, run_id, expires_at |
+| `IdempotencyRecord` | tenant_id, key, request_hash, run_id, expires_at (24 h); written in the accept transaction (ADR-014 §3) |
+| `SchedulerLease` | name, holder, expires_at: one scheduler leader at a time (ADR-014 §7) |
 | `AuditEvent` | tenant_id?, actor_type, actor_id, action, entity_type, entity_id, before/after (redacted), request_id, created_at |
 | `UsageRecord` | tenant_id, `notification_id` (UNIQUE), channel, credential_mode, billing_basis, country, billable_at, unit_price_ref |
 | `UsageDaily` | tenant_id, day, channel, credential_mode, country, count |
@@ -89,7 +91,8 @@ Response `202`:
 ```
 - `channels` (optional) narrows the workflow's configured actions; it can never add channels the workflow lacks.
 - `schedule_at` must be ≤ now + 7 days.
-- Per-action rejections (credential missing, daily SMS limit, channel disallowed) are reported **per notification** in a `202`; the request fails as a whole only if *no* notification can be accepted.
+- Per-notification rejections (`channel_not_allowed`, `recipient_missing`, `template_missing`, `credential_unavailable`, `platform_sms_daily_limit`) are reported **per notification** in a `202`. A valid request is always `202`; if nothing was accepted, the run's status is `failed` (ADR-014 §3).
+- `Idempotency-Key` is optional and kept 24 h. The workflow must be `active` (`409 workflow_not_active` otherwise). A past `schedule_at` means now.
 
 ### Error codes
 | HTTP | code | Meaning |

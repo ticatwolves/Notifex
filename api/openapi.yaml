@@ -125,11 +125,19 @@ paths:
       summary: Trigger a workflow
       description: |
         Accepts the trigger and returns `202` with one notification per
-        (action × recipient). Per-action rejections (credential unavailable,
-        daily SMS limit, channel not allowed) are reported per notification;
-        the request fails as a whole only if no notification can be accepted.
-        Retrying with the same `Idempotency-Key` and body returns the original
-        run; a different body returns `409 idempotency_conflict`.
+        (action × recipient). Each notification is decided independently
+        (ADR-014 §3): `channel_not_allowed`, `recipient_missing`,
+        `template_missing`, `credential_unavailable` and
+        `platform_sms_daily_limit` (with `retry_after`) are reported per
+        notification. A valid request is always `202`; if nothing was accepted
+        the run's status is `failed`.
+
+        The workflow must be `active` (`404 workflow_not_found`,
+        `409 workflow_not_active`). `channels` can only narrow the workflow's
+        channels (`400` otherwise). A past `schedule_at` means now; more than
+        7 days ahead is `400 schedule_horizon_exceeded`. Retrying with the same
+        `Idempotency-Key` and body returns the original run; a different body
+        returns `409 idempotency_conflict`.
       x-notifex-status: draft
       x-notifex-phase: 3
       parameters:
@@ -223,7 +231,7 @@ paths:
       tags: [runs]
       summary: Get a notification and its timeline
       x-notifex-status: draft
-      x-notifex-phase: 5
+      x-notifex-phase: 3
       parameters:
         - $ref: "#/components/parameters/NotificationID"
       responses:
@@ -1925,9 +1933,9 @@ components:
     IdempotencyKey:
       name: Idempotency-Key
       in: header
-      required: true
-      description: Unique per logical trigger (UUID recommended); reuse it on retries.
-      schema: { type: string, minLength: 8, maxLength: 128 }
+      required: false
+      description: "Optional. Unique per logical trigger (UUID recommended); reuse it on retries. Kept 24 h. The SDKs always send one (ADR-014 §3)."
+      schema: { type: string, minLength: 8, maxLength: 128, pattern: "^[A-Za-z0-9_.:-]+$" }
     Limit:
       name: limit
       in: query
@@ -2047,7 +2055,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: "`idempotency_conflict` (same Idempotency-Key, different body), `conflict` (duplicate slug/key/email, last owner, still referenced), or `link_required` (OAuth email belongs to an account that must log in to link)."
+      description: "`idempotency_conflict` (same Idempotency-Key, different body), `workflow_not_active` (draft or archived workflow), `conflict` (duplicate slug/key/email, last owner, still referenced), or `link_required` (OAuth email belongs to an account that must log in to link)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -2133,6 +2141,9 @@ components:
         - channel_not_allowed
         - not_found
         - workflow_not_found
+        - workflow_not_active
+        - recipient_missing
+        - template_missing
         - method_not_allowed
         - idempotency_conflict
         - payload_expired
@@ -2215,7 +2226,7 @@ components:
         channel: { $ref: "#/components/schemas/Channel" }
         recipient_ref: { type: string }
         status: { $ref: "#/components/schemas/NotificationStatus" }
-        error: { $ref: "#/components/schemas/ErrorDetail" }
+        error: { $ref: "#/components/schemas/ErrorDetail", description: "Why this notification was not accepted (per-notification codes, ADR-014 §3)." }
 
     TriggerResponse:
       type: object
@@ -2255,10 +2266,13 @@ components:
     Notification:
       type: object
       additionalProperties: false
-      required: [id, run_id, channel, status, recipient_masked, attempt, payload_expired, events]
+      required: [id, run_id, channel, status, recipient_masked, attempt, payload_expired, created_at, events]
       properties:
         id: { $ref: "#/components/schemas/NotificationID" }
         run_id: { $ref: "#/components/schemas/RunID" }
+        recipient_ref: { type: string, description: "The recipient's `id` from the trigger, if given." }
+        created_at: { type: string, format: date-time }
+        terminal_at: { type: [string, "null"], format: date-time, description: When it reached a terminal status. }
         channel: { $ref: "#/components/schemas/Channel" }
         status: { $ref: "#/components/schemas/NotificationStatus" }
         recipient_masked: { type: string, examples: ["a***@e***.com"] }
